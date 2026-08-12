@@ -1,0 +1,632 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "records-table",
+  "type": "registry:component",
+  "title": "Records Table",
+  "description": "Compact CRM grid: sticky first column, tags, selection, sorting, and footer calculations.",
+  "files": [
+    {
+      "path": "components/records-table.tsx",
+      "type": "registry:component",
+      "target": "components/records-table.tsx",
+      "content": "\"use client\";\n\nimport { useMemo, useState } from \"react\";\n\n/* ─────────────────────────────────────────────────────────\n * RECORDS TABLE — a compact CRM grid with the details that\n * make a wide table feel usable: explicit grid lines, a\n * restrained tag palette, a sticky first column, real links,\n * selection, sorting, import/export actions, and calculations.\n * ───────────────────────────────────────────────────────── */\n\ntype Strength = \"strong\" | \"weak\" | \"veryweak\" | \"none\";\ntype SortKey = \"name\" | \"last\" | \"strength\";\n\nconst STRENGTH: Record<Strength, { label: string; color: string; rank: number }> = {\n  strong: { label: \"Very strong\", color: \"var(--green)\", rank: 3 },\n  weak: { label: \"Weak\", color: \"var(--orange)\", rank: 2 },\n  veryweak: { label: \"Very weak\", color: \"var(--red)\", rank: 1 },\n  none: { label: \"No communication\", color: \"var(--ink-3)\", rank: 0 },\n};\n\nconst TAG_COLORS: Record<string, string> = {\n  B2B: \"#f09a2f\",\n  B2C: \"#92b72d\",\n  Cafe: \"#ee6572\",\n  Catering: \"#c84f9d\",\n  \"Dairy-free\": \"#16a6c7\",\n  Gelato: \"#9a5cff\",\n  Imports: \"#3f78ff\",\n  Local: \"#25a878\",\n  Seasonal: \"#f09a2f\",\n  Sorbet: \"#16a6c7\",\n  Vegan: \"#92b72d\",\n  Wholesale: \"#3f78ff\",\n};\n\ntype Row = {\n  id: string;\n  name: string;\n  tags: string[];\n  last: string;\n  strength: Strength;\n  website?: string;\n};\n\nconst INITIAL_ROWS: Row[] = [\n  { id: \"aurora\", name: \"Aurora Scoops — Reykjavík\", tags: [\"Gelato\", \"Seasonal\"], last: \"9 days ago\", strength: \"strong\", website: \"aurora-scoops.example.com\" },\n  { id: \"kumo\", name: \"Kumo Creamery — Tokyo\", tags: [\"B2C\", \"Cafe\", \"Vegan\"], last: \"3 weeks ago\", strength: \"strong\", website: \"kumo-creamery.example.com\" },\n  { id: \"sol-nieve\", name: \"Sol y Nieve — Buenos Aires\", tags: [\"Gelato\", \"Local\"], last: \"2 months ago\", strength: \"weak\", website: \"sol-y-nieve.example.com\" },\n  { id: \"maple-orbit\", name: \"Maple Orbit — Montréal\", tags: [\"B2B\", \"Wholesale\", \"Seasonal\"], last: \"15 days ago\", strength: \"weak\", website: \"maple-orbit.example.com\" },\n  { id: \"blue-fig\", name: \"Blue Fig Gelato — Florence\", tags: [\"Gelato\", \"Cafe\"], last: \"over 1 year ago\", strength: \"veryweak\", website: \"blue-fig.example.com\" },\n  { id: \"sahara-swirl\", name: \"Sahara Swirl — Marrakech\", tags: [\"Sorbet\", \"Local\"], last: \"5 months ago\", strength: \"veryweak\" },\n  { id: \"cloudberry\", name: \"Cloudberry Cone — Helsinki\", tags: [\"Dairy-free\", \"Seasonal\"], last: \"No contact\", strength: \"none\", website: \"cloudberry-cone.example.com\" },\n  { id: \"palm-sugar\", name: \"Palm Sugar Creamery — Bangkok\", tags: [\"B2C\", \"Vegan\"], last: \"3 months ago\", strength: \"veryweak\", website: \"palm-sugar.example.com\" },\n  { id: \"cape-vanilla\", name: \"Cape Vanilla Co. — Cape Town\", tags: [\"Wholesale\", \"Imports\"], last: \"over 1 year ago\", strength: \"veryweak\", website: \"cape-vanilla.example.com\" },\n  { id: \"andes-snow\", name: \"Andes Snow Creamery — Quito\", tags: [\"Gelato\", \"Catering\"], last: \"almost 2 years ago\", strength: \"veryweak\" },\n  { id: \"tasman-sea\", name: \"Tasman Sea Gelato — Hobart\", tags: [\"Gelato\", \"Local\"], last: \"2 months ago\", strength: \"weak\", website: \"tasman-sea.example.com\" },\n  { id: \"silk-road\", name: \"Silk Road Sorbet — Tbilisi\", tags: [\"Sorbet\", \"Imports\"], last: \"about 1 month ago\", strength: \"weak\", website: \"silk-road.example.com\" },\n  { id: \"rosewater\", name: \"Rosewater Kulfi — Jaipur\", tags: [\"B2C\", \"Seasonal\"], last: \"2 months ago\", strength: \"veryweak\" },\n  { id: \"lumen\", name: \"Lumen Soft Serve — Copenhagen\", tags: [\"Dairy-free\", \"Cafe\"], last: \"8 months ago\", strength: \"weak\", website: \"lumen-soft-serve.example.com\" },\n  { id: \"cacao-norte\", name: \"Cacao Norte — Oaxaca\", tags: [\"B2B\", \"Local\", \"Wholesale\"], last: \"about 2 years ago\", strength: \"none\", website: \"cacao-norte.example.com\" },\n  { id: \"pine-pistachio\", name: \"Pine & Pistachio — Istanbul\", tags: [\"Gelato\", \"Catering\"], last: \"about 1 month ago\", strength: \"veryweak\" },\n  { id: \"ember-cone\", name: \"Ember Cone Company — Seoul\", tags: [\"B2C\", \"Vegan\"], last: \"15 days ago\", strength: \"weak\", website: \"ember-cone.example.com\" },\n  { id: \"coral-coast\", name: \"Coral Coast Sorbet — Honolulu\", tags: [\"Sorbet\", \"Local\"], last: \"9 days ago\", strength: \"strong\", website: \"coral-coast.example.com\" },\n  { id: \"sunbird\", name: \"Sunbird Gelateria — Lisbon\", tags: [\"Gelato\", \"Cafe\"], last: \"over 2 years ago\", strength: \"none\", website: \"sunbird.example.com\" },\n  { id: \"mooncake\", name: \"Mooncake Ice Cream — Singapore\", tags: [\"B2B\", \"Wholesale\"], last: \"about 1 month ago\", strength: \"veryweak\", website: \"mooncake-ice-cream.example.com\" },\n  { id: \"juniper\", name: \"Juniper & Cream — Vancouver\", tags: [\"Dairy-free\", \"Catering\"], last: \"No contact\", strength: \"none\" },\n  { id: \"mango-moon\", name: \"Mango Moon Gelato — Nairobi\", tags: [\"Sorbet\", \"Vegan\"], last: \"almost 2 years ago\", strength: \"veryweak\", website: \"mango-moon.example.com\" },\n  { id: \"fjord-fizz\", name: \"Fjord Fizz Ice — Oslo\", tags: [\"Dairy-free\", \"Seasonal\"], last: \"No contact\", strength: \"none\" },\n  { id: \"pampa\", name: \"Pampa Creamery — Córdoba\", tags: [\"B2C\", \"Local\"], last: \"12 months ago\", strength: \"veryweak\", website: \"pampa-creamery.example.com\" },\n  { id: \"lotus-leaf\", name: \"Lotus Leaf Scoops — Hanoi\", tags: [\"Vegan\", \"Cafe\"], last: \"15 days ago\", strength: \"weak\" },\n  { id: \"saffron-sky\", name: \"Saffron Sky Kulfi — Dubai\", tags: [\"Imports\", \"Catering\"], last: \"almost 2 years ago\", strength: \"veryweak\", website: \"saffron-sky.example.com\" },\n];\n\nfunction Icon({ children, size = 14, strokeWidth = 1.8 }: { children: React.ReactNode; size?: number; strokeWidth?: number }) {\n  return (\n    <svg width={size} height={size} viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth={strokeWidth} strokeLinecap=\"round\" strokeLinejoin=\"round\" aria-hidden=\"true\">\n      {children}\n    </svg>\n  );\n}\n\nfunction Checkbox({ checked, mixed = false, onChange, label }: { checked: boolean; mixed?: boolean; onChange: () => void; label: string }) {\n  return (\n    <label className=\"records-checkbox\" title={label}>\n      <input type=\"checkbox\" checked={checked} onChange={onChange} aria-label={label} />\n      <span className={`records-checkbox-box ${checked || mixed ? \"is-active\" : \"\"}`}>\n        {mixed ? <span className=\"records-checkbox-dash\" /> : checked ? <Icon size={12}><path d=\"m5 12 4 4L19 6\" /></Icon> : null}\n      </span>\n    </label>\n  );\n}\n\nfunction Tag({ name }: { name: string }) {\n  const color = TAG_COLORS[name] ?? \"#7f858d\";\n  return (\n    <span className=\"records-tag\" style={{ \"--tag-color\": color } as React.CSSProperties}>\n      <span className=\"records-tag-dot\" style={{ background: color }} />\n      {name}\n    </span>\n  );\n}\n\nfunction HeaderCell({ label, icon, sortKey, sort, onSort, className = \"\" }: { label: string; icon: React.ReactNode; sortKey?: SortKey; sort: { key: SortKey; dir: 1 | -1 }; onSort: (key: SortKey) => void; className?: string }) {\n  return (\n    <th className={`records-header-cell ${className}`}>\n      <button type=\"button\" className=\"records-header-button\" onClick={sortKey ? () => onSort(sortKey) : undefined}>\n        <span className=\"records-header-icon\">{icon}</span>\n        <span className=\"truncate\">{label}</span>\n        {sortKey && <span className={`records-sort ${sort.key === sortKey ? \"is-visible\" : \"\"}`} style={{ transform: sort.key === sortKey && sort.dir === -1 ? \"rotate(180deg)\" : undefined }}><Icon size={12}><path d=\"M12 5v14M5 12l7 7 7-7\" /></Icon></span>}\n      </button>\n    </th>\n  );\n}\n\nexport default function RecordsTable() {\n  const rows = INITIAL_ROWS;\n  const [selected, setSelected] = useState<Set<string>>(new Set());\n  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: \"name\", dir: 1 });\n\n  const visibleRows = useMemo(() => {\n    return [...rows].sort((a, b) => {\n      const value = sort.key === \"name\"\n        ? a.name.localeCompare(b.name)\n        : sort.key === \"last\"\n          ? a.last.localeCompare(b.last)\n          : STRENGTH[a.strength].rank - STRENGTH[b.strength].rank;\n      return value * sort.dir;\n    });\n  }, [sort]);\n\n  const allSelected = visibleRows.length > 0 && visibleRows.every((row) => selected.has(row.id));\n  const partiallySelected = !allSelected && visibleRows.some((row) => selected.has(row.id));\n\n  const toggleSort = (key: SortKey) => setSort((current) => current.key === key ? { key, dir: (current.dir * -1) as 1 | -1 } : { key, dir: 1 });\n  const toggleRow = (id: string) => setSelected((current) => {\n    const next = new Set(current);\n    next.has(id) ? next.delete(id) : next.add(id);\n    return next;\n  });\n  const toggleAll = () => setSelected((current) => {\n    const next = new Set(current);\n    if (allSelected) visibleRows.forEach((row) => next.delete(row.id));\n    else visibleRows.forEach((row) => next.add(row.id));\n    return next;\n  });\n\n  return (\n    <div className=\"records-shell\">\n      <div className=\"records-scroll\" tabIndex={0} aria-label=\"Companies table. Scroll horizontally and vertically to view all columns and records.\">\n        <table className=\"records-table\">\n          <colgroup><col className=\"records-company-col\" /><col className=\"records-category-col\" /><col className=\"records-last-col\" /><col className=\"records-strength-col\" /><col className=\"records-link-col\" /></colgroup>\n          <thead>\n            <tr>\n              <th className=\"records-header-cell records-sticky-cell\"><div className=\"records-company-header\"><Checkbox checked={allSelected} mixed={partiallySelected} onChange={toggleAll} label=\"Select all companies\" /><span>Company</span></div></th>\n              <HeaderCell label=\"Categories\" sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d=\"m20.6 13.4-8.6 8.6-8-8V4h10l6.6 6.6a2 2 0 0 1 0 2.8zM7 7h.01\" /></Icon>} />\n              <HeaderCell label=\"Last interaction\" sortKey=\"last\" sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d=\"M3 5h18M3 12h12M3 19h7M18 15v6m-3-3h6\" /></Icon>} />\n              <HeaderCell label=\"Connection strength\" sortKey=\"strength\" sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d=\"M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.9z\" /></Icon>} />\n              <HeaderCell label=\"Links\" sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d=\"M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1\" /></Icon>} />\n            </tr>\n          </thead>\n          <tbody>\n            {visibleRows.map((row) => {\n              const selectedRow = selected.has(row.id);\n              const strength = STRENGTH[row.strength];\n              return <tr key={row.id} className={`records-row ${selectedRow ? \"is-selected\" : \"\"}`}>\n                <td className=\"records-cell records-sticky-cell records-company-cell\"><Checkbox checked={selectedRow} onChange={() => toggleRow(row.id)} label={`Select ${row.name}`} /><span className=\"records-company-mark\">{row.name.slice(0, 1).toUpperCase()}</span><a href={row.website ? `https://${row.website}` : \"#\"} onClick={(event) => !row.website && event.preventDefault()} className={`records-company-name ${row.website ? \"has-link\" : \"\"}`}>{row.name}</a></td>\n                <td className=\"records-cell\"><div className=\"records-tags\">{row.tags.slice(0, 4).map((tag) => <Tag key={tag} name={tag} />)}{row.tags.length > 4 ? <span className=\"records-more-tag\">+{row.tags.length - 4}</span> : null}</div></td>\n                <td className={`records-cell ${row.last === \"No contact\" ? \"records-muted\" : \"\"}`}>{row.last}</td>\n                <td className=\"records-cell\"><span className=\"records-strength\"><span className=\"records-strength-dot\" style={{ background: strength.color }} />{strength.label}</span></td>\n                <td className=\"records-cell\">{row.website ? <a className=\"records-link\" href={`https://${row.website}`} target=\"_blank\" rel=\"noreferrer\">{row.website}<Icon size={12}><path d=\"M14 5h5v5M19 5l-8 8\" /></Icon></a> : <span className=\"records-muted\">—</span>}</td>\n              </tr>;\n            })}\n          </tbody>\n          <tfoot>\n            <tr className=\"records-calculation-row\"><td className=\"records-cell records-sticky-cell records-calculation-label\"><span className=\"records-calculation-number\">{rows.length}</span> count</td><td className=\"records-cell\"><button type=\"button\" className=\"records-add-calculation\"><Icon size={14}><path d=\"M12 5v14M5 12h14\" /></Icon>Add calculation</button></td><td className=\"records-cell records-muted\">—</td><td className=\"records-cell\"><span className=\"records-average\"><span className=\"records-strength-dot\" style={{ background: \"var(--orange)\" }} />{Math.round(rows.reduce((sum, row) => sum + STRENGTH[row.strength].rank, 0) / rows.length / 3 * 100)}% average</span></td><td className=\"records-cell\"><span className=\"records-muted\">{rows.filter((row) => row.website).length} links</span></td></tr>\n          </tfoot>\n        </table>\n      </div>\n    </div>\n  );\n}\n"
+    }
+  ],
+  "cssVars": {
+    "theme": {
+      "color-page": "var(--page)",
+      "color-canvas": "var(--canvas)",
+      "color-surface": "var(--surface)",
+      "color-inset": "var(--inset)",
+      "color-hover": "var(--hover)",
+      "color-hover-2": "var(--hover-2)",
+      "color-ink": "var(--ink)",
+      "color-ink-2": "var(--ink-2)",
+      "color-ink-3": "var(--ink-3)",
+      "color-line": "var(--line)",
+      "color-line-strong": "var(--line-strong)",
+      "color-field": "var(--field)",
+      "color-stripe": "var(--stripe)",
+      "color-stripe-bg": "var(--stripe-bg)",
+      "color-accent": "var(--accent)",
+      "color-accent-ink": "var(--accent-ink)",
+      "color-accent-tint": "var(--accent-tint)",
+      "color-green": "var(--green)",
+      "color-green-tint": "var(--green-tint)",
+      "color-orange": "var(--orange)",
+      "color-orange-tint": "var(--orange-tint)",
+      "color-red": "var(--red)",
+      "color-red-tint": "var(--red-tint)",
+      "color-tooltip-bg": "var(--tooltip-bg)",
+      "color-tooltip-fg": "var(--tooltip-fg)",
+      "color-tooltip-muted": "var(--tooltip-muted)",
+      "color-tooltip-border": "var(--tooltip-border)",
+      "shadow-hairline": "var(--shadow-hairline)",
+      "shadow-btn": "var(--shadow-btn)",
+      "shadow-card": "var(--shadow-card)",
+      "shadow-raised": "var(--shadow-raised)",
+      "shadow-overlay": "var(--shadow-overlay)",
+      "shadow-inset-field": "var(--shadow-inset-field)",
+      "radius-chip": "6px",
+      "radius-control": "8px",
+      "radius-card": "10px",
+      "ease-out-strong": "cubic-bezier(0.23, 1, 0.32, 1)",
+      "ease-link": "cubic-bezier(0.16, 1, 0.3, 1)"
+    },
+    "light": {
+      "page": "#fafafb",
+      "canvas": "#f1f2f3",
+      "surface": "#ffffff",
+      "inset": "#f7f8f9",
+      "hover": "#f4f5f6",
+      "hover-2": "#e7e9eb",
+      "ink": "#1f2124",
+      "ink-2": "#62656b",
+      "ink-3": "#9a9da3",
+      "line": "#ecedef",
+      "line-strong": "#e0e2e5",
+      "field": "#f2f2f3",
+      "stripe": "#49494913",
+      "stripe-bg": "#f5f5f5",
+      "accent": "#0285ff",
+      "accent-ink": "#0170dd",
+      "accent-tint": "#e9f3ff",
+      "green": "#189a4d",
+      "green-tint": "#e8f5ed",
+      "orange": "#ef720c",
+      "orange-tint": "#fdf1e5",
+      "red": "#e3474c",
+      "red-tint": "#fcecec",
+      "tooltip-bg": "#25272b",
+      "tooltip-fg": "#f6f7f8",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#3a3c40",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #1018280d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #1018280a, 0 2px 6px #10182808",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #0000000b",
+      "shadow-overlay": "0 0 0 1px var(--line), 0 8px 28px #0001",
+      "shadow-inset-field": "inset 0 1px 2px #0000001f"
+    },
+    "dark": {
+      "page": "#17181a",
+      "canvas": "#1c1d1f",
+      "surface": "#232427",
+      "inset": "#1f2022",
+      "hover": "#2a2b2e",
+      "hover-2": "#313236",
+      "ink": "#f2f3f4",
+      "ink-2": "#a5a8ad",
+      "ink-3": "#6c6f75",
+      "line": "#2e3033",
+      "line-strong": "#3a3c40",
+      "field": "#2b2c2f",
+      "stripe": "#ffffff0e",
+      "stripe-bg": "#1b1c1e",
+      "accent": "#3d9aff",
+      "accent-ink": "#7ec0ff",
+      "accent-tint": "#3d9aff29",
+      "green": "#3dbb72",
+      "green-tint": "#3dbb7224",
+      "orange": "#f68f3c",
+      "orange-tint": "#f68f3c24",
+      "red": "#ee5c61",
+      "red-tint": "#ee5c6124",
+      "tooltip-bg": "#111214",
+      "tooltip-fg": "#f2f3f4",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#2e3033",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #0000004d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #0003, 0 2px 6px #0003",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #00000038",
+      "shadow-overlay": "0 0 0 1px var(--line-strong), 0 8px 28px #00000057",
+      "shadow-inset-field": "inset 0 1px 2px #0006"
+    }
+  },
+  "css": {
+    "@keyframes pop-in": {
+      "0%": {
+        "opacity": "0",
+        "transform": "scale(.95)"
+      },
+      "to": {
+        "opacity": "1",
+        "transform": "scale(1)"
+      }
+    },
+    "@layer components": {
+      ".records-shell": {
+        "border": "1px solid var(--line)",
+        "background": "var(--surface)",
+        "border-radius": "10px",
+        "width": "100%",
+        "min-width": "0",
+        "overflow": "hidden",
+        "box-shadow": "0 1px 2px #0000000f"
+      },
+      ".records-toolbar": {
+        "border-bottom": "1px solid var(--line-strong)",
+        "background": "var(--surface)",
+        "justify-content": "space-between",
+        "align-items": "center",
+        "gap": "12px",
+        "min-height": "52px",
+        "padding": "8px 10px",
+        "display": "flex"
+      },
+      ".records-add-calculation,.records-company-header,.records-link,.records-primary-button,.records-quiet-button,.records-secondary-button,.records-select-button,.records-strength,.records-toolbar-left,.records-toolbar-right": {
+        "align-items": "center",
+        "display": "inline-flex"
+      },
+      ".records-toolbar-left,.records-toolbar-right": {
+        "gap": "4px"
+      },
+      ".records-toolbar-right": {
+        "flex-shrink": "0"
+      },
+      ".records-primary-button,.records-quiet-button,.records-secondary-button,.records-select-button": {
+        "border-radius": "var(--radius-control)",
+        "white-space": "nowrap",
+        "height": "32px",
+        "transition": "background-color .14s var(--ease-out-strong),color .14s var(--ease-out-strong),transform .14s var(--ease-out-strong),box-shadow .14s var(--ease-out-strong)",
+        "gap": "7px",
+        "padding": "0 10px",
+        "font-size": "12px",
+        "font-weight": "550"
+      },
+      ".records-select-button": {
+        "color": "var(--ink)",
+        "border": "1px solid var(--line)",
+        "background": "var(--surface)",
+        "gap": "8px"
+      },
+      ".records-quiet-button:hover,.records-secondary-button:hover,.records-select-button:hover": {
+        "background": "var(--hover)",
+        "color": "var(--ink)"
+      },
+      ".records-quiet-button": {
+        "color": "var(--ink-2)"
+      },
+      ".records-quiet-button.is-active": {
+        "background": "var(--accent-tint)",
+        "color": "var(--accent-ink)"
+      },
+      ".records-secondary-button": {
+        "border": "1px solid var(--tooltip-border)",
+        "color": "var(--ink-2)",
+        "box-shadow": "none"
+      },
+      ".records-primary-button": {
+        "background": "var(--accent)",
+        "color": "#fff",
+        "box-shadow": "none",
+        "margin-left": "3px"
+      },
+      ".records-primary-button:hover": {
+        "filter": "saturate(.9)brightness(1.04)"
+      },
+      ".records-add-calculation:active,.records-primary-button:active,.records-quiet-button:active,.records-secondary-button:active,.records-select-button:active": {
+        "transform": "scale(.96)"
+      },
+      ".records-database-icon": {
+        "color": "var(--green)",
+        "display": "inline-flex"
+      },
+      ".records-filter-wrap": {
+        "position": "relative"
+      },
+      ".records-filter-dot": {
+        "background": "var(--accent)",
+        "border-radius": "99px",
+        "width": "5px",
+        "height": "5px",
+        "margin-left": "-2px"
+      },
+      ".records-filter-menu": {
+        "z-index": "30",
+        "border": "1px solid var(--line-strong)",
+        "border-radius": "var(--radius-card)",
+        "background": "var(--surface)",
+        "width": "190px",
+        "box-shadow": "var(--shadow-overlay)",
+        "animation": "pop-in .16s var(--ease-out-strong) both",
+        "transform-origin": "0 0",
+        "padding": "6px",
+        "position": "absolute",
+        "top": "calc(100% + 7px)",
+        "left": "0"
+      },
+      ".records-sort-menu": {
+        "left": "-48px"
+      },
+      ".records-filter-label": {
+        "color": "var(--ink-3)",
+        "letter-spacing": ".04em",
+        "text-transform": "uppercase",
+        "padding": "5px 8px 6px",
+        "font-size": "10.5px",
+        "font-weight": "650"
+      },
+      ".records-filter-menu button": {
+        "border-radius": "var(--radius-chip)",
+        "width": "100%",
+        "color": "var(--ink-2)",
+        "text-align": "left",
+        "align-items": "center",
+        "gap": "7px",
+        "padding": "7px 8px",
+        "font-size": "12px",
+        "transition": "background-color .12s ease-out,color .12s ease-out",
+        "display": "flex"
+      },
+      ".records-filter-menu button.is-selected,.records-filter-menu button:hover": {
+        "background": "var(--hover)",
+        "color": "var(--ink)"
+      },
+      ".records-menu-check": {
+        "width": "13px",
+        "color": "var(--accent-ink)",
+        "text-align": "center",
+        "font-size": "12px",
+        "font-weight": "700"
+      },
+      ".records-scroll": {
+        "overscroll-behavior": "none",
+        "scrollbar-color": "var(--line-strong) transparent",
+        "scrollbar-gutter": "stable",
+        "max-height": "438px",
+        "overflow": "auto"
+      },
+      ".records-scroll:focus-visible": {
+        "outline": "2px solid var(--accent)",
+        "outline-offset": "-2px"
+      },
+      ".records-table": {
+        "border-collapse": "separate",
+        "border-spacing": "0",
+        "width": "100%",
+        "min-width": "990px",
+        "color": "var(--ink)",
+        "table-layout": "fixed",
+        "font-size": "12px"
+      },
+      ".records-company-col": {
+        "width": "270px"
+      },
+      ".records-category-col": {
+        "width": "275px"
+      },
+      ".records-last-col": {
+        "width": "190px"
+      },
+      ".records-strength-col": {
+        "width": "210px"
+      },
+      ".records-link-col": {
+        "width": "175px"
+      },
+      ".records-table td,.records-table th": {
+        "text-align": "left",
+        "vertical-align": "middle"
+      },
+      ".records-table tr>:last-child": {
+        "border-right": "0"
+      },
+      ".records-table thead th": {
+        "z-index": "5",
+        "background": "var(--surface)",
+        "height": "42px",
+        "color": "var(--ink-2)",
+        "font-size": "12px",
+        "font-weight": "600",
+        "position": "sticky",
+        "top": "0"
+      },
+      ".records-header-cell": {
+        "padding": "0"
+      },
+      ".records-header-cell.records-sticky-cell": {
+        "z-index": "7"
+      },
+      ".records-company-header,.records-header-button": {
+        "gap": "8px",
+        "width": "100%",
+        "height": "42px",
+        "padding": "0 12px"
+      },
+      ".records-company-header": {
+        "display": "flex"
+      },
+      ".records-header-button": {
+        "color": "var(--ink-2)",
+        "text-align": "left",
+        "align-items": "center",
+        "transition": "background-color .12s ease-out,color .12s ease-out",
+        "display": "flex"
+      },
+      ".records-header-button:hover": {
+        "background": "var(--hover)",
+        "color": "var(--ink)"
+      },
+      ".records-header-icon": {
+        "color": "var(--ink-3)",
+        "flex-shrink": "0",
+        "display": "inline-flex"
+      },
+      ".records-sort": {
+        "opacity": "0",
+        "transition": "opacity .12s ease-out,transform .16s var(--ease-out-strong)",
+        "flex-shrink": "0",
+        "margin-left": "auto",
+        "display": "inline-flex"
+      },
+      ".records-header-button:hover .records-sort,.records-sort.is-visible": {
+        "opacity": "1"
+      },
+      ".records-company-header>span:not(.records-checkbox-box)": {
+        "white-space": "nowrap"
+      },
+      ".records-add-field": {
+        "color": "var(--ink-3)",
+        "opacity": "0",
+        "margin-left": "auto",
+        "transition": "opacity .12s ease-out,color .12s ease-out",
+        "display": "inline-flex"
+      },
+      ".records-add-field:focus-visible,.records-company-header:hover .records-add-field": {
+        "opacity": "1"
+      },
+      ".records-add-field:hover": {
+        "color": "var(--ink)"
+      },
+      ".records-checkbox": {
+        "border-radius": "var(--radius-chip)",
+        "flex": "0 0 24px",
+        "justify-content": "center",
+        "align-items": "center",
+        "width": "24px",
+        "height": "24px",
+        "display": "inline-flex",
+        "position": "relative"
+      },
+      ".records-checkbox input": {
+        "opacity": "0",
+        "width": "1px",
+        "height": "1px",
+        "position": "absolute"
+      },
+      ".records-checkbox-box": {
+        "color": "#4d555e",
+        "width": "18px",
+        "height": "18px",
+        "transition": "border-color .14s ease-out,background-color .14s ease-out,box-shadow .14s ease-out,transform .14s var(--ease-out-strong)",
+        "background": "#fff",
+        "border": "1px solid #c7cdd3",
+        "border-radius": "6px",
+        "justify-content": "center",
+        "align-items": "center",
+        "display": "inline-flex"
+      },
+      ".records-checkbox:hover .records-checkbox-box": {
+        "background": "#f2f4f5",
+        "border-color": "#aeb6bf"
+      },
+      ".records-checkbox:active .records-checkbox-box": {
+        "transform": "scale(.96)"
+      },
+      ".records-checkbox input:focus-visible+.records-checkbox-box": {
+        "outline": "2px solid var(--accent)",
+        "outline-offset": "2px"
+      },
+      ".records-checkbox-box.is-active": {
+        "border-color": "var(--accent)",
+        "color": "#fff",
+        "background": "var(--accent)",
+        "box-shadow": "none"
+      },
+      ".records-checkbox-dash": {
+        "background": "#4d555e",
+        "border-radius": "99px",
+        "width": "8px",
+        "height": "1.5px"
+      },
+      ".dark .records-checkbox-box": {
+        "color": "#e0e4e8",
+        "background": "#343a41",
+        "border-color": "#4f565f"
+      },
+      ".dark .records-checkbox:hover .records-checkbox-box": {
+        "background": "#3f464e",
+        "border-color": "#626a74"
+      },
+      ".dark .records-checkbox-box.is-active": {
+        "border-color": "var(--accent)",
+        "color": "#fff",
+        "background": "var(--accent)"
+      },
+      ".dark .records-checkbox-dash": {
+        "background": "#e0e4e8"
+      },
+      ".records-cell": {
+        "white-space": "nowrap",
+        "text-overflow": "ellipsis",
+        "height": "42px",
+        "padding": "0 12px",
+        "overflow": "hidden"
+      },
+      ".records-sticky-cell": {
+        "z-index": "2",
+        "background": "var(--surface)",
+        "position": "sticky",
+        "left": "0",
+        "box-shadow": "5px 0 8px -10px #0006"
+      },
+      ".records-company-cell": {
+        "align-items": "center",
+        "gap": "4px",
+        "padding-left": "6px",
+        "display": "flex",
+        "overflow": "visible"
+      },
+      ".records-row>.records-cell": {
+        "transition": "background-color .12s ease-out,color .12s ease-out"
+      },
+      ".records-row:hover>.records-cell": {
+        "background": "var(--hover)"
+      },
+      ".records-row.is-selected>.records-cell": {
+        "background": "var(--accent)"
+      },
+      ".records-company-mark": {
+        "width": "20px",
+        "height": "20px",
+        "color": "var(--ink-2)",
+        "background": "var(--field)",
+        "border": "0",
+        "border-radius": "6px",
+        "flex": "0 0 20px",
+        "justify-content": "center",
+        "align-items": "center",
+        "font-size": "10px",
+        "font-weight": "650",
+        "display": "inline-flex"
+      },
+      ".records-company-name": {
+        "min-width": "0",
+        "color": "var(--ink)",
+        "text-overflow": "ellipsis",
+        "white-space": "nowrap",
+        "font-size": "12.5px",
+        "font-weight": "500",
+        "overflow": "hidden"
+      },
+      ".records-company-name.has-link:focus-visible,.records-company-name.has-link:hover": {
+        "color": "var(--accent-ink)",
+        "text-underline-offset": "3px",
+        "text-decoration": "underline"
+      },
+      ".records-tags": {
+        "gap": "4px",
+        "min-width": "0",
+        "display": "flex"
+      },
+      ".records-tag,.records-tags": {
+        "align-items": "center",
+        "overflow": "hidden"
+      },
+      ".records-tag": {
+        "text-overflow": "ellipsis",
+        "white-space": "nowrap",
+        "font-size": "11px",
+        "font-weight": "500"
+      },
+      ".records-more-tag": {
+        "border-color": "var(--line-strong)",
+        "background": "var(--inset)"
+      },
+      ".records-tag-dot": {
+        "border-radius": "50%",
+        "flex": "0 0 5px",
+        "width": "5px",
+        "height": "5px",
+        "margin-right": "5px"
+      },
+      ".records-more-tag,.records-muted": {
+        "color": "var(--ink-3)"
+      },
+      ".records-strength": {
+        "color": "var(--ink-2)",
+        "gap": "8px"
+      },
+      ".records-strength-dot": {
+        "border-radius": "50%",
+        "flex": "0 0 8px",
+        "width": "8px",
+        "height": "8px",
+        "display": "inline-block"
+      },
+      ".records-link": {
+        "text-underline-offset": "3px",
+        "transition": "color .12s ease-out,text-decoration-color .12s ease-out"
+      },
+      ".records-link:focus-visible,.records-link:hover": {
+        "color": "var(--ink)",
+        "text-decoration-color": "currentColor"
+      },
+      ".records-table tfoot td": {
+        "z-index": "4",
+        "background": "var(--inset)",
+        "height": "38px",
+        "color": "var(--ink-2)",
+        "font-size": "11.5px",
+        "position": "sticky",
+        "bottom": "0"
+      },
+      ".records-table tfoot .records-sticky-cell": {
+        "z-index": "6",
+        "background": "var(--inset)"
+      },
+      ".records-calculation-label": {
+        "color": "var(--ink-2)",
+        "font-weight": "550"
+      },
+      ".records-calculation-number": {
+        "color": "var(--ink)",
+        "font-variant-numeric": "tabular-nums",
+        "margin-right": "3px"
+      },
+      ".records-add-calculation": {
+        "color": "var(--ink-3)",
+        "transition": "color .12s ease-out,transform .14s var(--ease-out-strong)",
+        "gap": "6px"
+      },
+      ".records-add-calculation:hover": {
+        "color": "var(--ink)"
+      },
+      ".records-average": {
+        "color": "var(--ink-2)",
+        "align-items": "center",
+        "gap": "7px",
+        "display": "inline-flex"
+      },
+      ".records-calculation-row-secondary td": {
+        "background": "var(--inset)",
+        "position": "sticky",
+        "bottom": "38px"
+      },
+      ".records-calculation-row-secondary .records-sticky-cell": {
+        "background": "var(--inset)",
+        "position": "sticky"
+      },
+      ".records-footer": {
+        "min-height": "38px",
+        "color": "var(--ink-3)",
+        "justify-content": "space-between",
+        "align-items": "center",
+        "gap": "12px",
+        "padding": "0 12px",
+        "font-size": "11.5px",
+        "display": "flex"
+      },
+      ".records-footer strong": {
+        "color": "var(--ink-2)",
+        "font-weight": "600"
+      },
+      ".records-footer-hint": {
+        "opacity": "0",
+        "align-items": "center",
+        "gap": "5px",
+        "transition": "opacity .16s ease-out",
+        "display": "inline-flex"
+      },
+      ".records-shell:hover .records-footer-hint": {
+        "opacity": "1"
+      },
+      ".records-scroll-cue": {
+        "color": "var(--ink-3)",
+        "display": "inline-flex"
+      }
+    }
+  }
+}
