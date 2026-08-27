@@ -1,22 +1,21 @@
 # AI-Native React Components
 
-19 crafted primitives for AI-native interfaces — loading and thinking states, streaming
-text, approval flows, tool traces, tables, and search. Sourced from
-[beautifului.dev](https://www.beautifului.dev/).
+> 🌐 **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/)
+
+34 crafted primitives for AI-native interfaces — loading and thinking states, streaming
+text, approval flows, subagents, audio orb, tokenomics, cordis plugins, sandbox managers, LSP, artifacts, and Kumo-style primitives.
 
 Every component is a self-contained `.tsx` file with no shared runtime beyond React and
 a set of design tokens. Install one with the shadcn CLI and it arrives with its tokens,
 keyframes, and npm dependencies already wired in:
 
 ```bash
-npx shadcn@latest add https://raw.githubusercontent.com/TurboKach/ai-native-react-components/main/public/r/records-table.json
+npx shadcn@latest add https://raw.githubusercontent.com/eanzhao-os/native-ai-ui/main/public/r/records-table.json
 ```
 
 Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest init`).
 
 ## Components
-
-Swap the file name at the end of the URL above for any of these.
 
 | Component | File | Extra deps |
 | --- | --- | --- |
@@ -39,6 +38,27 @@ Swap the file name at the end of the URL above for any of these.
 | Code Block | `components/code-block.tsx` | — |
 | Fine-tune Card | `components/fine-tune-card.tsx` | — |
 | Selection Actions | `components/selection-actions.tsx` | `iconoir-react`, `components/atoms/*` |
+| Context Window | `components/context-window.tsx` | — |
+| Subagent Tree | `components/subagent-tree.tsx` | — |
+| Audio Orb | `components/audio-orb.tsx` | — |
+| Clarification Card | `components/clarification-card.tsx` | — |
+| Artifact Sandbox | `components/artifact-sandbox.tsx` | — |
+| Model Arena | `components/model-arena.tsx` | — |
+| Memory Inspector | `components/memory-inspector.tsx` | — |
+| Cordis Plugin Tree | `components/cordis-plugin-tree.tsx` | — |
+| Permission Presets | `components/permission-preset-card.tsx` | — |
+| Context Spillover | `components/context-spillover.tsx` | — |
+| LSP Diagnostics | `components/lsp-diagnostics.tsx` | — |
+| Sandbox Manager | `components/sandbox-manager.tsx` | — |
+| Job Scheduler | `components/job-scheduler.tsx` | — |
+| Sensitive Input | `components/sensitive-input.tsx` | — |
+| Layer Card | `components/layer-card.tsx` | — |
+
+## Internationalization & Language Switch (i18n)
+
+All components support English and Chinese with fluid runtime toggles:
+- **Global Toggle**: Header & sidebar switch between `English` and `中文版本` across all 34 components.
+- **Per-Component Toggle**: Each component header has an individual `EN | 中文` button, allowing you to test bilingual copies independently.
 
 ## Running the showcase
 
@@ -47,7 +67,7 @@ npm install
 npm run dev
 ```
 
-`app/page.tsx` renders all 19 on one page with a light/dark toggle.
+`app/page.tsx` renders all 34 components on one page with a responsive sidebar and light/dark toggle.
 
 ## Copying by hand
 
@@ -74,22 +94,20 @@ Regenerate after editing a component:
 npm run registry:build
 ```
 
-Serving the repo (or the deployed showcase) at a domain also makes
-`https://<your-domain>/r/<name>.json` work, since the built items live under `public/`.
-
 ### Fonts
 
 Components assume Inter (`--font-inter`) and JetBrains Mono (`--font-mono-face`),
 wired up in `app/layout.tsx` via `next/font/google`. Substitute freely; nothing
 depends on the specific faces beyond tabular figures in the mono stack.
 
-## Notes
+## Notes & Acknowledgements
 
+- **Beautiful UI**: Some components and foundational interactive primitives in this repository are adapted from and inspired by [Beautiful UI](https://www.beautifului.dev/) and [TurboKach/ai-native-react-components](https://github.com/TurboKach/ai-native-react-components).
+- **Kumo UI**: The design system, hairline border elevations, neutral surface tokens, sensitive credential masking, and layered card architectures align with [Kumo UI](https://kumo-ui.com/) (Cloudflare).
+- **Tether Harness**: Specialized runtime widgets (Cordis plugin topologies, durable job schedules, exactly-once permission auditing, and Roslyn LSP diagnostics) are tailored for the [Tether](https://github.com/eanzhao-os/tether) C# Agent Harness.
 - Every component is `"use client"` and self-animating — they run their own demo loop
   (streaming, thinking, settling) rather than taking data props. Treat them as visual
   references to wire up to real state, not as finished API surfaces.
-- `components/atoms/Shimmer.tsx` and `components/atoms/StreamText.tsx` are
-  reimplementations, matching the CSS and call sites of the originals.
 
 ## License
 

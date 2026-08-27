@@ -1,32 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * CONTEXT CARDS
- * Retrieved chunks enter once, then remain available.
  * ───────────────────────────────────────────────────────── */
 
-const CHUNKS = [
-  {
-    title: "Vendor onboarding rule",
-    chars: "290 characters",
-    body: "Cold-chain certification must be verified before a new dairy can be added to the reorder workflow.",
-    source: "Dairy Onboarding SOP.pdf",
-    badge: "PDF",
-    tone: "bg-red",
-  },
-  {
-    title: "Seasonal demand row",
-    chars: "1,250 characters",
-    body: "Q4 velocity table: pistachio +18%, vanilla +6%, rocky road -11%; retire flavors below 40 scoops weekly.",
-    source: "Sales Velocity Export.csv",
-    badge: "CSV",
-    tone: "bg-green",
-  },
-];
+export default function ContextCards({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("context-cards", propLang);
+  const zh = lang === "zh";
 
-export default function ContextCards() {
+  const CHUNKS = [
+    {
+      title: zh ? "供应商准入规范" : "Vendor onboarding rule",
+      chars: zh ? "290 字符" : "290 characters",
+      body: zh
+        ? "在将新乳制品供应商纳入自动补货工作流之前，必须首先验证其冷链资质认证与卫生许可。"
+        : "Cold-chain certification must be verified before a new dairy can be added to the reorder workflow.",
+      source: "Dairy Onboarding SOP.pdf",
+      badge: "PDF",
+      tone: "bg-red",
+    },
+    {
+      title: zh ? "季节性需求走势" : "Seasonal demand row",
+      chars: zh ? "1,250 字符" : "1,250 characters",
+      body: zh
+        ? "第四季度动销统计：开心果风味 +18%，香草 +6%，巧克力曲奇 -11%；周均销量低于40份的风味将被退市下架。"
+        : "Q4 velocity table: pistachio +18%, vanilla +6%, rocky road -11%; retire flavors below 40 scoops weekly.",
+      source: "Sales Velocity Export.csv",
+      badge: "CSV",
+      tone: "bg-green",
+    },
+  ];
+
   const [chipsShown, setChipsShown] = useState(false);
 
   useEffect(() => {
@@ -40,7 +47,9 @@ export default function ContextCards() {
         className="flex items-center gap-2 px-0.5"
         style={{ animation: "fade-in 400ms ease-out both" }}
       >
-        <span className="text-[13px] font-semibold text-ink">All chunks</span>
+        <span className="text-[13px] font-semibold text-ink">
+          {zh ? "检索知识分块" : "All chunks"}
+        </span>
         <span className="inline-flex h-5 items-center rounded-md bg-inset px-1.5 text-[11.5px] font-medium text-ink-2 shadow-hairline tabular-nums">
           32
         </span>
@@ -56,7 +65,9 @@ export default function ContextCards() {
         >
           <div className="primitive-card-bar flex items-center gap-2.5 border-b border-line">
             <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-ink">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M4 6h16M4 12h16M4 18h10" />
+              </svg>
               <span className="truncate">{chunk.title}</span>
             </span>
             <span className="ml-auto shrink-0 text-[12px] text-ink-3 tabular-nums">{chunk.chars}</span>
@@ -68,7 +79,7 @@ export default function ContextCards() {
             <span
               className="inline-flex h-6 items-center gap-1.5 rounded-full bg-inset px-2
                 text-[12px] font-medium text-ink-2 shadow-btn
-                transition-[opacity,transform,background-color] duration-300 hover:bg-hover"
+                transition-[opacity,transform,background-color] duration-300 hover:bg-hover cursor-pointer"
               style={{
                 opacity: chipsShown ? 1 : 0,
                 transform: chipsShown ? "scale(1)" : "scale(0.95)",
@@ -80,7 +91,9 @@ export default function ContextCards() {
                 {chunk.badge}
               </span>
               {chunk.source}
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M7 7h10v10" /></svg>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 17L17 7M7 7h10v10" />
+              </svg>
             </span>
           </div>
         </div>

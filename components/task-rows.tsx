@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * TASK ROWS
- *
- *     0ms   rows enter staggered (80ms apart)
- *   600ms   row 1 ring sweeps 0 → 66%
- *  1500ms   row 1 expands — detail steps drop down
- *  3900ms   row 1 collapses; row 2 flips to Failed + retry
- *  5300ms   row 2 resolves to Completed
- * The status run completes once; task details stay clickable.
  * ───────────────────────────────────────────────────────── */
 
 const TICKS = [600, 900, 2400, 1400, 2400, 600];
@@ -71,7 +65,16 @@ const RetryIcon = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
 );
 
-export default function TaskRows({ variant = "Capsules" }: { variant?: string }) {
+export default function TaskRows({
+  variant = "Capsules",
+  lang: propLang,
+}: {
+  variant?: string;
+  lang?: "en" | "zh";
+}) {
+  const lang = useLang("task-rows", propLang);
+  const zh = lang === "zh";
+
   const tick = useTick(TICKS);
   const [manualOpen, setManualOpen] = useState<Record<string, boolean>>({});
   const row2: "pending" | "failed" | "done" = tick < 3 ? "pending" : tick === 3 ? "failed" : "done";
@@ -80,27 +83,27 @@ export default function TaskRows({ variant = "Capsules" }: { variant?: string })
     {
       key: "verify",
       badge: <Badge tone="green">{CheckIcon}</Badge>,
-      label: "Verified vendor records",
-      amount: "12 suppliers",
+      label: zh ? "校验供应商资质档案" : "Verified vendor records",
+      amount: zh ? "12 家供应商" : "12 suppliers",
       pill: (
         <span className="inline-flex h-5.5 items-center rounded-full bg-green-tint px-2 text-[11.5px] font-medium text-green">
-          Completed
+          {zh ? "已完成" : "Completed"}
         </span>
       ),
       details: [
-        { label: "Matched tax and contact IDs", meta: "12/12" },
-        { label: "Flagged stale records", meta: "0" },
+        { label: zh ? "核对税务与联系人 ID" : "Matched tax and contact IDs", meta: "12/12" },
+        { label: zh ? "标记过期记录" : "Flagged stale records", meta: "0" },
       ],
     },
     {
       key: "index",
       badge: <SpinnerRing active>2</SpinnerRing>,
-      label: "Build reorder task list",
-      amount: "7 SKUs",
+      label: zh ? "生成自动补货计划清单" : "Build reorder task list",
+      amount: zh ? "7 款 SKU" : "7 SKUs",
       pill: null,
       details: [
-        { label: "Reading POS export", meta: "3 files" },
-        { label: "Scoring stockout risk", meta: "68%" },
+        { label: zh ? "读取 POS 导出数据" : "Reading POS export", meta: zh ? "3 个文件" : "3 files" },
+        { label: zh ? "评估缺货断货风险" : "Scoring stockout risk", meta: "68%" },
       ],
     },
     {
@@ -113,21 +116,21 @@ export default function TaskRows({ variant = "Capsules" }: { variant?: string })
         ) : (
           <Badge tone="green">{CheckIcon}</Badge>
         ),
-      label: "Draft supplier emails",
-      amount: "2 messages",
+      label: zh ? "起草供应商跟进邮件" : "Draft supplier emails",
+      amount: zh ? "2 封草稿" : "2 messages",
       pill:
         row2 === "failed" ? (
           <span className="inline-flex h-5.5 items-center gap-1.5 rounded-full bg-red-tint px-2 text-[11.5px] font-medium text-red" style={{ animation: "fade-in 200ms ease-out both" }}>
-            Failed <span style={{ animation: "spin 1.2s linear infinite" }} className="flex">{RetryIcon}</span>
+            {zh ? "失败重试中" : "Failed"} <span style={{ animation: "spin 1.2s linear infinite" }} className="flex">{RetryIcon}</span>
           </span>
         ) : row2 === "done" ? (
           <span className="inline-flex h-5.5 items-center gap-1.5 rounded-full bg-green-tint px-2 text-[11.5px] font-medium text-green" style={{ animation: "fade-in 200ms ease-out both" }}>
-            Completed
+            {zh ? "已完成" : "Completed"}
           </span>
         ) : null,
       details: [
-        { label: "Cone supplier follow-up", meta: "draft" },
-        { label: "Pistachio reorder note", meta: "draft" },
+        { label: zh ? "脆筒供应商跟进通知" : "Cone supplier follow-up", meta: zh ? "草稿" : "draft" },
+        { label: zh ? "开心果原料补货备注" : "Pistachio reorder note", meta: zh ? "草稿" : "draft" },
       ],
     },
   ];
@@ -156,63 +159,29 @@ export default function TaskRows({ variant = "Capsules" }: { variant?: string })
               type="button"
               aria-expanded={open}
               onClick={() => setManualOpen((current) => ({ ...current, [row.key]: !open }))}
-              className="flex h-11 w-full items-center gap-2.5 px-2.5 text-left transition-colors duration-100 hover:bg-inset"
+              className="flex h-11 w-full items-center gap-2.5 px-2.5 text-left transition-colors duration-100 hover:bg-inset cursor-pointer"
             >
-              <span className="flex size-6 shrink-0 items-center justify-center">
-                {row.badge}
-              </span>
+              {row.badge}
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
                 {row.label}
               </span>
-              <span className="text-[12.5px] text-ink-2 tabular-nums">{row.amount}</span>
-              {row.pill}
-              <span
-                aria-hidden="true"
-                className="-ml-2 flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3"
-              >
-                <svg
-                  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                  className="transition-transform duration-300"
-                  style={{ transform: open ? "rotate(180deg)" : "rotate(0)" }}
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+              <span className="shrink-0 text-[12px] text-ink-3">
+                {row.amount}
               </span>
+              {row.pill}
             </button>
 
-            {/* dropdown detail — same expandable grammar as Chain of Thought */}
-            <div
-              className="grid transition-[grid-template-rows,opacity] duration-300"
-                style={{
-                  gridTemplateRows: open ? "1fr" : "0fr",
-                  opacity: open ? 1 : 0,
-                  transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
-                }}
-              >
-                <div className="overflow-hidden">
-                  <div className="mb-2.5 grid grid-cols-[24px_1fr] gap-2.5 px-2.5">
-                    <span aria-hidden className="mx-auto h-full w-px bg-line" />
-                    <div className="flex flex-col gap-1.5">
-                      {row.details.map((d, j) => (
-                        <div
-                          key={d.label}
-                          className="flex items-center justify-between"
-                          style={
-                            open
-                              ? { animation: `fade-up 300ms cubic-bezier(0.23,1,0.32,1) ${120 + j * 100}ms both` }
-                              : undefined
-                          }
-                        >
-                          <span className="text-[12px] text-ink-2">{d.label}</span>
-                          <span className="font-mono text-[11.5px] text-ink-3 tabular-nums">
-                            {d.meta}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+            {/* details dropdown */}
+            {open && (
+              <div className="border-t border-line/60 bg-inset/50 px-3 py-2 text-[11.5px] space-y-1">
+                {row.details.map((d, di) => (
+                  <div key={di} className="flex items-center justify-between text-ink-2">
+                    <span>{d.label}</span>
+                    <span className="font-mono text-[10.5px] text-ink-3">{d.meta}</span>
                   </div>
-                </div>
+                ))}
               </div>
+            )}
           </div>
         );
       })}

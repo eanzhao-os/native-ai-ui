@@ -31,14 +31,16 @@ Design first, platform second:
 Only if the target is web/React: skip to "Reference Implementation (Web)" below and
 copy component source directly.
 
-## The 19 Patterns
+## The 26 Patterns
 
 Loading State · Thinking (traces: Steps / Reasoning / Search / Coding) ·
 Streaming Text · Approval Card (human-in-the-loop) · Tool Chips · Task Rows ·
 Chat · Prompt Bar (composer: @ sources, / commands, model picker, dictation) ·
 Recommendation Card (confidence meter) · Context Cards (retrieved knowledge) ·
 Diff Table (AI-proposed edits) · Records Table · Filter Table · Sidebar Nav ·
-Search · Insight Cards · Code Block · Fine-tune Card · Selection Actions
+Search · Insight Cards · Code Block · Fine-tune Card · Selection Actions ·
+Context Window (Tokenomics) · Subagent Tree · Audio Orb · Clarification Card ·
+Artifact Sandbox · Model Arena · Memory Inspector
 
 Each is specified behaviorally in `references/design-principles.md` and mapped to
 native widgets in `references/native-adaptation.md`. The React source in

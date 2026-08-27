@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * STREAMING TEXT
- * Words resolve out of blur, inline citations appear in
- * context, then actions and follow-up prompts become usable.
  * ───────────────────────────────────────────────────────── */
 
 const WORD_MS = 55;
@@ -13,7 +12,7 @@ const HOLD_MS = 3400;
 
 type Token = { text: string; cite?: boolean };
 
-const TOKENS: Token[] = [
+const TOKENS_EN: Token[] = [
   ..."Pistachio is your fastest-growing flavor — sales are up 23% this month and margins beat vanilla by 8 points."
     .split(" ")
     .map((text) => ({ text })),
@@ -23,9 +22,24 @@ const TOKENS: Token[] = [
     .map((text) => ({ text })),
 ];
 
-const FOLLOW_UPS = [
+const TOKENS_ZH: Token[] = [
+  ..."开心果口味是当前增长最快的产品 — 本月销量环比上涨 23%，毛利率相比传统香草高出 8 个百分点。"
+    .split("")
+    .map((text) => ({ text })),
+  { text: "", cite: true },
+  ..."同品类中，以蜜桃与黄杏为代表的水果风味也呈现出强劲的同步增长势头。"
+    .split("")
+    .map((text) => ({ text })),
+];
+
+const FOLLOW_UPS_EN = [
   "Which flavors sell best in winter",
   "Compare gelato and soft serve margins",
+];
+
+const FOLLOW_UPS_ZH = [
+  "冬季哪些冰淇淋风味销量最高？",
+  "对比意式硬冰与软冰淇淋的利润率",
 ];
 
 const SOURCE_IMAGES = {
@@ -43,10 +57,6 @@ const SOURCES = [
   { name: "Market Basket", domain: "marketbasket.io", href: "https://marketbasket.io/", image: SOURCE_IMAGES.market },
 ];
 
-function sourceImage(source: (typeof SOURCES)[number]) {
-  return source.image;
-}
-
 function SourceChip() {
   const source = SOURCES[0];
   return (
@@ -59,7 +69,7 @@ function SourceChip() {
         transition-colors duration-150 hover:bg-hover hover:text-ink"
       style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}
     >
-      <img src={sourceImage(source)} alt="" className="source-avatar size-3 rounded-[3px]" />
+      <img src={source.image} alt="" className="source-avatar size-3 rounded-[3px]" />
       <span>{source.domain}</span>
     </a>
   );
@@ -72,10 +82,20 @@ const ACTION_ICONS: React.ReactNode[] = [
   <path key="down" d="M17 14V2M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88z" />,
 ];
 
-export default function StreamingText() {
+export default function StreamingText({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("streaming-text", propLang);
+  const zh = lang === "zh";
+
+  const TOKENS = zh ? TOKENS_ZH : TOKENS_EN;
+  const FOLLOW_UPS = zh ? FOLLOW_UPS_ZH : FOLLOW_UPS_EN;
+
   const [count, setCount] = useState(0);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const done = count >= TOKENS.length;
+
+  useEffect(() => {
+    setCount(0);
+  }, [lang]);
 
   useEffect(() => {
     const t = setTimeout(
@@ -83,10 +103,10 @@ export default function StreamingText() {
       done ? HOLD_MS : WORD_MS,
     );
     return () => clearTimeout(t);
-  }, [count, done]);
+  }, [count, done, TOKENS.length]);
 
   return (
-    <div className="min-h-[15.5rem] w-full max-w-95">
+    <div key={lang} className="min-h-[15.5rem] w-full max-w-95">
       <p className="text-[13px] leading-relaxed text-ink">
         {TOKENS.slice(0, count).map((token, i) =>
           token.cite ? (
@@ -97,7 +117,7 @@ export default function StreamingText() {
               className="inline [will-change:filter,opacity]"
               style={{ animation: "stream-in 420ms cubic-bezier(0.22,0.61,0.25,1) both" }}
             >
-              {token.text}{" "}
+              {token.text}{zh ? "" : " "}
             </span>
           ),
         )}
@@ -120,7 +140,7 @@ export default function StreamingText() {
             type="button"
             aria-label="Action"
             className="flex size-6 items-center justify-center rounded-[6px] text-ink-3
-              transition-colors duration-100 hover:bg-hover-2 hover:text-ink-2"
+              transition-colors duration-100 hover:bg-hover-2 hover:text-ink-2 cursor-pointer"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               {icon}
@@ -131,19 +151,19 @@ export default function StreamingText() {
           type="button"
           aria-expanded={sourcesOpen}
           onClick={() => setSourcesOpen((current) => !current)}
-          className="ml-1.5 flex items-center gap-1.5 rounded-[6px] px-1 py-0.5 text-left transition-colors duration-150 hover:bg-hover"
+          className="ml-1.5 flex items-center gap-1.5 rounded-[6px] px-1 py-0.5 text-left transition-colors duration-150 hover:bg-hover cursor-pointer"
         >
           <span className="flex -space-x-1">
             {SOURCES.map((source) => (
               <img
                 key={source.domain}
-                src={sourceImage(source)}
+                src={source.image}
                 alt=""
                 className="source-avatar size-3.5 rounded-full bg-surface shadow-[0_0_0_1.5px_var(--canvas)]"
               />
             ))}
           </span>
-          <span className="text-[12px] text-ink-2">10 sources</span>
+          <span className="text-[12px] text-ink-2">{zh ? "10 处引用源" : "10 sources"}</span>
         </button>
       </div>
 
@@ -165,7 +185,7 @@ export default function StreamingText() {
                 rel="noreferrer"
                 className="flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink"
               >
-                <img src={sourceImage(source)} alt="" className="source-avatar size-4 rounded-[4px]" />
+                <img src={source.image} alt="" className="source-avatar size-4 rounded-[4px]" />
                 <span className="animated-underline">{source.name}</span>
                 <span className="ml-auto font-mono text-[10.5px] text-ink-3">{source.domain}</span>
               </a>
@@ -179,14 +199,14 @@ export default function StreamingText() {
         className="mt-2.5 transition-opacity duration-400"
         style={{ opacity: done ? 1 : 0, pointerEvents: done ? "auto" : "none" }}
       >
-        <p className="text-[12px] font-medium text-ink-2">Follow-ups</p>
+        <p className="text-[12px] font-medium text-ink-2">{zh ? "猜您想问" : "Follow-ups"}</p>
         <div className="mt-0.5 flex flex-col">
           {FOLLOW_UPS.map((text, i) => (
             <button
               key={text}
               className="-mx-1.5 flex items-center gap-2 rounded-[7px] border-b border-line
                 px-1.5 py-1.5 text-left text-[12.5px] text-ink transition-colors
-                duration-100 hover:bg-hover-2"
+                duration-100 hover:bg-hover-2 cursor-pointer"
               style={
                 done
                   ? { animation: `fade-up 350ms cubic-bezier(0.23,1,0.32,1) ${i * 90}ms both` }

@@ -1,175 +1,145 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * RECOMMENDATION CARD
- * The card holds its shape. Pressing "Alternatives" opens a
- * new drawer listing the other options; picking one promotes
- * it to the recommendation. The primary action confirms.
  * ───────────────────────────────────────────────────────── */
 
-type Option = {
-  key: string;
-  body: React.ReactNode;
-  short: string;
-  signal: number;
-  tone: string;
-  label: string;
-  cta: string;
-  ctaStyle: string;
-};
+export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("recommendation-card", propLang);
+  const zh = lang === "zh";
 
-const OPTIONS: Option[] = [
-  {
-    key: "high",
-    body: (
-      <>
-        Reorder waffle cones from{" "}
-        <code className="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code>{" "}
-        with lead time{" "}
-        <code className="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>.
-      </>
-    ),
-    short: "Reorder from cone_king · 7-day lead",
-    signal: 3,
-    tone: "var(--green)",
-    label: "High confidence",
-    cta: "Accept",
-    ctaStyle: "bg-accent text-white",
-  },
-  {
-    key: "review",
-    body: (
-      <>
-        Switch vanilla to{" "}
-        <code className="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code>{" "}
-        for peak season.
-      </>
-    ),
-    short: "Switch to vanilla_madagascar",
-    signal: 2,
-    tone: "var(--orange)",
-    label: "Needs review",
-    cta: "Configure",
-    ctaStyle: "bg-ink text-canvas",
-  },
-  {
-    key: "none",
-    body: (
-      <>
-        Fall back to a <span className="font-medium text-ink">full restock</span> across every SKU.
-      </>
-    ),
-    short: "Full restock across every SKU",
-    signal: 0,
-    tone: "var(--ink-3)",
-    label: "No signal",
-    cta: "Accept full restock",
-    ctaStyle: "bg-ink text-canvas",
-  },
-];
+  const OPTIONS = [
+    {
+      key: "high",
+      body: zh ? (
+        <>
+          建议从供应商{" "}
+          <code className="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code>{" "}
+          追加补货华夫脆筒，预计交付周期为{" "}
+          <code className="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>。
+        </>
+      ) : (
+        <>
+          Reorder waffle cones from{" "}
+          <code className="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code>{" "}
+          with lead time{" "}
+          <code className="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>.
+        </>
+      ),
+      short: zh ? "从 cone_king 补货 · 7天到货" : "Reorder from cone_king · 7-day lead",
+      signal: 3,
+      tone: "var(--green)",
+      label: zh ? "高置信度推荐" : "High confidence",
+      cta: zh ? "采纳建议" : "Accept",
+      ctaStyle: "bg-accent text-white",
+    },
+    {
+      key: "review",
+      body: zh ? (
+        <>
+          为迎接旺季需求，建议将香草原料配方切换为{" "}
+          <code className="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code>。
+        </>
+      ) : (
+        <>
+          Switch vanilla to{" "}
+          <code className="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code>{" "}
+          for peak season.
+        </>
+      ),
+      short: zh ? "切换为马达加斯加香草配方" : "Switch to vanilla_madagascar",
+      signal: 2,
+      tone: "var(--orange)",
+      label: zh ? "需要人工复核" : "Needs review",
+      cta: zh ? "配置参数" : "Configure",
+      ctaStyle: "bg-ink text-canvas",
+    },
+    {
+      key: "none",
+      body: zh ? (
+        <>
+          对所有库存 SKU 发起全量紧急补货流程。
+        </>
+      ) : (
+        <>
+          Trigger a full restock cycle across every catalog SKU.
+        </>
+      ),
+      short: zh ? "全品类 SKU 紧急补货" : "Full restock across every SKU",
+      signal: 0,
+      tone: "var(--line-strong)",
+      label: zh ? "无足够置信信号" : "No signal",
+      cta: zh ? "忽略" : "Dismiss",
+      ctaStyle: "bg-field text-ink-3",
+    },
+  ];
 
-function Meter({ signal, tone }: { signal: number; tone: string }) {
-  return (
-    <span className="flex items-end gap-0.5">
-      {[0, 1, 2].map((bar) => (
-        <span
-          key={bar}
-          className="w-1 rounded-full transition-colors duration-300"
-          style={{ height: 10, background: bar < signal ? tone : "var(--line-strong)" }}
-        />
-      ))}
-    </span>
-  );
-}
-
-export default function RecommendationCard() {
-  const [selected, setSelected] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [accepted, setAccepted] = useState(false);
-
-  const active = OPTIONS[selected];
-  const others = OPTIONS.map((o, i) => ({ o, i })).filter(({ i }) => i !== selected);
+  const [activeKey, setActiveKey] = useState<string>("high");
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const current = OPTIONS.find((o) => o.key === activeKey) ?? OPTIONS[0];
 
   return (
-    <div className="w-full max-w-95 overflow-hidden rounded-card bg-surface shadow-card">
-      <div className="primitive-card-pad">
-        <span className="text-[13px] font-semibold text-ink">
-          Want me to place this restock order?
-        </span>
-        <p
-          key={active.key}
-          className="mt-1.5 min-h-12 text-[13px] leading-relaxed text-ink-2"
-          style={{ animation: "fade-in 180ms ease-out both" }}
-        >
-          {active.body}
-        </p>
-      </div>
+    <div className="w-full max-w-95 overflow-hidden rounded-card border border-line bg-surface shadow-card">
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[13px] leading-relaxed text-ink">{current.body}</p>
+        </div>
 
-      {/* alternatives drawer — a distinctly new section of the card */}
-      <div
-        className="grid transition-[grid-template-rows,opacity] duration-300"
-        style={{
-          gridTemplateRows: open ? "1fr" : "0fr",
-          opacity: open ? 1 : 0,
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <div className="overflow-hidden">
-          <div className="border-t border-line bg-inset px-2 py-2">
-            <p className="px-1.5 pb-1 text-[11px] font-medium text-ink-3">
-              Other options
-            </p>
-            {others.map(({ o, i }) => (
+        {/* Drawer for alternatives */}
+        {openDrawer && (
+          <div className="mt-3.5 border-t border-line/60 pt-3 space-y-1">
+            <span className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider block mb-2">
+              {zh ? "备选方案" : "Alternative Actions"}
+            </span>
+            {OPTIONS.map((opt) => (
               <button
-                key={o.key}
+                key={opt.key}
                 type="button"
                 onClick={() => {
-                  setSelected(i);
-                  setAccepted(false);
-                  setOpen(false);
+                  setActiveKey(opt.key);
+                  setOpenDrawer(false);
                 }}
-                className="flex w-full items-center gap-2.5 rounded-control px-1.5 py-1.5
-                  text-left transition-colors duration-100 hover:bg-hover"
+                className={`flex w-full items-center justify-between rounded-control p-2 text-left text-[12px] transition-colors cursor-pointer ${
+                  opt.key === activeKey ? "bg-accent-tint text-accent-ink font-medium" : "hover:bg-hover text-ink-2"
+                }`}
               >
-                <Meter signal={o.signal} tone={o.tone} />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">{o.short}</span>
-                <span className="shrink-0 text-[11px] text-ink-3">{o.label}</span>
+                <span>{opt.short}</span>
+                <span className="font-mono text-[10px] text-ink-3">{opt.label}</span>
               </button>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="primitive-card-footer flex items-center justify-between gap-3 border-t border-line bg-inset">
-        <span className="flex items-center gap-2">
-          <Meter signal={active.signal} tone={active.tone} />
-          <span className="text-[12.5px] font-medium text-ink-2">{active.label}</span>
-        </span>
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-line bg-inset px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="flex items-end gap-0.5">
+            <span className="w-1 rounded-full" style={{ height: 10, background: current.signal >= 1 ? current.tone : "var(--line-strong)" }} />
+            <span className="w-1 rounded-full" style={{ height: 10, background: current.signal >= 2 ? current.tone : "var(--line-strong)" }} />
+            <span className="w-1 rounded-full" style={{ height: 10, background: current.signal >= 3 ? current.tone : "var(--line-strong)" }} />
+          </span>
+          <span className="text-[12px] font-medium text-ink-2">{current.label}</span>
+        </div>
 
-        <span className="-mr-0.5 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            aria-expanded={open}
-            onClick={() => setOpen((current) => !current)}
-            className={`h-7 rounded-control px-2.5 text-[12.5px] font-medium shadow-btn
-              transition-[background-color,transform] duration-100 active:scale-[0.96]
-              ${open ? "bg-hover text-ink" : "bg-surface text-ink hover:bg-hover"}`}
+            onClick={() => setOpenDrawer(!openDrawer)}
+            className="rounded-control border border-line bg-surface px-2.5 py-1 text-[11.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
           >
-            Alternatives
+            {zh ? "备选方案" : "Alternatives"}
           </button>
           <button
             type="button"
-            onClick={() => setAccepted(true)}
-            className={`h-7 rounded-control px-3 text-[12.5px] font-medium
-              shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_0_1px_rgba(16,24,40,0.12),0_1px_2px_rgba(16,24,40,0.1)]
-              transition-[background-color,transform] duration-150 active:scale-[0.96]
-              ${accepted ? "bg-green text-white" : active.ctaStyle}`}
+            className={`rounded-control px-3 py-1 text-[11.5px] font-medium transition-transform active:scale-95 cursor-pointer ${current.ctaStyle}`}
           >
-            {accepted ? "Accepted" : active.cta}
+            {current.cta}
           </button>
-        </span>
+        </div>
       </div>
     </div>
   );
