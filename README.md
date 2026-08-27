@@ -2,12 +2,14 @@
 
 > 🌐 **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/)
 
-34 crafted primitives for AI-native interfaces — loading and thinking states, streaming
-text, approval flows, subagents, audio orb, tokenomics, cordis plugins, sandbox managers, LSP, artifacts, and Kumo-style primitives.
+41 crafted primitives for AI-native interfaces — loading and thinking states, streaming
+text, approval flows, agent teams, turn lifecycles, dual-queue inboxes, hook pipelines,
+session telemetry, audio orb, tokenomics, cordis plugins, MCP servers, sandbox managers,
+LSP, artifacts, and Kumo-style primitives.
 
 Every component is a self-contained `.tsx` file with no shared runtime beyond React and
 a set of design tokens. Install one with the shadcn CLI and it arrives with its tokens,
-keyframes, and npm dependencies already wired in:
+keyframes, the bilingual `lang-context` helper, and npm dependencies already wired in:
 
 ```bash
 npx shadcn@latest add https://raw.githubusercontent.com/eanzhao-os/native-ai-ui/main/public/r/records-table.json
@@ -17,48 +19,94 @@ Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest 
 
 ## Components
 
+### Core & Streaming
+
 | Component | File | Extra deps |
 | --- | --- | --- |
 | Loading State | `components/loading-state.tsx` | — |
 | Thinking | `components/thinking.tsx` | — |
 | Streaming Text | `components/streaming-text.tsx` | — |
-| Approval Card | `components/approval-card.tsx` | — |
-| Tool Chips | `components/tool-chips.tsx` | — |
-| Task Rows | `components/task-rows.tsx` | — |
-| Chat | `components/chat.tsx` | — |
 | Prompt Bar | `components/prompt-bar.tsx` | `glimm` |
-| Recommendation Card | `components/recommendation-card.tsx` | — |
-| Context Cards | `components/context-cards.tsx` | — |
-| Diff Table | `components/diff-table.tsx` | — |
-| Records Table | `components/records-table.tsx` | `.records-*` CSS |
-| Filter Table | `components/filter-table.tsx` | — |
-| Sidebar Nav | `components/sidebar-nav.tsx` | — |
-| Search | `components/search.tsx` | — |
-| Insight Cards | `components/insight-cards.tsx` | `liveline`, `.insight-chart-*` CSS |
+| Chat | `components/chat.tsx` | — |
 | Code Block | `components/code-block.tsx` | — |
-| Fine-tune Card | `components/fine-tune-card.tsx` | — |
-| Selection Actions | `components/selection-actions.tsx` | `iconoir-react`, `components/atoms/*` |
-| Context Window | `components/context-window.tsx` | — |
+
+### Agentic & Teams
+
+| Component | File | Extra deps |
+| --- | --- | --- |
 | Subagent Tree | `components/subagent-tree.tsx` | — |
-| Audio Orb | `components/audio-orb.tsx` | — |
+| Agent Teams | `components/agent-teams.tsx` | — |
+| Task Rows | `components/task-rows.tsx` | — |
+| Tool Chips | `components/tool-chips.tsx` | — |
+| Approval Card | `components/approval-card.tsx` | — |
 | Clarification Card | `components/clarification-card.tsx` | — |
-| Artifact Sandbox | `components/artifact-sandbox.tsx` | — |
-| Model Arena | `components/model-arena.tsx` | — |
+
+### Context & Memory
+
+| Component | File | Extra deps |
+| --- | --- | --- |
+| Context Window | `components/context-window.tsx` | — |
 | Memory Inspector | `components/memory-inspector.tsx` | — |
+| Context Cards | `components/context-cards.tsx` | — |
+| Context Spillover | `components/context-spillover.tsx` | — |
+
+### Agent Runtime
+
+| Component | File | Extra deps |
+| --- | --- | --- |
+| Turn Lifecycle | `components/turn-lifecycle.tsx` | — |
+| Agent Inbox | `components/agent-inbox.tsx` | — |
+| Hook Pipeline | `components/hook-pipeline.tsx` | — |
+| Session Telemetry | `components/session-telemetry.tsx` | — |
+| Workflow Run | `components/workflow-run.tsx` | — |
+
+### Tether & Cordis Runtime
+
+| Component | File | Extra deps |
+| --- | --- | --- |
 | Cordis Plugin Tree | `components/cordis-plugin-tree.tsx` | — |
 | Permission Presets | `components/permission-preset-card.tsx` | — |
-| Context Spillover | `components/context-spillover.tsx` | — |
 | LSP Diagnostics | `components/lsp-diagnostics.tsx` | — |
 | Sandbox Manager | `components/sandbox-manager.tsx` | — |
 | Job Scheduler | `components/job-scheduler.tsx` | — |
+| MCP Servers | `components/mcp-servers.tsx` | — |
+
+### Artifacts & Views
+
+| Component | File | Extra deps |
+| --- | --- | --- |
+| Artifact Sandbox | `components/artifact-sandbox.tsx` | — |
+| Diff Table | `components/diff-table.tsx` | — |
+| Records Table | `components/records-table.tsx` | `.records-*` CSS |
+| Filter Table | `components/filter-table.tsx` | — |
+| Selection Actions | `components/selection-actions.tsx` | `iconoir-react`, `components/atoms/*` |
+
+### Multimodal & Arena
+
+| Component | File | Extra deps |
+| --- | --- | --- |
+| Audio Orb | `components/audio-orb.tsx` | — |
+| Model Arena | `components/model-arena.tsx` | — |
+| Insight Cards | `components/insight-cards.tsx` | `liveline`, `.insight-chart-*` CSS |
+| Recommendation Card | `components/recommendation-card.tsx` | — |
+
+### Kumo & System
+
+| Component | File | Extra deps |
+| --- | --- | --- |
 | Sensitive Input | `components/sensitive-input.tsx` | — |
 | Layer Card | `components/layer-card.tsx` | — |
+| Sidebar Nav | `components/sidebar-nav.tsx` | — |
+| Search Palette | `components/search.tsx` | — |
+| Fine-tune Card | `components/fine-tune-card.tsx` | — |
 
 ## Internationalization & Language Switch (i18n)
 
-All components support English and Chinese with fluid runtime toggles:
-- **Global Toggle**: Header & sidebar switch between `English` and `中文版本` across all 34 components.
+All 41 components ship with English and Chinese copies:
+
+- **Global Toggle**: Header & sidebar switch between `English` and `中文版本` across the showcase.
 - **Per-Component Toggle**: Each component header has an individual `EN | 中文` button, allowing you to test bilingual copies independently.
+- Components accept an optional `lang?: "en" | "zh"` prop and resolve it through `lib/lang-context` (installed alongside them by the CLI); without a `LangProvider` they simply render English.
 
 ## Running the showcase
 
@@ -67,13 +115,15 @@ npm install
 npm run dev
 ```
 
-`app/page.tsx` renders all 34 components on one page with a responsive sidebar and light/dark toggle.
+`app/page.tsx` renders all 41 components grouped into 8 categories with a responsive
+sidebar, scroll-spy navigation, per-component install commands, and light/dark toggle.
 
 ## Copying by hand
 
 The CLI is a convenience, not a requirement — nothing here is locked to it.
 
-1. Copy the `.tsx` file into your project.
+1. Copy the `.tsx` file into your project. If it imports `@/lib/lang-context`, copy
+   `lib/lang-context.tsx` too (or strip the hook and default to `"en"`).
 2. Copy `app/globals.css` — or, if you already have a stylesheet, the `:root`/`.dark`
    token blocks, the `@theme inline` mapping, and the `@keyframes` from it. The
    components address colors only through tokens (`bg-surface`, `text-ink-2`,
@@ -104,7 +154,7 @@ depends on the specific faces beyond tabular figures in the mono stack.
 
 - **Beautiful UI**: Some components and foundational interactive primitives in this repository are adapted from and inspired by [Beautiful UI](https://www.beautifului.dev/) and [TurboKach/ai-native-react-components](https://github.com/TurboKach/ai-native-react-components).
 - **Kumo UI**: The design system, hairline border elevations, neutral surface tokens, sensitive credential masking, and layered card architectures align with [Kumo UI](https://kumo-ui.com/) (Cloudflare).
-- **Tether Harness**: Specialized runtime widgets (Cordis plugin topologies, durable job schedules, exactly-once permission auditing, and Roslyn LSP diagnostics) are tailored for the [Tether](https://github.com/eanzhao-os/tether) C# Agent Harness.
+- **Tether Harness**: Specialized runtime widgets (turn/step bracket timelines, dual-queue inbox semantics, hook decision pipelines, agent team rosters, workflow fan-out, session telemetry, Cordis plugin topologies, durable job schedules, exactly-once permission auditing, MCP inventories, and Roslyn LSP diagnostics) are tailored for the [Tether](https://github.com/eanzhao-os/tether) C# Agent Harness.
 - Every component is `"use client"` and self-animating — they run their own demo loop
   (streaming, thinking, settling) rather than taking data props. Treat them as visual
   references to wire up to real state, not as finished API surfaces.

@@ -149,6 +149,8 @@ export default function JobScheduler({ lang: propLang }: { lang?: "en" | "zh" })
                   className={`rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium ${
                     job.lastStatusEn === "Success"
                       ? "bg-green-tint text-green"
+                      : job.lastStatusEn === "Failed"
+                      ? "bg-red-tint text-red"
                       : "bg-accent-tint text-accent-ink"
                   }`}
                 >

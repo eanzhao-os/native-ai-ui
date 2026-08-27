@@ -21,6 +21,7 @@ import {
 } from "iconoir-react";
 import { Shimmer } from "@/components/atoms/Shimmer";
 import { StreamText } from "@/components/atoms/StreamText";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * SELECTION ACTIONS
@@ -30,11 +31,16 @@ import { StreamText } from "@/components/atoms/StreamText";
  * tokens.
  * ───────────────────────────────────────────────────────── */
 
-const LEAD = "Pistachio holds the top slot all weekend. ";
-const PICKED =
+const LEAD_EN = "Pistachio holds the top slot all weekend. ";
+const LEAD_ZH = "整个周末，开心果口味都稳居销量榜首。";
+const PICKED_EN =
   "Churn it first thing Saturday so the batch has time to firm up before the afternoon rush.";
-const REWRITE =
+const PICKED_ZH =
+  "周六一开工就先搅拌这一批，让它在下午高峰前有足够时间凝冻成型。";
+const REWRITE_EN =
   "Churn pistachio first thing Saturday so the batch has time to fully firm before the afternoon rush.";
+const REWRITE_ZH =
+  "周六一开工就先搅拌开心果这一批，让冰淇淋在下午高峰前充分凝冻成型。";
 
 type Mode = "idle" | "thinking" | "streaming" | "result";
 
@@ -71,7 +77,12 @@ const control =
 const primary =
   "inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-ink px-2.5 text-[12.5px] font-normal text-canvas shadow-hairline transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.96]";
 
-export default function SelectionActions() {
+export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("selection-actions", propLang);
+  const zh = lang === "zh";
+  const LEAD = zh ? LEAD_ZH : LEAD_EN;
+  const PICKED = zh ? PICKED_ZH : PICKED_EN;
+  const REWRITE = zh ? REWRITE_ZH : REWRITE_EN;
   const [shown, setShown] = useState(false);
   const [mode, setMode] = useState<Mode>("idle");
   const [action, setAction] = useState("Improve");
@@ -220,12 +231,12 @@ export default function SelectionActions() {
   const hasPrompt = prompt.trim().length > 0;
   const busyLabel =
     action === "Improve"
-      ? "Improving"
+      ? zh ? "优化中" : "Improving"
       : action === "Shorten"
-        ? "Shortening"
+        ? zh ? "精简中" : "Shortening"
         : action === "Change tone"
-          ? "Changing tone"
-          : "Editing";
+          ? zh ? "调整语气中" : "Changing tone"
+          : zh ? "编辑中" : "Editing";
 
   return (
     <div className="w-full max-w-[460px]">
@@ -313,16 +324,16 @@ export default function SelectionActions() {
                   className={primary}
                 >
                   {icons.check}
-                  Keep
+                  {zh ? "保留" : "Keep"}
                 </button>
                 <button type="button" onClick={reset} className={control}>
                   {icons.close}
-                  Discard
+                  {zh ? "放弃" : "Discard"}
                 </button>
                 <span className="mx-0.5 h-4 w-px shrink-0 bg-line" />
                 <button
                   type="button"
-                  aria-label="Try again"
+                  aria-label={zh ? "重试" : "Try again"}
                   onClick={() => run(action)}
                   className="flex size-7 shrink-0 items-center justify-center rounded-full text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-hover-2 hover:text-ink-2 active:scale-[0.96]"
                 >
@@ -374,8 +385,8 @@ export default function SelectionActions() {
                         }
                         setPrompt(next);
                       }}
-                      aria-label="Describe edits"
-                      placeholder="Describe edits"
+                      aria-label={zh ? "描述修改要求" : "Describe edits"}
+                      placeholder={zh ? "描述修改要求" : "Describe edits"}
                       className="h-7 w-full bg-transparent pr-2.5 pl-3 text-[12.5px] text-ink placeholder:text-ink-3"
                     />
                   </form>
@@ -395,7 +406,7 @@ export default function SelectionActions() {
                   )}
                   <button type="button" className={control}>
                     {icons.explain}
-                    Explain
+                    {zh ? "解释" : "Explain"}
                   </button>
                   <button
                     type="button"
@@ -403,7 +414,7 @@ export default function SelectionActions() {
                     className={control}
                   >
                     {icons.improve}
-                    Improve
+                    {zh ? "优化" : "Improve"}
                   </button>
 
                   <div
@@ -421,7 +432,7 @@ export default function SelectionActions() {
                     className={control}
                   >
                     {icons.shorten}
-                    Shorten
+                    {zh ? "精简" : "Shorten"}
                   </button>
                   <button
                     type="button"
@@ -429,7 +440,7 @@ export default function SelectionActions() {
                     className={control}
                   >
                     {icons.tone}
-                    Tone
+                    {zh ? "语气" : "Tone"}
                   </button>
                   <button
                     type="button"
@@ -437,14 +448,14 @@ export default function SelectionActions() {
                     className={control}
                   >
                     {icons.grammar}
-                    Grammar
+                    {zh ? "语法" : "Grammar"}
                   </button>
                   </div>
 
                   <span className="mx-0.5 h-4 w-px shrink-0 bg-line" />
                   <button
                     type="button"
-                    aria-label={expanded ? "Show fewer actions" : "Show more actions"}
+                    aria-label={expanded ? (zh ? "收起更多操作" : "Show fewer actions") : (zh ? "展开更多操作" : "Show more actions")}
                     aria-expanded={expanded}
                     onClick={() => setExpanded((value) => !value)}
                     className="flex size-7 shrink-0 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-200 hover:bg-hover active:scale-[0.96]"
@@ -472,9 +483,9 @@ export default function SelectionActions() {
                 >
                   <button
                     type="button"
-                    aria-label="Send edit instruction"
+                    aria-label={zh ? "发送编辑指令" : "Send edit instruction"}
                     onClick={() => run(prompt.trim())}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-surface transition-[opacity,transform] duration-200 active:scale-[0.94]"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-canvas transition-[opacity,transform] duration-200 active:scale-[0.94]"
                   >
                     {icons.send}
                   </button>

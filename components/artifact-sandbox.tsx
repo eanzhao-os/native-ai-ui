@@ -101,6 +101,19 @@ export default function ArtifactSandbox({ lang: propLang }: { lang?: "en" | "zh"
               </button>
               <button
                 type="button"
+                onClick={() => setViewport("tablet")}
+                className={`flex size-6 items-center justify-center rounded-chip transition-colors cursor-pointer ${
+                  viewport === "tablet" ? "bg-surface text-ink shadow-sm" : "hover:text-ink"
+                }`}
+                title={zh ? "平板端" : "Tablet"}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="4" y="2" width="16" height="20" rx="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" />
+                </svg>
+              </button>
+              <button
+                type="button"
                 onClick={() => setViewport("mobile")}
                 className={`flex size-6 items-center justify-center rounded-chip transition-colors cursor-pointer ${
                   viewport === "mobile" ? "bg-surface text-ink shadow-sm" : "hover:text-ink"
@@ -146,7 +159,7 @@ export default function ArtifactSandbox({ lang: propLang }: { lang?: "en" | "zh"
         {tab === "preview" ? (
           <div
             className={`transition-all duration-300 w-full ${
-              viewport === "mobile" ? "max-w-[280px]" : "max-w-md"
+              viewport === "mobile" ? "max-w-[280px]" : viewport === "tablet" ? "max-w-[380px]" : "max-w-md"
             }`}
           >
             {/* Live Rendered Component Inside Sandbox */}

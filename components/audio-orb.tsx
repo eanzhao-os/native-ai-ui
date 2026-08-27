@@ -40,7 +40,10 @@ export default function AudioOrb({ lang: propLang }: { lang?: "en" | "zh" }) {
   const [bars, setBars] = useState<number[]>([12, 24, 18, 32, 28, 40, 36, 48, 42, 34, 26, 38, 20, 16, 28, 14]);
 
   useEffect(() => {
-    if (state === "idle") return;
+    if (state === "idle") {
+      setBars((prev) => prev.map(() => 4));
+      return;
+    }
     const interval = setInterval(() => {
       setBars((prev) =>
         prev.map(() => {
@@ -119,7 +122,7 @@ export default function AudioOrb({ lang: propLang }: { lang?: "en" | "zh" }) {
                 ? "radial-gradient(circle at 30% 30%, #34d399, #059669, #064e3b)"
                 : state === "thinking"
                 ? "radial-gradient(circle at 30% 30%, #fbbf24, #d97706, #78350f)"
-                : "radial-gradient(circle at 30% 30%, #9ca3af, #4b5563, #1f2937)",
+                : "radial-gradient(circle at 30% 30%, var(--ink-3), var(--ink-2), var(--ink))",
           }}
         >
           <div className="size-10 rounded-full bg-white/40 blur-[6px] animate-pulse" />

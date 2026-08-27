@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * FINE-TUNE CARD — compact interactive inspector.
@@ -89,6 +90,12 @@ function ScrubField({
 
 const SEGMENTS = ["row", "col", "grid"] as const;
 
+const TYPE_OPTIONS = [
+  { key: "Seasonal", labelEn: "Seasonal", labelZh: "季节限定" },
+  { key: "Classic", labelEn: "Classic", labelZh: "经典" },
+  { key: "Limited", labelEn: "Limited", labelZh: "限量" },
+];
+
 function SegmentIcon({ kind }: { kind: string }) {
   const dot = "size-1.5 rounded-[2px] border-[1.2px] border-current";
   if (kind === "row")
@@ -102,22 +109,25 @@ function SegmentIcon({ kind }: { kind: string }) {
   );
 }
 
-export default function FineTuneCard() {
+export default function FineTuneCard({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("fine-tune-card", propLang);
+  const zh = lang === "zh";
+
   const [seg, setSeg] = useState(0);
   const [width, setWidth] = useState(324);
   const [height, setHeight] = useState(96);
   const [radius, setRadius] = useState(28);
   const [opacity, setOpacity] = useState(100);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [typeValue, setTypeValue] = useState("Select type");
+  const [typeValue, setTypeValue] = useState<string | null>(null);
   const done =
-    seg !== 0 || width !== 324 || height !== 96 || radius !== 28 || opacity !== 100 || typeValue !== "Select type";
+    seg !== 0 || width !== 324 || height !== 96 || radius !== 28 || opacity !== 100 || typeValue !== null;
 
   return (
     <div className="relative w-full max-w-60 rounded-card bg-surface shadow-raised">
       {/* header */}
       <div className="primitive-card-bar flex items-center justify-between border-b border-line">
-        <span className="text-[13px] font-medium text-ink">Flavor card</span>
+        <span className="text-[13px] font-medium text-ink">{zh ? "风味卡片" : "Flavor card"}</span>
         {done ? (
           <span
             className="flex items-center gap-1.5 text-[12px] font-medium text-green"
@@ -126,7 +136,7 @@ export default function FineTuneCard() {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6L9 17l-5-5" />
             </svg>
-            Edited
+            {zh ? "已编辑" : "Edited"}
           </span>
         ) : (
           <span className="flex items-center gap-1.5">
@@ -144,7 +154,7 @@ export default function FineTuneCard() {
                 animation: "shimmer-text 1.4s linear infinite",
               }}
             >
-              Adjust
+              {zh ? "调整" : "Adjust"}
             </span>
           </span>
         )}
@@ -152,8 +162,8 @@ export default function FineTuneCard() {
 
       {/* layout section */}
       <div className="primitive-card-pad flex flex-col gap-2 border-b border-line">
-        <p className="text-[12.5px] font-medium text-ink">Layout</p>
-        {/* Layo segmented: gray track, raised white thumb */}
+        <p className="text-[12.5px] font-medium text-ink">{zh ? "布局" : "Layout"}</p>
+        {/* segmented control: gray track, raised white thumb */}
         <div className="relative grid grid-cols-3 rounded-control bg-field p-0.5">
           <span
             aria-hidden
@@ -180,18 +190,18 @@ export default function FineTuneCard() {
           ))}
         </div>
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          <ScrubField label="W" value={width} onChange={setWidth} min={40} max={999} active={width !== 324} />
-          <ScrubField label="H" value={height} onChange={setHeight} min={24} max={999} active={height !== 96} />
+          <ScrubField label={zh ? "宽" : "W"} value={width} onChange={setWidth} min={40} max={999} active={width !== 324} />
+          <ScrubField label={zh ? "高" : "H"} value={height} onChange={setHeight} min={24} max={999} active={height !== 96} />
         </div>
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          <ScrubField label="Radius" value={radius} onChange={setRadius} min={0} max={64} active={radius !== 28} />
-          <ScrubField label="Opacity" value={opacity} onChange={setOpacity} min={0} max={100} suffix="%" active={opacity !== 100} />
+          <ScrubField label={zh ? "圆角" : "Radius"} value={radius} onChange={setRadius} min={0} max={64} active={radius !== 28} />
+          <ScrubField label={zh ? "不透明" : "Opacity"} value={opacity} onChange={setOpacity} min={0} max={100} suffix="%" active={opacity !== 100} />
         </div>
       </div>
 
       {/* interaction section */}
       <div className="primitive-card-footer flex items-center justify-between">
-        <span className="text-[12px] text-ink-3">Type</span>
+        <span className="text-[12px] text-ink-3">{zh ? "类型" : "Type"}</span>
         <div className="relative -mr-0.5 w-30">
           <button
             type="button"
@@ -201,8 +211,14 @@ export default function FineTuneCard() {
               shadow-hairline transition-shadow duration-200 focus-visible:outline-none"
             style={{ boxShadow: menuOpen ? "0 0 0 1px var(--accent)" : undefined }}
           >
-            <span className={`text-[12px] ${typeValue !== "Select type" ? "text-ink" : "text-ink-3"}`}>
-              {typeValue}
+            <span className={`text-[12px] ${typeValue !== null ? "text-ink" : "text-ink-3"}`}>
+              {typeValue !== null
+                ? zh
+                  ? TYPE_OPTIONS.find((o) => o.key === typeValue)?.labelZh
+                  : typeValue
+                : zh
+                ? "选择类型"
+                : "Select type"}
             </span>
             <svg
               width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -215,25 +231,25 @@ export default function FineTuneCard() {
 
           {menuOpen && (
             <div
-              className="absolute right-0 bottom-8 z-10 w-30 rounded-[10px] bg-surface p-1 shadow-raised"
+              className="absolute right-0 bottom-8 z-10 w-30 rounded-card bg-surface p-1 shadow-raised"
               style={{
                 animation: "pop-in 200ms cubic-bezier(0.23,1,0.32,1) both",
                 transformOrigin: "bottom right",
               }}
             >
-              {["Seasonal", "Classic", "Limited"].map((item) => (
+              {TYPE_OPTIONS.map((item) => (
                 <button
-                  key={item}
+                  key={item.key}
                   type="button"
                   onClick={() => {
-                    setTypeValue(item);
+                    setTypeValue(item.key);
                     setMenuOpen(false);
                   }}
                   className="flex h-6.5 w-full items-center rounded-[6px] px-2 text-left text-[12.5px] text-ink
                     transition-colors duration-150 hover:bg-field"
-                  style={{ background: item === typeValue ? "var(--field)" : "transparent" }}
+                  style={{ background: item.key === typeValue ? "var(--field)" : "transparent" }}
                 >
-                  {item}
+                  {zh ? item.labelZh : item.labelEn}
                 </button>
               ))}
             </div>

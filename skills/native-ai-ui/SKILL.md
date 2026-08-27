@@ -103,7 +103,7 @@ npx shadcn@latest add https://raw.githubusercontent.com/TurboKach/ai-native-reac
 - `references/tokens.md` — complete color/shadow/radius/motion/type tokens, light + dark.
 - `references/native-adaptation.md` — per-pattern SwiftUI / Compose / TUI mappings.
 - `assets/preview/native-chat.html` — native-style design mockup built from the tokens.
-- `components/*.tsx` — 19 reference components (React), self-contained.
+- `components/*.tsx` — 40 reference components (React), self-contained.
 - `components/atoms/` — `Shimmer.tsx`, `StreamText.tsx`.
 - `app/globals.css` — token source of truth (CSS form).
 - `public/r/*.json` — shadcn registry entries.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * CHAT — interactive panel with tabs, replies, and composer.
@@ -13,12 +14,14 @@ function Section({
   label,
   sub,
   time,
+  forLabel,
   body,
   resolving,
 }: {
   label: string;
   sub: string;
   time: string;
+  forLabel: string;
   body: string;
   resolving?: boolean;
 }) {
@@ -37,18 +40,27 @@ function Section({
       <div className="flex items-center gap-1 text-[12px] leading-[1.3]">
         <span className="font-medium text-ink">{label}</span>
         <span className="text-ink-2">{sub}</span>
-        <span className="text-ink">for {time}</span>
+        <span className="text-ink">{forLabel} {time}</span>
       </div>
       <p className="text-[13px] leading-normal text-ink">{body}</p>
     </div>
   );
 }
 
-export default function ChatComposer() {
+const TABS = [
+  { key: "flavors", labelEn: "Flavors", labelZh: "风味" },
+  { key: "suppliers", labelEn: "Suppliers", labelZh: "供应商" },
+];
+
+export default function ChatComposer({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("chat", propLang);
+  const zh = lang === "zh";
   const [phase, setPhase] = useState<Phase>("done");
   const [draft, setDraft] = useState("");
-  const [submitted, setSubmitted] = useState("Compare mint chip to last summer");
-  const [tab, setTab] = useState("Flavors");
+  const [submitted, setSubmitted] = useState(() =>
+    zh ? "对比薄荷巧克力与去年同期销量" : "Compare mint chip to last summer"
+  );
+  const [tab, setTab] = useState("flavors");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -75,15 +87,15 @@ export default function ChatComposer() {
       {/* header — tabs + actions */}
       <div className="flex shrink-0 items-center justify-between border-b border-line p-1.5">
         <div className="flex items-center">
-          {["Flavors", "Suppliers"].map((item) => (
+          {TABS.map((item) => (
             <button
-              key={item}
+              key={item.key}
               type="button"
-              aria-pressed={tab === item}
-              onClick={() => setTab(item)}
-              className={`rounded-[6px] px-2 py-[3px] text-[13px] text-ink transition-[background-color,opacity] duration-100 ${tab === item ? "bg-field" : "opacity-50 hover:opacity-75"}`}
+              aria-pressed={tab === item.key}
+              onClick={() => setTab(item.key)}
+              className={`rounded-[6px] px-2 py-[3px] text-[13px] text-ink transition-[background-color,opacity] duration-100 ${tab === item.key ? "bg-field" : "opacity-50 hover:opacity-75"}`}
             >
-              {item}
+              {zh ? item.labelZh : item.labelEn}
             </button>
           ))}
         </div>
@@ -96,7 +108,7 @@ export default function ChatComposer() {
             <button
               key={i}
               type="button"
-              aria-label="Action"
+              aria-label={zh ? "操作" : "Action"}
               className="flex size-6 items-center justify-center rounded-[6px] text-ink-3
                 transition-colors duration-100 hover:bg-hover hover:text-ink-2"
             >
@@ -127,18 +139,20 @@ export default function ChatComposer() {
 
         {phase === "reply1" || phase === "reply2" || phase === "done" ? (
           <Section
-            label="Sales History"
-            sub="Flavor Data"
+            label={zh ? "销售历史" : "Sales History"}
+            sub={zh ? "风味数据" : "Flavor Data"}
             time="4s"
-            body="Pulled 3 summers of mint chip sales for comparison."
+            forLabel={zh ? "用时" : "for"}
+            body={zh ? "已调取近三年夏季薄荷巧克力的销售数据用于对比。" : "Pulled 3 summers of mint chip sales for comparison."}
           />
         ) : null}
         {phase === "reply2" || phase === "done" ? (
           <Section
-            label="Comparison"
-            sub="Trend Detection"
+            label={zh ? "对比分析" : "Comparison"}
+            sub={zh ? "趋势识别" : "Trend Detection"}
             time="2s"
-            body="Mint chip is up 12% with stronger weekend peaks."
+            forLabel={zh ? "用时" : "for"}
+            body={zh ? "薄荷巧克力销量上涨 12%，周末峰值更加明显。" : "Mint chip is up 12% with stronger weekend peaks."}
             resolving={phase === "reply2"}
           />
         ) : null}
@@ -149,7 +163,7 @@ export default function ChatComposer() {
         <div
           role="presentation"
           onClick={() => inputRef.current?.focus()}
-          className="flex cursor-text flex-col gap-2 rounded-control border border-line bg-field p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] transition-[border-color,box-shadow] duration-150 focus-within:border-line-strong focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.025)]"
+          className="flex cursor-text flex-col gap-2 rounded-control border border-line bg-field p-2.5 transition-[border-color,box-shadow] duration-150 focus-within:border-line-strong focus-within:shadow-btn"
         >
           <input
             ref={inputRef}
@@ -158,14 +172,14 @@ export default function ChatComposer() {
             onKeyDown={(event) => {
               if (event.key === "Enter") send();
             }}
-            placeholder="Prompt or tag a flavor with @"
-            aria-label="Chat prompt"
+            placeholder={zh ? "输入指令，或用 @ 标记风味" : "Prompt or tag a flavor with @"}
+            aria-label={zh ? "聊天输入框" : "Chat prompt"}
             className="min-h-4.5 bg-transparent text-[13px] leading-[1.4] text-ink outline-none placeholder:text-ink-3"
           />
           <div className="flex items-center justify-end">
             <button
               type="button"
-              aria-label="Send"
+              aria-label={zh ? "发送" : "Send"}
               disabled={!canSend}
               onClick={send}
               className="flex size-7 items-center justify-center rounded-[8px]

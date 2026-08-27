@@ -1,0 +1,155 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "hook-pipeline",
+  "title": "Hook Pipeline",
+  "description": "ToolPre hook chain with most-restrictive decision merging.",
+  "files": [
+    {
+      "path": "components/hook-pipeline.tsx",
+      "content": "\"use client\";\n\nimport { useEffect, useState } from \"react\";\nimport { useLang } from \"@/lib/lang-context\";\n\n/* ─────────────────────────────────────────────────────────\n * HOOK PIPELINE — decision merge across hook points\n *\n * Mirrors Tether.Hooks: every tool call passes ToolPre\n * hooks; each returns allow / ask / deny / block and the\n * most-restrictive decision wins (deny > ask > block > allow).\n * The demo walks one fs.write call through the pipeline.\n * ───────────────────────────────────────────────────────── */\n\ntype Decision = \"allow\" | \"ask\" | \"deny\" | \"block\";\n\ntype Hook = {\n  name: string;\n  matcher: string;\n  decision: Decision;\n  reasonEn?: string;\n  reasonZh?: string;\n  latencyMs: number;\n};\n\nconst TOOLPRE_HOOKS: Hook[] = [\n  { name: \"secret-scrub\", matcher: \"*\", decision: \"allow\", latencyMs: 4 },\n  {\n    name: \"workspace-guard\",\n    matcher: \"fs.*\",\n    decision: \"ask\",\n    reasonEn: \"writes outside declared scopes\",\n    reasonZh: \"写入超出声明的 write scopes\",\n    latencyMs: 11,\n  },\n  { name: \"rate-limiter\", matcher: \"*\", decision: \"allow\", latencyMs: 2 },\n];\n\nconst RANK: Record<Decision, number> = { deny: 0, ask: 1, block: 2, allow: 3 };\n\nconst DECISION_STYLE: Record<Decision, { chip: string; dot: string; labelEn: string; labelZh: string }> = {\n  allow: { chip: \"bg-green-tint text-green\", dot: \"bg-green\", labelEn: \"allow\", labelZh: \"允许\" },\n  ask: { chip: \"bg-orange-tint text-orange\", dot: \"bg-orange\", labelEn: \"ask\", labelZh: \"询问\" },\n  deny: { chip: \"bg-red-tint text-red\", dot: \"bg-red\", labelEn: \"deny\", labelZh: \"拒绝\" },\n  block: { chip: \"bg-accent-tint text-accent-ink\", dot: \"bg-accent\", labelEn: \"block\", labelZh: \"阻断\" },\n};\n\nconst POINTS = [\"SessionStart\", \"UserPrompt\", \"ToolPre\", \"ToolPost\", \"Stop\", \"Subagent\"];\n\n// phases: 0 idle → 1..3 hooks evaluate → 4 merged(ask) → 5 approved(allow) → hold → reset\nconst PHASE_MS = [700, 750, 750, 750, 1400, 1400, 3800];\n\nexport default function HookPipeline({ lang: propLang }: { lang?: \"en\" | \"zh\" }) {\n  const lang = useLang(\"hook-pipeline\", propLang);\n  const zh = lang === \"zh\";\n\n  const [phase, setPhase] = useState(0);\n\n  useEffect(() => {\n    const t = setTimeout(\n      () => setPhase((p) => (p + 1) % PHASE_MS.length),\n      PHASE_MS[phase]\n    );\n    return () => clearTimeout(t);\n  }, [phase]);\n\n  const evaluated = Math.max(0, Math.min(phase, TOOLPRE_HOOKS.length));\n  const merged: Decision | null =\n    phase >= 4\n      ? phase >= 5\n        ? \"allow\"\n        : (TOOLPRE_HOOKS.map((h) => h.decision).sort((a, b) => RANK[a] - RANK[b])[0] ?? \"allow\")\n      : null;\n\n  return (\n    <div className=\"w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card\">\n      {/* Header */}\n      <div className=\"flex items-center justify-between pb-3\">\n        <div className=\"flex items-center gap-2\">\n          <span className=\"flex size-2 rounded-full bg-accent animate-pulse\" />\n          <h3 className=\"text-[13px] font-semibold text-ink\">\n            {zh ? \"Hook 决策管线\" : \"Hook Pipeline\"}\n          </h3>\n          <span className=\"rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3\">\n            6 points\n          </span>\n        </div>\n        <span className=\"font-mono text-[10.5px] text-ink-3\">Tether.Hooks</span>\n      </div>\n\n      {/* Hook points strip */}\n      <div className=\"flex flex-wrap gap-1\">\n        {POINTS.map((p) => (\n          <span\n            key={p}\n            className={`rounded-chip border px-1.5 py-0.5 font-mono text-[9.5px] transition-colors duration-300 ${\n              p === \"ToolPre\"\n                ? \"border-accent/50 bg-accent-tint text-accent-ink\"\n                : \"border-line bg-inset text-ink-3\"\n            }`}\n          >\n            {p}\n          </span>\n        ))}\n      </div>\n\n      {/* The tool call being inspected */}\n      <div className=\"mt-3 flex items-center gap-2 rounded-control border border-line bg-inset px-2.5 py-2\">\n        <svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--ink-2)\" strokeWidth=\"2\" strokeLinecap=\"round\" strokeLinejoin=\"round\" className=\"shrink-0\">\n          <path d=\"M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3 3.7-3.7z\" />\n        </svg>\n        <code className=\"font-mono text-[11.5px] text-ink\">fs.write</code>\n        <span className=\"truncate font-mono text-[10.5px] text-ink-3\">src/llm/retry.cs</span>\n        <span className=\"ml-auto shrink-0 rounded-chip bg-field px-1.5 py-px font-mono text-[9.5px] text-ink-3\">\n          call_e51c\n        </span>\n      </div>\n\n      {/* Pipeline: hooks evaluating in sequence */}\n      <div className=\"mt-3 flex min-h-[132px] flex-col gap-1.5\">\n        {TOOLPRE_HOOKS.map((hook, i) => {\n          const active = i < evaluated;\n          const style = DECISION_STYLE[hook.decision];\n          return (\n            <div\n              key={hook.name}\n              className={`flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${\n                active ? \"border-line bg-surface\" : \"border-line/60 bg-inset/40 opacity-45\"\n              }`}\n              style={active ? { animation: \"fade-up 300ms cubic-bezier(0.23,1,0.32,1) both\" } : undefined}\n            >\n              {/* connector */}\n              <span className={`flex size-1.5 shrink-0 rounded-full ${active ? style.dot : \"bg-line-strong\"}`} />\n              <div className=\"min-w-0 flex-1\">\n                <div className=\"flex items-center gap-1.5\">\n                  <code className=\"font-mono text-[11px] font-medium text-ink\">{hook.name}</code>\n                  <span className=\"rounded-chip bg-field px-1 font-mono text-[9px] text-ink-3\">\n                    {hook.matcher}\n                  </span>\n                </div>\n                {active && hook.reasonEn && (\n                  <span className=\"mt-0.5 block truncate text-[10.5px] text-ink-3\">\n                    {zh ? hook.reasonZh : hook.reasonEn}\n                  </span>\n                )}\n              </div>\n              {active ? (\n                <span className={`shrink-0 rounded-chip px-1.5 py-0.5 font-mono text-[10px] font-medium ${style.chip}`}>\n                  {zh ? style.labelZh : style.labelEn}\n                </span>\n              ) : (\n                <span className=\"shrink-0 font-mono text-[9.5px] text-ink-3\">…</span>\n              )}\n              <span className=\"w-8 shrink-0 text-right font-mono text-[9.5px] tabular-nums text-ink-3\">\n                {active ? `${hook.latencyMs}ms` : \"\"}\n              </span>\n            </div>\n          );\n        })}\n      </div>\n\n      {/* Merge bar */}\n      <div\n        className={`mt-1 flex items-center justify-between gap-2 rounded-control border px-3 py-2.5 transition-all duration-500 ${\n          merged === \"allow\"\n            ? \"border-green/40 bg-green-tint/50\"\n            : merged === \"ask\"\n            ? \"border-orange/40 bg-orange-tint/50\"\n            : \"border-line bg-inset/50\"\n        }`}\n      >\n        <div className=\"flex min-w-0 items-center gap-2\">\n          <svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--ink-2)\" strokeWidth=\"2\" strokeLinecap=\"round\" strokeLinejoin=\"round\" className=\"shrink-0\">\n            <path d=\"M8 3v4a4 4 0 0 1-4 4h16M8 21v-4a4 4 0 0 0-4-4\" />\n            <path d=\"M18 8l3 3-3 3\" transform=\"translate(-3 4)\" />\n          </svg>\n          <span className=\"shrink-0 text-[11.5px] font-medium text-ink\">\n            {zh ? \"Merge · 最严优先\" : \"Merge · most-restrictive\"}\n          </span>\n          <span className=\"hidden min-w-0 truncate font-mono text-[9.5px] text-ink-3 sm:inline\">\n            deny &gt; ask &gt; block &gt; allow\n          </span>\n        </div>\n        {merged ? (\n          <span\n            className={`shrink-0 whitespace-nowrap rounded-chip px-2 py-0.5 font-mono text-[10.5px] font-semibold ${DECISION_STYLE[merged].chip}`}\n            style={{ animation: \"pop-in 250ms cubic-bezier(0.23,1,0.32,1) both\" }}\n          >\n            {merged === \"allow\" && phase >= 5\n              ? zh\n                ? \"allow · 已批准\"\n                : \"allow · approved\"\n              : zh\n              ? DECISION_STYLE[merged].labelZh\n              : DECISION_STYLE[merged].labelEn}\n          </span>\n        ) : (\n          <span className=\"font-mono text-[10px] text-ink-3\">…</span>\n        )}\n      </div>\n\n      {/* Footer */}\n      <div className=\"mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3\">\n        <span>\n          {phase >= 4 && phase < 5\n            ? zh\n              ? \"workspace-guard 升级为 ask → 等待人工批准\"\n              : \"workspace-guard escalated to ask → awaiting approval\"\n            : zh\n            ? \"HookInvokedFact 全部落入 durable log\"\n            : \"Every HookInvokedFact lands in the durable log\"}\n        </span>\n        <span className=\"font-mono tabular-nums\">\n          {phase >= 5 ? \"fail-open: never\" : \"fail-closed\"}\n        </span>\n      </div>\n    </div>\n  );\n}\n",
+      "type": "registry:component",
+      "target": "components/hook-pipeline.tsx"
+    },
+    {
+      "path": "lib/lang-context.tsx",
+      "content": "\"use client\";\n\nimport React, { createContext, useContext, useEffect, useState } from \"react\";\n\nexport type Lang = \"en\" | \"zh\";\n\ninterface LangContextType {\n  globalLang: Lang;\n  setGlobalLang: (lang: Lang) => void;\n  componentLangs: Record<string, Lang>;\n  setComponentLang: (id: string, lang: Lang) => void;\n  getLang: (id?: string, override?: Lang) => Lang;\n}\n\nconst LangContext = createContext<LangContextType>({\n  globalLang: \"en\",\n  setGlobalLang: () => {},\n  componentLangs: {},\n  setComponentLang: () => {},\n  getLang: () => \"en\",\n});\n\nexport function LangProvider({ children }: { children: React.ReactNode }) {\n  const [globalLang, setGlobalLangState] = useState<Lang>(\"en\");\n  const [componentLangs, setComponentLangs] = useState<Record<string, Lang>>({});\n\n  // Restore the persisted global language on mount.\n  useEffect(() => {\n    try {\n      const stored = window.localStorage.getItem(\"nai-lang\");\n      if (stored === \"en\" || stored === \"zh\") setGlobalLangState(stored);\n    } catch {}\n  }, []);\n\n  const setGlobalLang = (lang: Lang) => {\n    setGlobalLangState(lang);\n    try {\n      window.localStorage.setItem(\"nai-lang\", lang);\n    } catch {}\n  };\n\n  const setComponentLang = (id: string, lang: Lang) => {\n    setComponentLangs((prev) => ({ ...prev, [id]: lang }));\n  };\n\n  const getLang = (id?: string, override?: Lang): Lang => {\n    if (override) return override;\n    if (id && componentLangs[id]) return componentLangs[id];\n    return globalLang;\n  };\n\n  return (\n    <LangContext.Provider\n      value={{\n        globalLang,\n        setGlobalLang,\n        componentLangs,\n        setComponentLang,\n        getLang,\n      }}\n    >\n      {children}\n    </LangContext.Provider>\n  );\n}\n\nexport function useLang(id?: string, override?: Lang): Lang {\n  const ctx = useContext(LangContext);\n  return ctx.getLang(id, override);\n}\n\nexport function useLangContext() {\n  return useContext(LangContext);\n}\n",
+      "type": "registry:component",
+      "target": "lib/lang-context.tsx"
+    }
+  ],
+  "cssVars": {
+    "theme": {
+      "color-page": "var(--page)",
+      "color-canvas": "var(--canvas)",
+      "color-surface": "var(--surface)",
+      "color-inset": "var(--inset)",
+      "color-hover": "var(--hover)",
+      "color-hover-2": "var(--hover-2)",
+      "color-ink": "var(--ink)",
+      "color-ink-2": "var(--ink-2)",
+      "color-ink-3": "var(--ink-3)",
+      "color-line": "var(--line)",
+      "color-line-strong": "var(--line-strong)",
+      "color-field": "var(--field)",
+      "color-stripe": "var(--stripe)",
+      "color-stripe-bg": "var(--stripe-bg)",
+      "color-accent": "var(--accent)",
+      "color-accent-ink": "var(--accent-ink)",
+      "color-accent-tint": "var(--accent-tint)",
+      "color-green": "var(--green)",
+      "color-green-tint": "var(--green-tint)",
+      "color-orange": "var(--orange)",
+      "color-orange-tint": "var(--orange-tint)",
+      "color-red": "var(--red)",
+      "color-red-tint": "var(--red-tint)",
+      "color-tooltip-bg": "var(--tooltip-bg)",
+      "color-tooltip-fg": "var(--tooltip-fg)",
+      "color-tooltip-muted": "var(--tooltip-muted)",
+      "color-tooltip-border": "var(--tooltip-border)",
+      "shadow-hairline": "var(--shadow-hairline)",
+      "shadow-btn": "var(--shadow-btn)",
+      "shadow-card": "var(--shadow-card)",
+      "shadow-raised": "var(--shadow-raised)",
+      "shadow-overlay": "var(--shadow-overlay)",
+      "shadow-inset-field": "var(--shadow-inset-field)",
+      "radius-chip": "6px",
+      "radius-control": "8px",
+      "radius-card": "10px",
+      "ease-out-strong": "cubic-bezier(0.23, 1, 0.32, 1)",
+      "ease-link": "cubic-bezier(0.16, 1, 0.3, 1)"
+    },
+    "light": {
+      "page": "#fafafb",
+      "canvas": "#f1f2f3",
+      "surface": "#ffffff",
+      "inset": "#f7f8f9",
+      "hover": "#f4f5f6",
+      "hover-2": "#e7e9eb",
+      "ink": "#1f2124",
+      "ink-2": "#62656b",
+      "ink-3": "#9a9da3",
+      "line": "#ecedef",
+      "line-strong": "#e0e2e5",
+      "field": "#f2f2f3",
+      "stripe": "#49494913",
+      "stripe-bg": "#f5f5f5",
+      "accent": "#0285ff",
+      "accent-ink": "#0170dd",
+      "accent-tint": "#e9f3ff",
+      "green": "#189a4d",
+      "green-tint": "#e8f5ed",
+      "orange": "#ef720c",
+      "orange-tint": "#fdf1e5",
+      "red": "#e3474c",
+      "red-tint": "#fcecec",
+      "tooltip-bg": "#25272b",
+      "tooltip-fg": "#f6f7f8",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#3a3c40",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #1018280d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #1018280a, 0 2px 6px #10182808",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #0000000b",
+      "shadow-overlay": "0 0 0 1px var(--line), 0 8px 28px #0001",
+      "shadow-inset-field": "inset 0 1px 2px #0000001f"
+    },
+    "dark": {
+      "page": "#17181a",
+      "canvas": "#1c1d1f",
+      "surface": "#232427",
+      "inset": "#1f2022",
+      "hover": "#2a2b2e",
+      "hover-2": "#313236",
+      "ink": "#f2f3f4",
+      "ink-2": "#a5a8ad",
+      "ink-3": "#6c6f75",
+      "line": "#2e3033",
+      "line-strong": "#3a3c40",
+      "field": "#2b2c2f",
+      "stripe": "#ffffff0e",
+      "stripe-bg": "#1b1c1e",
+      "accent": "#3d9aff",
+      "accent-ink": "#7ec0ff",
+      "accent-tint": "#3d9aff29",
+      "green": "#3dbb72",
+      "green-tint": "#3dbb7224",
+      "orange": "#f68f3c",
+      "orange-tint": "#f68f3c24",
+      "red": "#ee5c61",
+      "red-tint": "#ee5c6124",
+      "tooltip-bg": "#111214",
+      "tooltip-fg": "#f2f3f4",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#2e3033",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #0000004d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #0003, 0 2px 6px #0003",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #00000038",
+      "shadow-overlay": "0 0 0 1px var(--line-strong), 0 8px 28px #00000057",
+      "shadow-inset-field": "inset 0 1px 2px #0006"
+    }
+  },
+  "css": {
+    "@keyframes fade-up": {
+      "0%": {
+        "opacity": "0",
+        "transform": "translateY(8px)"
+      },
+      "to": {
+        "opacity": "1",
+        "transform": "translateY(0)"
+      }
+    },
+    "@keyframes pop-in": {
+      "0%": {
+        "opacity": "0",
+        "transform": "scale(.95)"
+      },
+      "to": {
+        "opacity": "1",
+        "transform": "scale(1)"
+      }
+    }
+  },
+  "type": "registry:component"
+}

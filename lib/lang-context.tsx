@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 export type Lang = "en" | "zh";
 
@@ -21,8 +21,23 @@ const LangContext = createContext<LangContextType>({
 });
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [globalLang, setGlobalLang] = useState<Lang>("en");
+  const [globalLang, setGlobalLangState] = useState<Lang>("en");
   const [componentLangs, setComponentLangs] = useState<Record<string, Lang>>({});
+
+  // Restore the persisted global language on mount.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("nai-lang");
+      if (stored === "en" || stored === "zh") setGlobalLangState(stored);
+    } catch {}
+  }, []);
+
+  const setGlobalLang = (lang: Lang) => {
+    setGlobalLangState(lang);
+    try {
+      window.localStorage.setItem("nai-lang", lang);
+    } catch {}
+  };
 
   const setComponentLang = (id: string, lang: Lang) => {
     setComponentLangs((prev) => ({ ...prev, [id]: lang }));

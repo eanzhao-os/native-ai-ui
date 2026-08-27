@@ -169,8 +169,11 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
                       : zh ? "事实" : "fact"}
                   </span>
                   {item.pinned && (
-                    <span className="font-mono text-[9.5px] text-ink-3 flex items-center gap-0.5">
-                      📌 {zh ? "已置顶" : "Pinned"}
+                    <span className="flex items-center gap-0.5 font-mono text-[9.5px] text-ink-3">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 3a1 1 0 0 1 .71.29l4 4A1 1 0 0 1 21 9l-6.5 6.5-.5 4.5a1 1 0 0 1-1.7.7L9 17.4 4.7 21.7a1 1 0 0 1-1.4-1.4L7.6 16l-3.3-3.3a1 1 0 0 1 .7-1.7l4.5-.5L15 4a1 1 0 0 1 1-1z" />
+                      </svg>
+                      {zh ? "已置顶" : "Pinned"}
                     </span>
                   )}
                   <span className="font-mono text-[10px] text-ink-3 tabular-nums ml-auto">
@@ -189,7 +192,7 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
                   onClick={() => handleTogglePin(item.id)}
                   title={item.pinned ? (zh ? "取消置顶" : "Unpin") : zh ? "置顶到 Prompt" : "Pin to prompt"}
                   className={`flex size-6 items-center justify-center rounded-chip text-ink-3 hover:bg-hover hover:text-ink transition-colors cursor-pointer ${
-                    item.pinned ? "text-accent" : ""
+                    item.pinned ? "text-accent-ink" : ""
                   }`}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -233,7 +236,7 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
               ...prev,
             ]);
           }}
-          className="text-accent hover:underline font-medium cursor-pointer"
+          className="text-accent-ink hover:underline font-medium cursor-pointer"
         >
           {zh ? "+ 添加事实" : "+ Add Fact"}
         </button>

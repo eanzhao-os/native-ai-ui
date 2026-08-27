@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * LOADING STATE — pixel-grid loader for long-running work
@@ -48,16 +49,21 @@ function useElapsed() {
 export default function LoadingState({
   label = "Churning",
   variant = "Drive",
+  lang: propLang,
 }: {
   label?: string;
   variant?: string;
+  lang?: "en" | "zh";
 }) {
+  const lang = useLang("loading-state", propLang);
+  const zh = lang === "zh";
   const elapsed = useElapsed();
+  const displayLabel = zh && label === "Churning" ? "搅拌中" : label;
   const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Drive;
 
   return (
     <div className="flex w-fit items-center gap-2.5">
-      <span aria-hidden className="grid grid-cols-[repeat(3,4px)] gap-[1.5px]">
+      <span aria-hidden className="pixel-grid grid grid-cols-[repeat(3,4px)] gap-[1.5px]">
         {delays.map((d, i) => (
           <span
             key={i}
@@ -79,7 +85,7 @@ export default function LoadingState({
           animation: "shimmer-text 1.4s linear infinite",
         }}
       >
-        {label}
+        {displayLabel}
       </span>
       <span className="font-mono text-[12px] text-ink-3 tabular-nums">
         {elapsed}

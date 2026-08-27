@@ -29,7 +29,7 @@ const PRESETS: Preset[] = [
     approvalZh: "全量拦截审批",
     descEn: "Isolated remote container. Prompt user before all file edits, shell commands, and outbound HTTP.",
     descZh: "在远程隔离容器中执行。任何文件修改、终端命令及外网 HTTP 调用均需用户手动确认。",
-    icon: "🛡️",
+    icon: "shield",
   },
   {
     id: "balanced",
@@ -40,7 +40,7 @@ const PRESETS: Preset[] = [
     approvalZh: "仅写操作审批",
     descEn: "Local sandbox with workspace isolation. Read operations auto-approve; write/exec prompt once.",
     descZh: "本地沙盒与工作区隔离。读操作自动放行；文件写入与命令执行仅提示一次。",
-    icon: "⚖️",
+    icon: "scale",
   },
   {
     id: "autonomous",
@@ -51,7 +51,7 @@ const PRESETS: Preset[] = [
     approvalZh: "完全自主",
     descEn: "Full automated execution. Retains durable exactly-once audit ledger in SQLite.",
     descZh: "全自动执行流。在 SQLite 中保留可完整重放的 Exactly-Once 审计账本。",
-    icon: "⚡",
+    icon: "bolt",
   },
 ];
 
@@ -154,7 +154,21 @@ export default function PermissionPresetCard({ lang: propLang }: { lang?: "en" |
             >
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[13px]">{p.icon}</span>
+                  <span className={`flex size-4 items-center justify-center ${isSelected ? "text-accent-ink" : "text-ink-2"}`}>
+                    {p.icon === "shield" ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </svg>
+                    ) : p.icon === "scale" ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3v18M8 21h8M3 7h4l-3 7a3.5 3.5 0 0 1-4 0l3-7zm14 0h4l-3 7a3.5 3.5 0 0 1-4 0l3-7zM5 7l7-4 7 4" transform="translate(1 0) scale(0.92)" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+                      </svg>
+                    )}
+                  </span>
                   <span className="text-[12px] font-semibold text-ink">
                     {zh ? p.nameZh : p.nameEn}
                   </span>
@@ -212,6 +226,8 @@ export default function PermissionPresetCard({ lang: propLang }: { lang?: "en" |
                   className={`rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${
                     item.statusEn === "Approved"
                       ? "bg-green-tint text-green"
+                      : item.statusEn === "Denied"
+                      ? "bg-red-tint text-red"
                       : "bg-accent-tint text-accent-ink"
                   }`}
                 >

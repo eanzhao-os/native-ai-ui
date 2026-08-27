@@ -92,9 +92,11 @@ export default function ContextSpillover({ lang: propLang }: { lang?: "en" | "zh
           </span>
         </div>
 
-        <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-line">
-          <div className="h-full bg-accent rounded-full" style={{ width: "3.2%" }} />
-          <div className="h-full bg-green/60" style={{ width: "96.8%" }} />
+        <div className="mt-2 flex h-2 w-full items-center gap-1">
+          <span className="size-2 shrink-0 rounded-full bg-accent" title={zh ? "内存活跃 3.2%" : "In-memory 3.2%"} />
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line">
+            <div className="h-full rounded-full bg-green/60" style={{ width: "96.8%" }} />
+          </div>
         </div>
 
         <div className="mt-2 flex justify-between font-mono text-[10px] text-ink-3">

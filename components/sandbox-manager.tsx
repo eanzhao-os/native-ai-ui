@@ -48,6 +48,7 @@ export default function SandboxManager({ lang: propLang }: { lang?: "en" | "zh" 
     setTimeout(() => {
       setIsRunning(true);
       setCpuUsage(8.2);
+      setMemUsage(212);
     }, 1000);
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * SEARCH — command search with live filtering.
@@ -8,19 +9,23 @@ import { useState } from "react";
  * ───────────────────────────────────────────────────────── */
 
 const ITEMS = [
-  "Forecast summer demand",
-  "Find waffle cone suppliers",
-  "Compare seasonal flavors",
-  "Draft flavor launch plan",
-  "Check cold-chain status",
-  "Audit sugar costs",
-  "Retire low sellers",
+  { en: "Forecast summer demand", zh: "预测夏季需求" },
+  { en: "Find waffle cone suppliers", zh: "寻找华夫脆筒供应商" },
+  { en: "Compare seasonal flavors", zh: "对比季节限定口味" },
+  { en: "Draft flavor launch plan", zh: "起草新口味上市计划" },
+  { en: "Check cold-chain status", zh: "检查冷链状态" },
+  { en: "Audit sugar costs", zh: "核算糖原料成本" },
+  { en: "Retire low sellers", zh: "下架滞销口味" },
 ];
 
-export default function SearchList() {
+export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("search", propLang);
+  const zh = lang === "zh";
+
   const [query, setQuery] = useState("");
+  const labelOf = (item: (typeof ITEMS)[number]) => (zh ? item.zh : item.en);
   const results = query
-    ? ITEMS.filter((i) => i.toLowerCase().includes(query.toLowerCase()))
+    ? ITEMS.filter((i) => labelOf(i).toLowerCase().includes(query.toLowerCase()))
     : ITEMS.slice(0, 5);
   const empty = query.length > 2 && results.length === 0;
 
@@ -28,7 +33,7 @@ export default function SearchList() {
     <div className="flex min-h-[248px] w-full max-w-72 flex-col items-stretch">
       <div className="w-full self-start overflow-hidden rounded-card bg-surface shadow-raised">
         {/* input row */}
-        <div className="flex h-10 items-center gap-2 border-b border-line px-3 transition-colors duration-100 hover:bg-hover">
+        <div className="flex h-10 items-center gap-2 border-b border-line px-3">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" className="shrink-0">
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
@@ -36,13 +41,13 @@ export default function SearchList() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search flavors…"
-            aria-label="Search flavors"
+            placeholder={zh ? "搜索风味…" : "Search flavors…"}
+            aria-label={zh ? "搜索风味" : "Search flavors"}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
           />
           {query && (
             <button
-              aria-label="Clear search"
+              aria-label={zh ? "清除搜索" : "Clear search"}
               type="button"
               onClick={() => setQuery("")}
               className="flex size-5.5 items-center justify-center rounded-full text-ink-3
@@ -65,21 +70,21 @@ export default function SearchList() {
                 <path d="M21 21l-4.3-4.3" />
               </svg>
             </span>
-            <span className="text-[13px] font-medium text-ink">No results found</span>
-            <span className="text-[12px] text-ink-3">Adjust your search to try again</span>
+            <span className="text-[13px] font-medium text-ink">{zh ? "未找到相关结果" : "No results found"}</span>
+            <span className="text-[12px] text-ink-3">{zh ? "换个关键词再试一次" : "Adjust your search to try again"}</span>
           </div>
         ) : (
           <div className="p-1">
             {results.map((item) => (
               <button
-                key={item}
+                key={item.en}
                 type="button"
-                onClick={() => setQuery(item)}
+                onClick={() => setQuery(labelOf(item))}
                 className="flex h-8 w-full items-center rounded-[6px] px-2 text-left text-[13px]
                   text-ink transition-colors duration-100 hover:bg-hover"
                 style={{ animation: "fade-in 200ms ease-out both" }}
               >
-                {item}
+                {labelOf(item)}
               </button>
             ))}
           </div>

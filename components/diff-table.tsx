@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * DIFF TABLE
@@ -17,10 +18,16 @@ function useStage(steps: number[]) {
   return stage;
 }
 
+const HEADERS = [
+  { en: "Flavor", zh: "风味" },
+  { en: "Category", zh: "分类" },
+  { en: "Supplier", zh: "供应商" },
+];
+
 const ROWS = [
-  { id: "Rocky Road", dept: "Classic", email: "aurora-scoops", removed: true },
-  { id: "Bubblegum", dept: "Retro", email: "kumo-creamery", removed: true },
-  { id: "Mint Chip", dept: "Classic", email: "maple-orbit", removed: false },
+  { nameEn: "Rocky Road", nameZh: "石板街", dept: "Classic", deptEn: "Classic", deptZh: "经典", email: "aurora-scoops", removed: true },
+  { nameEn: "Bubblegum", nameZh: "泡泡糖", dept: "Retro", deptEn: "Retro", deptZh: "复古", email: "kumo-creamery", removed: true },
+  { nameEn: "Mint Chip", nameZh: "薄荷巧克力", dept: "Classic", deptEn: "Classic", deptZh: "经典", email: "maple-orbit", removed: false },
 ];
 
 const DOT: Record<string, string> = {
@@ -29,7 +36,10 @@ const DOT: Record<string, string> = {
   Seasonal: "bg-orange",
 };
 
-export default function DiffTable() {
+export default function DiffTable({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("diff-table", propLang);
+  const zh = lang === "zh";
+
   const stage = useStage([800, 1000, 1000]);
   // 0 plain · 1 red tint · 2 completed diff
   const tinted = stage >= 2;
@@ -39,7 +49,7 @@ export default function DiffTable() {
     <div className="w-full max-w-95">
       <div className="relative overflow-hidden rounded-card bg-surface shadow-card">
         <div className="primitive-card-bar flex items-center justify-between border-b border-line">
-          <span className="text-[12.5px] font-medium text-ink">Proposed menu cleanup</span>
+          <span className="text-[12.5px] font-medium text-ink">{zh ? "菜单清理建议" : "Proposed menu cleanup"}</span>
         </div>
 
         <table className="w-full table-fixed border-collapse text-left">
@@ -50,9 +60,9 @@ export default function DiffTable() {
           </colgroup>
           <thead>
             <tr className="border-b border-line">
-              {["Flavor", "Category", "Supplier"].map((h) => (
-                <th key={h} className="primitive-table-cell text-[12px] font-medium text-ink-3">
-                  {h}
+              {HEADERS.map((h) => (
+                <th key={h.en} className="primitive-table-cell text-[12px] font-medium text-ink-3">
+                  {zh ? h.zh : h.en}
                 </th>
               ))}
             </tr>
@@ -62,7 +72,7 @@ export default function DiffTable() {
               const out = row.removed && tinted;
               return (
                 <tr
-                  key={row.id}
+                  key={row.nameEn}
                   className="border-b border-line transition-colors duration-400 last:border-0 hover:bg-hover"
                   style={{ background: out ? "var(--red-tint)" : undefined }}
                 >
@@ -70,7 +80,7 @@ export default function DiffTable() {
                     className="primitive-table-cell text-[13px] font-medium tabular-nums transition-colors duration-400"
                     style={{ color: out ? "var(--red)" : "var(--ink)" }}
                   >
-                    {row.id}
+                    {zh ? row.nameZh : row.nameEn}
                   </td>
                   <td className="primitive-table-cell">
                     <span
@@ -78,7 +88,7 @@ export default function DiffTable() {
                       style={{ opacity: out ? 0.55 : 1 }}
                     >
                       <span className={`size-1.5 rounded-full ${DOT[row.dept]}`} />
-                      <span className="text-ink-2">{row.dept}</span>
+                      <span className="text-ink-2">{zh ? row.deptZh : row.deptEn}</span>
                     </span>
                   </td>
                   <td
@@ -108,12 +118,12 @@ export default function DiffTable() {
                   <div className="overflow-hidden" style={{ background: "var(--green-tint)" }}>
                     <div className="grid grid-cols-[34%_30%_36%] items-center border-t border-line">
                       <span className="primitive-table-cell text-[13px] font-medium text-green tabular-nums">
-                        Pistachio
+                        {zh ? "开心果" : "Pistachio"}
                       </span>
                       <span className="primitive-table-cell">
                         <span className="inline-flex h-5.5 items-center gap-1.5 rounded-full bg-surface px-2 text-[11.5px] font-medium shadow-hairline">
                           <span className="size-1.5 rounded-full bg-green" />
-                          <span className="text-ink-2">Seasonal</span>
+                          <span className="text-ink-2">{zh ? "季节限定" : "Seasonal"}</span>
                         </span>
                       </span>
                       <span className="primitive-table-cell text-[13px] text-green">

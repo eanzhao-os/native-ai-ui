@@ -176,7 +176,7 @@ export default function StreamingText({ lang: propLang }: { lang?: "en" | "zh" }
         }}
       >
         <div className="overflow-hidden">
-          <div className="mt-1.5 flex flex-col rounded-[10px] bg-inset p-1 shadow-hairline">
+          <div className="mt-1.5 flex flex-col rounded-card bg-inset p-1 shadow-hairline">
             {SOURCES.map((source) => (
               <a
                 key={source.domain}

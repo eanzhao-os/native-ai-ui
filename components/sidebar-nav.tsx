@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * SIDEBAR NAV
@@ -8,11 +9,11 @@ import { useLayoutEffect, useRef, useState } from "react";
  * ───────────────────────────────────────────────────────── */
 
 const ITEMS = [
-  { key: "activity", label: "Home", section: "Workspace" },
-  { key: "tasks", label: "Agent tasks", section: "Workspace", count: true },
-  { key: "dashboard", label: "Inbox", section: "Workspace" },
-  { key: "spaces", label: "Suppliers", section: "Objects", plus: true },
-  { key: "analytics", label: "Inventory", section: "Objects" },
+  { key: "activity", labelEn: "Home", labelZh: "首页", section: "Workspace" },
+  { key: "tasks", labelEn: "Agent tasks", labelZh: "智能体任务", section: "Workspace", count: true },
+  { key: "dashboard", labelEn: "Inbox", labelZh: "收件箱", section: "Workspace" },
+  { key: "spaces", labelEn: "Suppliers", labelZh: "供应商", section: "Objects", plus: true },
+  { key: "analytics", labelEn: "Inventory", labelZh: "库存", section: "Objects" },
 ];
 
 function Icon({ kind }: { kind: string }) {
@@ -30,13 +31,18 @@ function Icon({ kind }: { kind: string }) {
   );
 }
 
-export default function SidebarNav() {
+export default function SidebarNav({ lang: propLang }: { lang?: "en" | "zh" }) {
+  const lang = useLang("sidebar-nav", propLang);
+  const zh = lang === "zh";
   const [active, setActive] = useState("tasks");
   const [hovered, setHovered] = useState<string | null>(null);
   const [box, setBox] = useState<{ top: number; height: number } | null>(null);
   const [query, setQuery] = useState("");
   const [badge, setBadge] = useState(4);
-  const sections = ["Workspace", "Objects"];
+  const sections = [
+    { key: "Workspace", label: zh ? "工作区" : "Workspace" },
+    { key: "Objects", label: zh ? "对象" : "Objects" },
+  ];
   const navRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -66,7 +72,7 @@ export default function SidebarNav() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium leading-tight text-ink">Creamery Ops</span>
-          <span className="block truncate text-[11px] leading-tight text-ink-3">Production Workspace</span>
+          <span className="block truncate text-[11px] leading-tight text-ink-3">{zh ? "生产工作区" : "Production Workspace"}</span>
         </span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M7 15l5 5 5-5M7 9l5-5 5 5" />
@@ -82,7 +88,7 @@ export default function SidebarNav() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Quick search"
+          placeholder={zh ? "快速搜索" : "Quick search"}
           className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3"
         />
         <kbd className="flex size-4.5 items-center justify-center rounded-[5px] bg-surface text-[10px] text-ink-3 shadow-hairline">
@@ -98,9 +104,9 @@ export default function SidebarNav() {
           setActive("tasks");
         }}
         className="mb-2 flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-[13px]
-          font-medium text-accent transition-[background-color,transform] duration-100 hover:bg-accent-tint active:scale-[0.96]"
+          font-medium text-accent-ink transition-[background-color,transform] duration-100 hover:bg-accent-tint active:scale-[0.96]"
       >
-        <span className="min-w-0 flex-1 truncate text-left">New task</span>
+        <span className="min-w-0 flex-1 truncate text-left">{zh ? "新建任务" : "New task"}</span>
         <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-accent text-white">
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
@@ -126,12 +132,12 @@ export default function SidebarNav() {
           }}
         />
         {sections.map((section) => (
-          <div key={section}>
+          <div key={section.key}>
             <div className="px-2 pb-1 pt-1 text-[10.5px] font-medium uppercase tracking-[0.08em] text-ink-3">
-              {section}
+              {section.label}
             </div>
             <div className="flex flex-col gap-px">
-              {ITEMS.filter((item) => item.section === section).map((item) => {
+              {ITEMS.filter((item) => item.section === section.key).map((item) => {
                 const isActive = item.key === active;
                 return (
                   <button
@@ -155,7 +161,7 @@ export default function SidebarNav() {
                       className={`min-w-0 flex-1 truncate text-[13px] transition-colors duration-150
                         ${isActive ? "font-medium text-ink" : "text-ink-2"}`}
                     >
-                      {item.label}
+                      {zh ? item.labelZh : item.labelEn}
                     </span>
                     {item.count && (
                       <span

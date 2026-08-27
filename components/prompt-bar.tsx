@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createShader, playSweep, accentChain, ACCENTS } from "glimm";
+import { useLang } from "@/lib/lang-context";
 
 /* The built-in "prism" palette is only cyan→indigo→magenta, so a sweep
  * reads as blue/purple. Build a true full-spectrum rainbow instead. */
@@ -70,8 +71,10 @@ const BRANDS: Record<string, React.ReactNode> = {
 
 type Source = {
   key: string;
-  name: string;
-  desc: string;
+  nameEn: string;
+  nameZh: string;
+  descEn: string;
+  descZh: string;
   glyph?: string;
   brand?: string;
   attach?: boolean;
@@ -79,31 +82,32 @@ type Source = {
 };
 
 const SOURCES: Source[] = [
-  { key: "attach", name: "Add photos & files", desc: "Upload from your computer", glyph: "clip", attach: true },
-  { key: "scoop", name: "Scoop Data", desc: "Sales & churn metrics", glyph: "chart" },
-  { key: "flavors", name: "Flavor records", desc: "26 makers, tags, links", glyph: "layers" },
-  { key: "web", name: "Web search", desc: "Real-time news and info", glyph: "globe" },
-  { key: "figma", name: "Figma", desc: "Design-to-code workflows", brand: "figma" },
-  { key: "slack", name: "Slack", desc: "Read and manage Slack", brand: "slack" },
-  { key: "gmail", name: "Gmail", desc: "Read and manage Gmail", brand: "gmail", connect: true },
+  { key: "attach", nameEn: "Add photos & files", nameZh: "添加图片和文件", descEn: "Upload from your computer", descZh: "从本地上传", glyph: "clip", attach: true },
+  { key: "scoop", nameEn: "Scoop Data", nameZh: "Scoop 数据", descEn: "Sales & churn metrics", descZh: "销售与产量指标", glyph: "chart" },
+  { key: "flavors", nameEn: "Flavor records", nameZh: "风味档案", descEn: "26 makers, tags, links", descZh: "26 家厂商、标签与链接", glyph: "layers" },
+  { key: "web", nameEn: "Web search", nameZh: "联网搜索", descEn: "Real-time news and info", descZh: "实时新闻与资讯", glyph: "globe" },
+  { key: "figma", nameEn: "Figma", nameZh: "Figma", descEn: "Design-to-code workflows", descZh: "设计稿转代码工作流", brand: "figma" },
+  { key: "slack", nameEn: "Slack", nameZh: "Slack", descEn: "Read and manage Slack", descZh: "读取并管理 Slack 消息", brand: "slack" },
+  { key: "gmail", nameEn: "Gmail", nameZh: "Gmail", descEn: "Read and manage Gmail", descZh: "读取并管理 Gmail 邮件", brand: "gmail", connect: true },
 ];
 
 const COMMANDS = [
-  { key: "compare", name: "/compare", desc: "Flavor vs. last summer" },
-  { key: "churn-plan", name: "/churn-plan", desc: "Draft a churn schedule" },
-  { key: "restock", name: "/restock", desc: "Build a reorder list" },
-  { key: "draft-email", name: "/draft-email", desc: "Write a supplier email" },
-  { key: "summarize", name: "/summarize", desc: "Digest the thread so far" },
+  { key: "compare", name: "/compare", descEn: "Flavor vs. last summer", descZh: "对比风味与去年同期销量" },
+  { key: "churn-plan", name: "/churn-plan", descEn: "Draft a churn schedule", descZh: "起草搅拌生产排期" },
+  { key: "restock", name: "/restock", descEn: "Build a reorder list", descZh: "生成补货清单" },
+  { key: "draft-email", name: "/draft-email", descEn: "Write a supplier email", descZh: "撰写供应商邮件" },
+  { key: "summarize", name: "/summarize", descEn: "Digest the thread so far", descZh: "总结当前对话要点" },
 ];
 
 const MODELS = [
-  { key: "sprinkles-5", name: "Sprinkles 5", tag: "Flagship" },
-  { key: "vanilla-1", name: "Vanilla 1", tag: "Basic" },
-  { key: "freezer-burn", name: "Freezer Burn 0.4", tag: "Stale" },
+  { key: "sprinkles-5", name: "Sprinkles 5", tagEn: "Flagship", tagZh: "旗舰" },
+  { key: "vanilla-1", name: "Vanilla 1", tagEn: "Basic", tagZh: "基础" },
+  { key: "freezer-burn", name: "Freezer Burn 0.4", tagEn: "Stale", tagZh: "过时" },
 ];
 
 const FILES = ["flavor-chart.png", "summer-menu.pdf", "pos-export.csv"];
-const DICTATION = "Compare pistachio weekends to last summer";
+const DICTATION_EN = "Compare pistachio weekends to last summer";
+const DICTATION_ZH = "对比开心果口味周末销量与去年同期";
 
 /* self-running demo: walk the @ menu, then the / menu, and repeat.
  * Any pointer or key interaction hands control to the user. */
@@ -143,7 +147,9 @@ function parseToken(draft: string): { kind: "at" | "slash"; query: string; start
   };
 }
 
-export default function PromptBar({ variant = "Rounded" }: { variant?: string }) {
+export default function PromptBar({ variant = "Rounded", lang: propLang }: { variant?: string; lang?: "en" | "zh" }) {
+  const lang = useLang("prompt-bar", propLang);
+  const zh = lang === "zh";
   const pill = variant === "Pill";
   const [draft, setDraft] = useState("");
   const [dismissed, setDismissed] = useState(false);
@@ -184,9 +190,17 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
 
   const rows: { key: string; name: string; desc: string }[] =
     menu === "at"
-      ? SOURCES.filter((s) => s.name.toLowerCase().includes(query))
+      ? SOURCES.filter((s) => (zh ? s.nameZh : s.nameEn).toLowerCase().includes(query)).map((s) => ({
+          key: s.key,
+          name: zh ? s.nameZh : s.nameEn,
+          desc: zh ? s.descZh : s.descEn,
+        }))
       : menu === "slash"
-        ? COMMANDS.filter((c) => c.name.slice(1).startsWith(query))
+        ? COMMANDS.filter((c) => c.name.slice(1).startsWith(query)).map((c) => ({
+            key: c.key,
+            name: c.name,
+            desc: zh ? c.descZh : c.descEn,
+          }))
         : [];
 
   useEffect(() => {
@@ -298,13 +312,14 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
   /* dictation resolves after a beat, like a real transcript landing */
   useEffect(() => {
     if (!listening) return;
+    const dictation = zh ? DICTATION_ZH : DICTATION_EN;
     const t = setTimeout(() => {
-      setDraft((current) => (current ? `${current.trimEnd()} ${DICTATION}` : DICTATION));
+      setDraft((current) => (current ? `${current.trimEnd()} ${dictation}` : dictation));
       setListening(false);
       inputRef.current?.focus();
     }, 2200);
     return () => clearTimeout(t);
-  }, [listening]);
+  }, [listening, zh]);
 
   /* Move wrapped text above the controls, then grow to a compact maximum. */
   useLayoutEffect(() => {
@@ -370,7 +385,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
       {menu && (
         <div
           onMouseLeave={() => setEngaged(false)}
-          className="absolute inset-x-0 bottom-full z-10 mb-2 rounded-[10px] bg-surface p-1 shadow-raised"
+          className="absolute inset-x-0 bottom-full z-10 mb-2 rounded-card bg-surface p-1 shadow-raised"
           style={{ animation: "pop-in 180ms cubic-bezier(0.23,1,0.32,1) both", transformOrigin: "bottom center" }}
         >
           {/* single gliding highlight — appears once a row is hovered */}
@@ -423,7 +438,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
                       connected ? "text-green" : "text-accent-ink hover:underline"
                     }`}
                   >
-                    {connected ? "Connected" : "Connect"}
+                    {connected ? (zh ? "已连接" : "Connected") : zh ? "连接" : "Connect"}
                   </span>
                 )}
               </button>
@@ -431,11 +446,17 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
           })}
           {rows.length === 0 && (
             <div className="flex h-9 items-center px-2 text-[12px] text-ink-3">
-              No matches for “{query}”
+              {zh ? `没有匹配「${query}」的结果` : `No matches for “${query}”`}
             </div>
           )}
           <div className="mt-1 border-t border-line px-2 pt-1.5 pb-1 text-[11px] text-ink-3">
-            {menu === "at" ? "Type to search sources & files" : "Type to search commands"}
+            {menu === "at"
+              ? zh
+                ? "输入以搜索数据源与文件"
+                : "Type to search sources & files"
+              : zh
+              ? "输入以搜索命令"
+              : "Type to search commands"}
           </div>
         </div>
       )}
@@ -444,7 +465,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
       {modelOpen && (
         <div
           onMouseLeave={() => setModelHovered(null)}
-          className="absolute right-0 bottom-full z-10 mb-2 w-44 rounded-[10px] bg-surface p-1 shadow-raised"
+          className="absolute right-0 bottom-full z-10 mb-2 w-44 rounded-card bg-surface p-1 shadow-raised"
           style={{ animation: "pop-in 180ms cubic-bezier(0.23,1,0.32,1) both", transformOrigin: "bottom right" }}
         >
           {/* single gliding highlight — floats to the hovered / selected row */}
@@ -475,7 +496,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
               className="relative z-10 flex h-7.5 w-full items-center gap-2 rounded-[6px] px-2 text-left"
             >
               <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink">{m.name}</span>
-              <span className="shrink-0 text-[11px] text-ink-3">{m.tag}</span>
+              <span className="shrink-0 text-[11px] text-ink-3">{zh ? m.tagZh : m.tagEn}</span>
               <span className={`shrink-0 text-ink ${m.key === model.key ? "" : "invisible"}`}>
                 <Icon size={13} strokeWidth={2.5}><path d="M20 6L9 17l-5-5" /></Icon>
               </span>
@@ -521,7 +542,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
                 <span className="max-w-36 truncate">{file}</span>
                 <button
                   type="button"
-                  aria-label={`Remove ${file}`}
+                  aria-label={zh ? `移除 ${file}` : `Remove ${file}`}
                   onClick={() => setAttachments((current) => current.filter((_, j) => j !== i))}
                   className={`flex size-4 items-center justify-center text-ink-3 transition-colors duration-100 hover:bg-line/70 hover:text-ink ${
                     pill ? "rounded-full" : "rounded-[4px]"
@@ -544,7 +565,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
         >
           <button
             type="button"
-            aria-label="Add attachments and sources"
+            aria-label={zh ? "添加附件与数据源" : "Add attachments and sources"}
             aria-expanded={plusOpen}
             onClick={() => {
               setModelOpen(false);
@@ -591,8 +612,8 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
                 send();
               }
             }}
-            placeholder={listening ? "Listening…" : "Write a message…"}
-            aria-label="Prompt"
+            placeholder={listening ? (zh ? "正在聆听…" : "Listening…") : zh ? "输入消息…" : "Write a message…"}
+            aria-label={zh ? "提示词输入框" : "Prompt"}
             className={`min-h-7 min-w-0 w-full resize-none bg-transparent px-1 py-[5px] text-[13px] leading-[18px] text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3 ${
               expanded ? "col-span-full col-start-1 row-start-1" : "col-start-2 row-start-1"
             }`}
@@ -603,7 +624,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
             ref={modelRef}
             type="button"
             aria-expanded={modelOpen}
-            aria-label="Choose model"
+            aria-label={zh ? "选择模型" : "Choose model"}
             onClick={() => {
               setPlusOpen(false);
               setModelOpen((current) => !current);
@@ -621,7 +642,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
           {/* dictation */}
           <button
             type="button"
-            aria-label={listening ? "Stop dictation" : "Start dictation"}
+            aria-label={listening ? (zh ? "停止听写" : "Stop dictation") : zh ? "开始听写" : "Start dictation"}
             aria-pressed={listening}
             onClick={() => setListening((current) => !current)}
             className={`flex size-7 shrink-0 items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.94] ${
@@ -648,7 +669,7 @@ export default function PromptBar({ variant = "Rounded" }: { variant?: string })
           {/* send — tactile square (round in the pill variant) */}
           <button
             type="button"
-            aria-label="Send"
+            aria-label={zh ? "发送" : "Send"}
             disabled={!canSend}
             onClick={send}
             className={`flex size-7 shrink-0 items-center justify-center transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.94] ${
