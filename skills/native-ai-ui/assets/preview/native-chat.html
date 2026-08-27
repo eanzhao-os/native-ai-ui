@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Native AI UI — Design Mockup</title>
+<style>
+/* Tokens lifted verbatim from Beautiful UI globals.css */
+:root {
+  --page:#fafafb; --canvas:#f1f2f3; --surface:#fff; --inset:#f7f8f9;
+  --hover:#f4f5f6; --hover-2:#e7e9eb;
+  --ink:#1f2124; --ink-2:#62656b; --ink-3:#9a9da3;
+  --line:#ecedef; --line-strong:#e0e2e5; --field:#f2f2f3;
+  --accent:#0285ff; --accent-ink:#0170dd; --accent-tint:#e9f3ff;
+  --green:#189a4d; --green-tint:#e8f5ed;
+  --orange:#ef720c; --orange-tint:#fdf1e5;
+  --red:#e3474c; --red-tint:#fcecec;
+  --shadow-hairline:0 0 0 1px var(--line);
+  --shadow-btn:0 0 0 1px var(--line-strong),0 1px 2px #1018280d;
+  --shadow-card:0 0 0 1px var(--line),0 1px 2px #1018280a,0 2px 6px #10182808;
+  --shadow-raised:0 0 0 1px var(--line),0 2px 10px #0000000b;
+  --shadow-overlay:0 0 0 1px var(--line),0 8px 28px #0001;
+  --shadow-inset-field:inset 0 1px 2px #0000001f;
+  --radius-chip:6px; --radius-control:8px; --radius-card:10px;
+  --ease-out-strong:cubic-bezier(0.23,1,0.32,1);
+}
+.dark {
+  --page:#17181a; --canvas:#1c1d1f; --surface:#232427; --inset:#1f2022;
+  --hover:#2a2b2e; --hover-2:#313236;
+  --ink:#f2f3f4; --ink-2:#a5a8ad; --ink-3:#6c6f75;
+  --line:#2e3033; --line-strong:#3a3c40; --field:#2b2c2f;
+  --accent:#3d9aff; --accent-ink:#7ec0ff; --accent-tint:#3d9aff29;
+  --green:#3dbb72; --green-tint:#3dbb7224;
+  --orange:#f68f3c; --orange-tint:#f68f3c24;
+  --red:#ee5c61; --red-tint:#ee5c6124;
+  --shadow-btn:0 0 0 1px var(--line-strong),0 1px 2px #0000004d;
+  --shadow-card:0 0 0 1px var(--line),0 1px 2px #0003,0 2px 6px #0003;
+  --shadow-raised:0 0 0 1px var(--line),0 2px 10px #00000038;
+  --shadow-overlay:0 0 0 1px var(--line-strong),0 8px 28px #00000057;
+  --shadow-inset-field:inset 0 1px 2px #0006;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:-apple-system,"Inter",ui-sans-serif,system-ui,sans-serif;
+  background:var(--page); color:var(--ink);
+  font-size:13px; line-height:1.5;
+  transition:background .3s var(--ease-out-strong),color .3s;
+}
+.mono { font-family:ui-monospace,"SF Mono",Menlo,monospace; }
+.wrap { display:flex; height:100vh; overflow:hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width:232px; flex:none; background:var(--canvas);
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column; padding:10px 8px;
+}
+.brand { display:flex; align-items:center; gap:8px; padding:6px 8px 12px; font-weight:600; font-size:13.5px; }
+.brand .dot { width:18px; height:18px; border-radius:6px; background:linear-gradient(135deg,var(--accent),#7c5cff); }
+.nav-label { font-size:11px; color:var(--ink-3); padding:10px 10px 4px; font-weight:500; }
+.nav-item {
+  display:flex; align-items:center; gap:8px; padding:6px 10px;
+  border-radius:var(--radius-control); color:var(--ink-2); cursor:pointer;
+  font-size:12.5px; transition:background .12s;
+}
+.nav-item:hover { background:var(--hover); }
+.nav-item.active { background:var(--accent-tint); color:var(--accent-ink); font-weight:500; }
+.nav-item .badge { margin-left:auto; font-size:10.5px; color:var(--ink-3); }
+.nav-item .live { margin-left:auto; width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1.6s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.theme-btn {
+  margin-top:auto; padding:7px 10px; border-radius:var(--radius-control);
+  background:var(--surface); box-shadow:var(--shadow-btn); border:none;
+  color:var(--ink-2); font-size:12px; cursor:pointer; font-family:inherit;
+}
+.theme-btn:hover { background:var(--hover); }
+
+/* ── Main ── */
+.main { flex:1; display:flex; flex-direction:column; min-width:0; }
+.topbar {
+  height:48px; flex:none; display:flex; align-items:center; gap:10px;
+  padding:0 16px; border-bottom:1px solid var(--line); background:var(--surface);
+}
+.tab { padding:5px 12px; border-radius:var(--radius-chip); font-size:12.5px; color:var(--ink-2); cursor:pointer; }
+.tab.active { background:var(--inset); color:var(--ink); box-shadow:var(--shadow-hairline); font-weight:500; }
+.tab .x { color:var(--ink-3); margin-left:6px; }
+.status-chip { margin-left:auto; display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--green); background:var(--green-tint); padding:3px 10px; border-radius:99px; }
+.spinner { width:11px; height:11px; border-radius:50%; border:1.5px solid var(--line-strong); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.scroll { flex:1; overflow-y:auto; padding:22px 26px 30px; }
+.col { max-width:680px; margin:0 auto; display:flex; flex-direction:column; gap:18px; }
+
+.msg-user {
+  align-self:flex-end; background:var(--accent-tint); color:var(--ink);
+  padding:9px 14px; border-radius:var(--radius-card); font-size:13px; max-width:75%;
+}
+.msg-agent { display:flex; flex-direction:column; gap:10px; }
+
+/* Thinking trace */
+.trace { border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-card); overflow:hidden; }
+.trace-head {
+  display:flex; align-items:center; gap:8px; padding:9px 13px;
+  font-size:12px; color:var(--ink-2); cursor:pointer; user-select:none;
+}
+.trace-head:hover { background:var(--hover); }
+.trace-head .chev { margin-left:auto; color:var(--ink-3); font-size:10px; transition:transform .2s var(--ease-out-strong); }
+.trace.open .chev { transform:rotate(180deg); }
+.trace-rows { display:none; border-top:1px solid var(--line); padding:6px 13px 10px; }
+.trace.open .trace-rows { display:block; }
+.trace-row { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; color:var(--ink-2); }
+.trace-row .check { color:var(--green); font-size:11px; width:13px; text-align:center; }
+.trace-row .sec { margin-left:auto; color:var(--ink-3); font-size:11px; }
+.trace.live .trace-head { color:var(--accent-ink); font-weight:500; }
+
+/* Streaming text */
+.stream { font-size:13.5px; line-height:1.65; }
+.stream .caret { display:inline-block; width:7px; height:14px; background:var(--accent); border-radius:2px; vertical-align:-2px; animation:blink 1s steps(2) infinite; }
+@keyframes blink { 50%{opacity:0} }
+.cite { display:inline-block; font-size:9.5px; line-height:1; color:var(--accent-ink); background:var(--accent-tint); border-radius:4px; padding:2px 4px; vertical-align:3px; margin:0 1px; font-weight:600; }
+
+/* Tool chips */
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip {
+  display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+  border-radius:var(--radius-chip); background:var(--surface);
+  box-shadow:var(--shadow-btn); font-size:11.5px; color:var(--ink-2); cursor:pointer;
+  transition:background .12s;
+}
+.chip:hover { background:var(--hover); }
+.chip.done .st { color:var(--green); }
+.chip.run .st { color:var(--accent); }
+.chip.fail .st { color:var(--red); }
+.chip .add { color:var(--green); } .chip .del { color:var(--red); }
+
+/* Approval card */
+.approval { border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-raised); padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+.ap-top { display:flex; align-items:center; gap:6px; }
+.pill { height:4px; border-radius:99px; flex:1; background:var(--line-strong); }
+.pill.done { background:var(--accent); }
+.pill.now { background:var(--ink); }
+.ap-next { width:26px; height:26px; border-radius:50%; border:none; background:var(--field); color:var(--ink-2); cursor:pointer; font-size:13px; box-shadow:var(--shadow-inset-field); }
+.ap-q { font-size:13.5px; font-weight:600; }
+.ap-opts { display:flex; flex-direction:column; gap:6px; }
+.ap-opt { display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:var(--radius-control); background:var(--inset); box-shadow:var(--shadow-hairline); cursor:pointer; font-size:12.5px; transition:background .12s; }
+.ap-opt:hover { background:var(--hover); }
+.ap-opt.sel { background:var(--accent-tint); box-shadow:0 0 0 1px var(--accent); }
+.radio { width:13px; height:13px; border-radius:50%; border:1.5px solid var(--line-strong); flex:none; }
+.ap-opt.sel .radio { border-color:var(--accent); background:radial-gradient(circle,var(--accent) 0 4px,transparent 5px); }
+
+/* Recommendation */
+.reco { border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-card); padding:14px 16px; display:flex; flex-direction:column; gap:9px; }
+.reco-head { display:flex; align-items:baseline; gap:8px; }
+.reco-title { font-size:13px; font-weight:600; }
+.reco-conf { margin-left:auto; font-size:11px; color:var(--ink-3); }
+.meter { height:4px; border-radius:99px; background:var(--field); overflow:hidden; }
+.meter i { display:block; height:100%; width:82%; background:var(--accent); border-radius:99px; }
+.reco-body { font-size:12.5px; color:var(--ink-2); }
+.reco-actions { display:flex; gap:8px; margin-top:2px; }
+.btn { padding:6px 13px; border-radius:var(--radius-control); border:none; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; transition:background .12s; }
+.btn-accent { background:var(--accent); color:#fff; }
+.btn-accent:hover { filter:brightness(1.08); }
+.btn-ghost { background:var(--surface); color:var(--ink-2); box-shadow:var(--shadow-btn); }
+.btn-ghost:hover { background:var(--hover); }
+
+/* Diff table */
+.diff { border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-card); overflow:hidden; }
+.diff-title { padding:10px 14px; font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { text-align:left; padding:7px 14px; color:var(--ink-3); font-weight:500; font-size:11px; border-bottom:1px solid var(--line); }
+td { padding:7px 14px; border-bottom:1px solid var(--line); color:var(--ink-2); }
+tr:last-child td { border-bottom:none; }
+td .old { color:var(--red); text-decoration:line-through; margin-right:6px; }
+td .new { color:var(--green); font-weight:500; }
+td.changed { background:var(--green-tint); animation:sweep 1.4s var(--ease-out-strong); }
+@keyframes sweep { 0%{background:var(--accent-tint)} 100%{background:var(--green-tint)} }
+.diff-actions { display:flex; gap:8px; padding:10px 14px; }
+
+/* Task rows */
+.tasks { border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-card); overflow:hidden; }
+.task { display:flex; align-items:center; gap:9px; padding:9px 14px; font-size:12.5px; border-bottom:1px solid var(--line); }
+.task:last-child { border-bottom:none; }
+.task .t-ic { width:14px; text-align:center; flex:none; }
+.task.ok { color:var(--ink-3); }
+.task.ok .t-ic { color:var(--green); }
+.task.run { color:var(--ink); }
+.task.bad { color:var(--red); }
+.task .t-time { margin-left:auto; font-size:11px; color:var(--ink-3); }
+
+/* Context cards */
+.ctx { display:flex; gap:10px; overflow-x:auto; padding-bottom:2px; }
+.ctx-card { flex:none; width:200px; border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-card); padding:11px 13px; display:flex; flex-direction:column; gap:6px; }
+.ctx-src { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-3); }
+.ctx-fav { width:14px; height:14px; border-radius:4px; flex:none; }
+.ctx-snip { font-size:11.5px; color:var(--ink-2); line-height:1.45; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.ctx-rel { font-size:10.5px; color:var(--accent-ink); font-weight:500; }
+
+/* Composer */
+.composer { flex:none; padding:12px 26px 16px; }
+.comp-inner { max-width:680px; margin:0 auto; border-radius:var(--radius-card); background:var(--surface); box-shadow:var(--shadow-raised); padding:11px 13px 8px; display:flex; flex-direction:column; gap:8px; }
+.comp-input { border:none; outline:none; background:transparent; color:var(--ink); font-size:13.5px; font-family:inherit; resize:none; }
+.comp-input::placeholder { color:var(--ink-3); }
+.comp-bar { display:flex; align-items:center; gap:4px; }
+.comp-btn { width:28px; height:28px; border-radius:var(--radius-chip); border:none; background:transparent; color:var(--ink-3); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:background .12s; }
+.comp-btn:hover { background:var(--hover); color:var(--ink-2); }
+.comp-model { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-2); background:var(--inset); box-shadow:var(--shadow-hairline); border:none; border-radius:var(--radius-chip); padding:4px 9px; cursor:pointer; font-family:inherit; }
+.comp-send { margin-left:auto; width:28px; height:28px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.comp-send:disabled { background:var(--field); color:var(--ink-3); box-shadow:var(--shadow-inset-field); }
+.followups { display:flex; gap:8px; flex-wrap:wrap; }
+.fup { font-size:12px; color:var(--ink-2); background:var(--surface); box-shadow:var(--shadow-btn); border-radius:99px; padding:6px 13px; cursor:pointer; border:none; font-family:inherit; transition:background .12s; }
+.fup:hover { background:var(--hover); }
+
+.label { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-bottom:-8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span>Agent OS</div>
+    <div class="nav-label">Workspace</div>
+    <div class="nav-item active">Chat <span class="live"></span></div>
+    <div class="nav-item">Tasks <span class="badge">3</span></div>
+    <div class="nav-item">Approvals <span class="badge">1</span></div>
+    <div class="nav-item">Context</div>
+    <div class="nav-label">Recent</div>
+    <div class="nav-item">Supplier records</div>
+    <div class="nav-item">Menu cleanup</div>
+    <div class="nav-item">Weekly summary</div>
+    <button class="theme-btn" id="themeBtn">Toggle light / dark</button>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="tab active">Supplier records <span class="x">×</span></div>
+      <div class="tab">Menu cleanup <span class="x">×</span></div>
+      <div class="status-chip"><span class="spinner"></span>Agent running · 12s</div>
+    </div>
+
+    <div class="scroll"><div class="col">
+      <div class="msg-user">Which suppliers haven't we talked to in over 6 months, and what should we do about them?</div>
+
+      <div class="msg-agent">
+        <div class="trace open" onclick="this.classList.toggle('open')">
+          <div class="trace-head"><span class="spinner"></span>Searching records<span class="chev">▼</span></div>
+          <div class="trace-rows">
+            <div class="trace-row"><span class="check">✓</span>Loaded 42 supplier records<span class="sec">records-table</span></div>
+            <div class="trace-row"><span class="check">✓</span>Filtered by last contact date<span class="sec mono">&gt; 6 months</span></div>
+            <div class="trace-row"><span class="spinner" style="width:9px;height:9px"></span>Ranking by relationship strength<span class="sec">8 matches</span></div>
+          </div>
+        </div>
+
+        <div class="trace" onclick="this.classList.toggle('open')">
+          <div class="trace-head">✓&nbsp; Thought for 4 seconds<span class="chev">▼</span></div>
+          <div class="trace-rows">
+            <div class="trace-row"><span class="check">✓</span>Reading flavor briefs</div>
+            <div class="trace-row"><span class="check">✓</span>Scanning supplier lists<span class="sec">6 flavors</span></div>
+          </div>
+        </div>
+
+        <div class="chips">
+          <span class="chip done"><span class="st">✓</span>records.read <span class="mono" style="color:var(--ink-3)">42 rows</span></span>
+          <span class="chip done"><span class="st">✓</span>contacts.filter <span class="mono" style="color:var(--ink-3)">8 left</span></span>
+          <span class="chip run"><span class="spinner" style="width:9px;height:9px"></span>draft.email</span>
+        </div>
+
+        <p class="stream">Eight suppliers have gone quiet for more than six months. Two of them — Amber Scoop<span class="cite">1</span> and Andes Snow Creamery<span class="cite">2</span> — still hold seasonal contracts, so I'd prioritize re-engagement there before the spring line. The rest look safe to off-board.<span class="caret"></span></p>
+
+        <div class="ctx">
+          <div class="ctx-card">
+            <div class="ctx-src"><span class="ctx-fav" style="background:var(--orange-tint)"></span>amber-scoop.example.com</div>
+            <div class="ctx-snip">Seasonal sorbet supplier, Prague. Last delivery Oct, contract renews March…</div>
+            <div class="ctx-rel">Relevance · high</div>
+          </div>
+          <div class="ctx-card">
+            <div class="ctx-src"><span class="ctx-fav" style="background:var(--green-tint)"></span>andes-snow.example.com</div>
+            <div class="ctx-snip">Gelato catering, Quito. Contract active through Q3, no contact in 22 months…</div>
+            <div class="ctx-rel">Relevance · high</div>
+          </div>
+          <div class="ctx-card">
+            <div class="ctx-src"><span class="ctx-fav" style="background:var(--accent-tint)"></span>CRM notes</div>
+            <div class="ctx-snip">Relationship strength "very weak" on 6 of 8 quiet suppliers…</div>
+            <div class="ctx-rel">Relevance · medium</div>
+          </div>
+        </div>
+
+        <div class="label">Recommendation</div>
+        <div class="reco">
+          <div class="reco-head"><span class="reco-title">Re-engage 2 suppliers, off-board 6</span><span class="reco-conf">Confidence 82%</span></div>
+          <div class="meter"><i></i></div>
+          <div class="reco-body">Drafts a check-in email for Amber Scoop and Andes Snow, and queues off-boarding for the remaining six. You review every email before it sends.</div>
+          <div class="reco-actions"><button class="btn btn-accent">Accept plan</button><button class="btn btn-ghost">Adjust</button><button class="btn btn-ghost">Dismiss</button></div>
+        </div>
+
+        <div class="label">Approval needed</div>
+        <div class="approval">
+          <div class="ap-top"><span class="pill done"></span><span class="pill now"></span><span class="pill"></span><button class="ap-next">→</button></div>
+          <div class="ap-q">Which tone should the re-engagement emails use?</div>
+          <div class="ap-opts">
+            <div class="ap-opt sel"><span class="radio"></span>Warm and personal — reference our last order</div>
+            <div class="ap-opt"><span class="radio"></span>Professional and brief — just the contract renewal</div>
+            <div class="ap-opt"><span class="radio"></span>Something else…</div>
+          </div>
+        </div>
+
+        <div class="label">Proposed edits</div>
+        <div class="diff">
+          <div class="diff-title">✎ Supplier status updates — 3 rows change</div>
+          <table>
+            <tr><th>Supplier</th><th>Status</th><th>Next action</th></tr>
+            <tr><td>Amber Scoop</td><td class="changed"><span class="old">No communication</span><span class="new">Re-engaging</span></td><td class="changed"><span class="new">Send check-in email</span></td></tr>
+            <tr><td>Andes Snow</td><td class="changed"><span class="old">Very weak</span><span class="new">Re-engaging</span></td><td class="changed"><span class="new">Send check-in email</span></td></tr>
+            <tr><td>Apricot Atlas</td><td class="changed"><span class="old">Very weak</span><span class="new">Off-boarding</span></td><td class="changed"><span class="new">Archive record</span></td></tr>
+          </table>
+          <div class="diff-actions"><button class="btn btn-accent">Accept all</button><button class="btn btn-ghost">Review rows</button></div>
+        </div>
+
+        <div class="label">Background tasks</div>
+        <div class="tasks">
+          <div class="task run"><span class="t-ic"><span class="spinner"></span></span>Drafting 2 re-engagement emails<span class="t-time">~20s</span></div>
+          <div class="task ok"><span class="t-ic">✓</span>Scanned 42 supplier records<span class="t-time">4s</span></div>
+          <div class="task ok"><span class="t-ic">✓</span>Loaded contract calendar<span class="t-time">1s</span></div>
+          <div class="task bad"><span class="t-ic">✕</span>Sync to mailing tool failed — retry<span class="t-time">just now</span></div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="composer">
+      <div class="col" style="max-width:680px;margin:0 auto 8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="fup">Draft the emails now</button>
+        <button class="fup">Show the 8 quiet suppliers</button>
+        <button class="fup">Just archive all of them</button>
+      </div>
+      <div class="comp-inner">
+        <textarea class="comp-input" rows="2" placeholder="Ask anything, @ for sources, / for commands…"></textarea>
+        <div class="comp-bar">
+          <button class="comp-btn" title="Attach">📎</button>
+          <button class="comp-btn" title="Sources">@</button>
+          <button class="comp-btn" title="Commands">/</button>
+          <button class="comp-model">✦ GPT-5.2 ▾</button>
+          <button class="comp-btn" title="Dictate">🎙</button>
+          <button class="comp-send">↑</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+document.getElementById('themeBtn').onclick = function(){ document.documentElement.classList.toggle('dark'); };
+</script>
+</body>
+</html>

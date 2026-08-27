@@ -94,3 +94,11 @@ depends on the specific faces beyond tabular figures in the mono stack.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Skill: native-ai-ui
+
+This repo also ships a Codex/Claude skill at `skills/native-ai-ui/`: a framework-agnostic
+design system for AI-native interfaces — design principles, complete light/dark tokens,
+per-platform adaptation guides (SwiftUI, Compose, TUI), and a design mockup
+(`skills/native-ai-ui/assets/preview/native-chat.html`). The React components in this
+repo serve as its reference implementation.
