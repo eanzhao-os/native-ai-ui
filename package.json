@@ -14,7 +14,8 @@
     "test": "vitest",
     "lint": "tsc --noEmit",
     "registry:build": "shadcn build",
-    "registry:check": "node scripts/check-registry.mjs"
+    "registry:check": "node scripts/check-registry.mjs",
+    "deploy": "next build && touch out/.nojekyll && gh-pages -d out --dotfiles -b gh-pages"
   },
   "dependencies": {
     "glimm": "^0.3.0",
@@ -32,6 +33,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "gh-pages": "^6.3.0",
     "jsdom": "^30.0.1",
     "shadcn": "^3.5.0",
     "tailwindcss": "^4.3.3",
