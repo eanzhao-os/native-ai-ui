@@ -9,29 +9,30 @@ const TYPE_OPTIONS = [
 ];
 
 function getSegmentIcon(kind) {
+  const dot = "size-1.5 rounded-[2px] border-[1.2px] border-current";
   if (kind === "row") {
     return `
-      <span style="display: flex; gap: 2px;">
-        <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
-        <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
-        <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
+      <span class="flex gap-0.5">
+        <span class="${dot}"></span>
+        <span class="${dot}"></span>
+        <span class="${dot}"></span>
       </span>
     `;
   }
   if (kind === "col") {
     return `
-      <span style="display: flex; flex-direction: column; gap: 2px;">
-        <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
-        <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
+      <span class="flex flex-col gap-0.5">
+        <span class="${dot}"></span>
+        <span class="${dot}"></span>
       </span>
     `;
   }
   return `
-    <span style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px;">
-      <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
-      <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
-      <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
-      <span style="width: 5px; height: 5px; border-radius: 1.5px; border: 1.2px solid currentColor;"></span>
+    <span class="grid grid-cols-2 gap-0.5">
+      <span class="${dot}"></span>
+      <span class="${dot}"></span>
+      <span class="${dot}"></span>
+      <span class="${dot}"></span>
     </span>
   `;
 }
@@ -81,25 +82,38 @@ export class NaiFineTuneCard extends NaiBaseElement {
       (fieldKey === "opacity" && value !== 100);
 
     return `
-      <div
-        class="scrub-field ${isModified ? "active" : ""}"
+      <label
+        class="flex h-6.5 min-w-0 items-center gap-1 rounded-chip py-1 pr-1 pl-0.5 transition-[background-color,box-shadow] duration-200"
+        style="
+          background: ${isModified ? "var(--accent-tint)" : "var(--field)"};
+          box-shadow: ${isModified ? "0 0 0 1px var(--accent)" : "none"};
+        "
         data-field="${fieldKey}"
         data-min="${min}"
         data-max="${max}"
       >
-        <span class="scrub-handle" data-field="${fieldKey}" role="slider" aria-label="${label}" aria-valuenow="${value}" tabindex="0">
+        {/* scrub handle */}
+        <span
+          role="slider"
+          aria-label="${label}"
+          aria-valuenow="${value}"
+          aria-valuemin="${min}"
+          aria-valuemax="${max}"
+          tabindex="0"
+          data-field="${fieldKey}"
+          class="scrub-handle flex h-full shrink-0 cursor-ew-resize touch-none items-center rounded-[4px] px-0.5 text-[12px] text-ink-3 select-none hover:text-ink-2 focus-visible:text-accent-ink focus-visible:outline-none"
+        >
           ${label}
         </span>
         <input
-          class="scrub-input"
-          data-field="${fieldKey}"
-          type="text"
           inputmode="numeric"
           value="${value}"
+          data-field="${fieldKey}"
           aria-label="${label} value"
+          class="scrub-input min-w-0 flex-1 bg-transparent text-[12px] text-ink tabular-nums outline-none"
         />
-        ${suffix ? `<span class="scrub-suffix">${suffix}</span>` : ""}
-      </div>
+        ${suffix ? `<span class="shrink-0 pr-0.5 text-[11.5px] text-ink-3">${suffix}</span>` : ""}
+      </label>
     `;
   }
 
@@ -113,383 +127,171 @@ export class NaiFineTuneCard extends NaiBaseElement {
       this._opacity !== 100 ||
       this._typeValue !== null;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          position: relative;
-          width: 100%;
-          max-width: 240px;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-raised, 0 2px 10px rgba(0,0,0,0.06), 0 0 0 1px var(--line));
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-          user-select: none;
-        }
-
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
-
-        .header-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-bottom: 1px solid var(--line, #ecedef);
-          padding: 8px 12px;
-        }
-
-        .card-title {
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-        }
-
-        .status-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .badge-edited {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--green, #189a4d);
-          animation: pop-in 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-
-        .badge-adjust {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .spark-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 18px;
-          height: 18px;
-          border-radius: 5px;
-          border: 1px solid color-mix(in srgb, var(--accent, #0285ff) 30%, transparent);
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent, #0285ff);
-        }
-
-        .shimmer-text {
-          font-size: 12px;
-          font-weight: 500;
-          background: linear-gradient(90deg, var(--accent, #0285ff) 35%, var(--accent-ink, #0170dd) 50%, var(--accent, #0285ff) 65%);
-          background-size: 200% 100%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          animation: shimmer-text 1.4s linear infinite;
-        }
-
-        .pad-section {
-          padding: 10px 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          border-bottom: 1px solid var(--line, #ecedef);
-        }
-
-        .section-label {
-          font-size: 12.5px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-
-        .segmented-ctrl {
-          position: relative;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          border-radius: var(--radius-control, 8px);
-          background: var(--field, #f2f2f3);
-          padding: 2px;
-        }
-
-        .seg-thumb {
-          position: absolute;
-          top: 2px;
-          bottom: 2px;
-          width: calc((100% - 4px) / 3);
-          left: 2px;
-          border-radius: 6px;
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-btn, 0 0 0 1px var(--line-strong), 0 1px 2px rgba(0,0,0,0.05));
-          transform: translateX(${this._seg * 100}%);
-          transition: transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
-        }
-
-        .seg-btn {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          color: var(--ink-3, #9a9da3);
-          transition: color 0.2s;
-        }
-
-        .seg-btn.active {
-          color: var(--accent, #0285ff);
-        }
-
-        .fields-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-        }
-
-        .scrub-field {
-          display: flex;
-          height: 26px;
-          min-width: 0;
-          align-items: center;
-          gap: 4px;
-          border-radius: var(--radius-chip, 6px);
-          padding: 2px 4px 2px 6px;
-          background: var(--field, #f2f2f3);
-          transition: background-color 0.2s, box-shadow 0.2s;
-        }
-
-        .scrub-field.active {
-          background: var(--accent-tint, #e9f3ff);
-          box-shadow: 0 0 0 1px var(--accent, #0285ff);
-        }
-
-        .scrub-handle {
-          display: flex;
-          height: 100%;
-          align-items: center;
-          cursor: ew-resize;
-          touch-action: none;
-          border-radius: 4px;
-          padding: 0 2px;
-          font-size: 12px;
-          color: var(--ink-3, #9a9da3);
-          outline: none;
-          flex-shrink: 0;
-        }
-
-        .scrub-handle:hover {
-          color: var(--ink-2, #62656b);
-        }
-
-        .scrub-input {
-          min-width: 0;
-          flex: 1;
-          border: none;
-          background: transparent;
-          font-size: 12px;
-          color: var(--ink, #1f2124);
-          font-variant-numeric: tabular-nums;
-          outline: none;
-          padding: 0;
-        }
-
-        .scrub-suffix {
-          font-size: 11.5px;
-          color: var(--ink-3, #9a9da3);
-          padding-right: 2px;
-          flex-shrink: 0;
-        }
-
-        .footer-section {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 12px;
-        }
-
-        .type-label {
-          font-size: 12px;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .dropdown-container {
-          position: relative;
-          width: 120px;
-        }
-
-        .btn-dropdown {
-          display: flex;
-          height: 26px;
-          width: 100%;
-          align-items: center;
-          justify-content: space-between;
-          border-radius: var(--radius-chip, 6px);
-          border: none;
-          background: var(--inset, #f7f8f9);
-          padding: 2px 4px 2px 8px;
-          font-size: 12px;
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          cursor: pointer;
-        }
-
-        .dropdown-chevron {
-          transition: transform 0.2s ease;
-          transform: ${this._menuOpen ? "rotate(180deg)" : "rotate(0)"};
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .dropdown-menu {
-          position: absolute;
-          right: 0;
-          bottom: 32px;
-          z-index: 10;
-          width: 120px;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          padding: 4px;
-          box-shadow: var(--shadow-raised, 0 2px 10px rgba(0,0,0,0.06), 0 0 0 1px var(--line));
-          animation: pop-in 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
-          transform-origin: bottom right;
-        }
-
-        .dropdown-item {
-          display: flex;
-          height: 26px;
-          width: 100%;
-          align-items: center;
-          border-radius: 6px;
-          border: none;
-          background: transparent;
-          padding: 0 8px;
-          text-align: left;
-          font-size: 12.5px;
-          color: var(--ink, #1f2124);
-          cursor: pointer;
-          transition: background-color 0.15s;
-        }
-
-        .dropdown-item:hover {
-          background: var(--field, #f2f2f3);
-        }
-
-        .dropdown-item.selected {
-          background: var(--field, #f2f2f3);
-        }
-
-        @keyframes shimmer-text { 0% { background-position: 150%; } 100% { background-position: -50%; } }
-        @keyframes pop-in { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
-      </style>
-
-      <div class="header-bar">
-        <span class="card-title">${zh ? "风味卡片" : "Flavor card"}</span>
-        <div class="status-badge">
+    this.setHtml(`
+      <div class="relative w-full max-w-60 rounded-card bg-surface shadow-raised">
+        {/* header */}
+        <div class="primitive-card-bar flex items-center justify-between border-b border-line">
+          <span class="text-[13px] font-medium text-ink">${zh ? "风味卡片" : "Flavor card"}</span>
           ${
             isDone
               ? `
-            <span class="badge-edited">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>${zh ? "已编辑" : "Edited"}</span>
+            <span
+              class="flex items-center gap-1.5 text-[12px] font-medium text-green"
+              style="animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              ${zh ? "已编辑" : "Edited"}
             </span>
           `
               : `
-            <div class="badge-adjust">
-              <span class="spark-icon">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
+            <span class="flex items-center gap-1.5">
+              <span class="flex size-4.5 items-center justify-center rounded-[5px] border border-accent/30 bg-accent-tint">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="var(--accent)" aria-hidden="true">
+                  <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                </svg>
               </span>
-              <span class="shimmer-text">${zh ? "调整" : "Adjust"}</span>
-            </div>
-          `
-          }
-        </div>
-      </div>
-
-      <div class="pad-section">
-        <p class="section-label">${zh ? "布局" : "Layout"}</p>
-
-        <div class="segmented-ctrl">
-          <span class="seg-thumb"></span>
-          ${SEGMENTS.map(
-            (s, i) => `
-            <button type="button" class="seg-btn ${i === this._seg ? "active" : ""}" data-idx="${i}" aria-label="${s} layout">
-              ${getSegmentIcon(s)}
-            </button>
-          `
-          ).join("")}
-        </div>
-
-        <div class="fields-grid">
-          ${this._renderScrubField("width", zh ? "宽" : "W", this._width, 40, 999)}
-          ${this._renderScrubField("height", zh ? "高" : "H", this._height, 24, 999)}
-        </div>
-
-        <div class="fields-grid">
-          ${this._renderScrubField("radius", zh ? "圆角" : "Radius", this._radius, 0, 64)}
-          ${this._renderScrubField("opacity", zh ? "不透明" : "Opacity", this._opacity, 0, 100, "%")}
-        </div>
-      </div>
-
-      <div class="footer-section">
-        <span class="type-label">${zh ? "类型" : "Type"}</span>
-
-        <div class="dropdown-container">
-          <button type="button" class="btn-dropdown" id="btn-dropdown" aria-expanded="${this._menuOpen}">
-            <span style="color: ${this._typeValue !== null ? "var(--ink)" : "var(--ink-3)"}">
-              ${
-                this._typeValue !== null
-                  ? zh
-                    ? TYPE_OPTIONS.find((o) => o.key === this._typeValue)?.labelZh
-                    : this._typeValue
-                  : zh
-                  ? "选择类型"
-                  : "Select type"
-              }
+              <span
+                class="bg-clip-text text-[12px] font-medium text-transparent"
+                style="
+                  background-image: linear-gradient(90deg, var(--accent) 35%, var(--accent-ink) 50%, var(--accent) 65%);
+                  background-size: 200% 100%;
+                  animation: shimmer-text 1.4s linear infinite;
+                "
+              >
+                ${zh ? "调整" : "Adjust"}
+              </span>
             </span>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="dropdown-chevron">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-
-          ${
-            this._menuOpen
-              ? `
-            <div class="dropdown-menu">
-              ${TYPE_OPTIONS.map(
-                (item) => `
-                <button
-                  type="button"
-                  class="dropdown-item ${item.key === this._typeValue ? "selected" : ""}"
-                  data-key="${item.key}"
-                >
-                  ${zh ? item.labelZh : item.labelEn}
-                </button>
-              `
-              ).join("")}
-            </div>
           `
-              : ""
           }
         </div>
+
+        {/* layout section */}
+        <div class="primitive-card-pad flex flex-col gap-2 border-b border-line">
+          <p class="text-[12.5px] font-medium text-ink">${zh ? "布局" : "Layout"}</p>
+          {/* segmented control: gray track, raised white thumb */}
+          <div class="relative grid grid-cols-3 rounded-control bg-field p-0.5">
+            <span
+              aria-hidden="true"
+              class="absolute inset-y-0.5 rounded-[6px] bg-surface shadow-btn transition-transform duration-300"
+              style="
+                width: calc((100% - 4px) / 3);
+                left: 2px;
+                transform: translateX(${this._seg * 100}%);
+                transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+              "
+            ></span>
+            ${SEGMENTS.map(
+              (s, i) => `
+              <button
+                key="${s}"
+                type="button"
+                data-idx="${i}"
+                aria-label="${s} layout"
+                aria-pressed="${i === this._seg}"
+                class="seg-btn relative z-10 flex h-6 items-center justify-center transition-colors duration-200 cursor-pointer ${
+                  i === this._seg ? "text-accent" : "text-ink-3"
+                }"
+              >
+                ${getSegmentIcon(s)}
+              </button>
+            `
+            ).join("")}
+          </div>
+          <div class="grid min-w-0 grid-cols-2 gap-2">
+            ${this._renderScrubField("width", zh ? "宽" : "W", this._width, 40, 999)}
+            ${this._renderScrubField("height", zh ? "高" : "H", this._height, 24, 999)}
+          </div>
+          <div class="grid min-w-0 grid-cols-2 gap-2">
+            ${this._renderScrubField("radius", zh ? "圆角" : "Radius", this._radius, 0, 64)}
+            ${this._renderScrubField("opacity", zh ? "不透明" : "Opacity", this._opacity, 0, 100, "%")}
+          </div>
+        </div>
+
+        {/* interaction section */}
+        <div class="primitive-card-footer flex items-center justify-between">
+          <span class="text-[12px] text-ink-3">${zh ? "类型" : "Type"}</span>
+          <div class="relative -mr-0.5 w-30">
+            <button
+              type="button"
+              id="btn-dropdown"
+              aria-expanded="${this._menuOpen}"
+              class="flex h-6.5 w-full items-center justify-between rounded-chip bg-inset py-1 pr-1 pl-2 shadow-hairline transition-shadow duration-200 focus-visible:outline-none cursor-pointer"
+              style="${this._menuOpen ? "box-shadow: 0 0 0 1px var(--accent);" : ""}"
+            >
+              <span class="text-[12px] ${this._typeValue !== null ? "text-ink" : "text-ink-3"}">
+                ${
+                  this._typeValue !== null
+                    ? zh
+                      ? TYPE_OPTIONS.find((o) => o.key === this._typeValue)?.labelZh
+                      : this._typeValue
+                    : zh
+                    ? "选择类型"
+                    : "Select type"
+                }
+              </span>
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--ink-3)"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="transition-transform duration-200"
+                style="transform: ${this._menuOpen ? "rotate(180deg)" : "rotate(0)"};"
+                aria-hidden="true"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+
+            ${
+              this._menuOpen
+                ? `
+              <div
+                class="absolute right-0 bottom-8 z-10 w-30 rounded-card bg-surface p-1 shadow-raised"
+                style="
+                  animation: pop-in 200ms cubic-bezier(0.23,1,0.32,1) both;
+                  transform-origin: bottom right;
+                "
+              >
+                ${TYPE_OPTIONS.map(
+                  (item) => `
+                  <button
+                    key="${item.key}"
+                    type="button"
+                    data-key="${item.key}"
+                    class="dropdown-item flex h-6.5 w-full items-center rounded-[6px] px-2 text-left text-[12.5px] text-ink transition-colors duration-150 hover:bg-field cursor-pointer"
+                    style="background: ${item.key === this._typeValue ? "var(--field)" : "transparent"};"
+                  >
+                    ${zh ? item.labelZh : item.labelEn}
+                  </button>
+                `
+                ).join("")}
+              </div>
+            `
+                : ""
+            }
+          </div>
+        </div>
       </div>
-    `;
+    `);
 
     // Segment clicks
-    this.shadowRoot.querySelectorAll(".seg-btn").forEach((btn) => {
+    this.shadowRoot?.querySelectorAll("[data-idx]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const idx = parseInt(btn.getAttribute("data-idx"), 10);
+        const idx = parseInt(btn.getAttribute("data-idx") || "0", 10);
         this.setSeg(idx);
       });
     });
 
     // Scrub interactions
-    this.shadowRoot.querySelectorAll(".scrub-handle").forEach((handle) => {
+    this.shadowRoot?.querySelectorAll(".scrub-handle").forEach((handle) => {
       const fieldKey = handle.getAttribute("data-field");
-      const parent = handle.closest(".scrub-field");
+      const parent = handle.closest("label");
       const min = parseInt(parent?.getAttribute("data-min") || "0", 10);
       const max = parseInt(parent?.getAttribute("data-max") || "999", 10);
 
@@ -515,7 +317,7 @@ export class NaiFineTuneCard extends NaiBaseElement {
 
       handle.addEventListener("pointermove", (e) => {
         if (!this._dragState) return;
-        const delta = ((e.clientX - this._dragState.x) / 2);
+        const delta = (e.clientX - this._dragState.x) / 2;
         const nextVal = this._clamp(this._dragState.val + delta, this._dragState.min, this._dragState.max);
 
         if (this._dragState.fieldKey === "width") this._width = nextVal;
@@ -562,9 +364,9 @@ export class NaiFineTuneCard extends NaiBaseElement {
     });
 
     // Input changes
-    this.shadowRoot.querySelectorAll(".scrub-input").forEach((input) => {
+    this.shadowRoot?.querySelectorAll(".scrub-input").forEach((input) => {
       const fieldKey = input.getAttribute("data-field");
-      const parent = input.closest(".scrub-field");
+      const parent = input.closest("label");
       const min = parseInt(parent?.getAttribute("data-min") || "0", 10);
       const max = parseInt(parent?.getAttribute("data-max") || "999", 10);
 
@@ -585,9 +387,9 @@ export class NaiFineTuneCard extends NaiBaseElement {
     });
 
     // Dropdown clicks
-    this.shadowRoot.querySelector("#btn-dropdown")?.addEventListener("click", () => this.toggleMenu());
+    this.shadowRoot?.querySelector("#btn-dropdown")?.addEventListener("click", () => this.toggleMenu());
 
-    this.shadowRoot.querySelectorAll(".dropdown-item").forEach((item) => {
+    this.shadowRoot?.querySelectorAll(".dropdown-item").forEach((item) => {
       item.addEventListener("click", () => {
         const key = item.getAttribute("data-key");
         if (key) this.setTypeValue(key);

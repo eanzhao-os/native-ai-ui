@@ -1,5 +1,4 @@
 import { NaiBaseElement } from "../core/base-element.js";
-import { ICONS } from "../core/icons.js";
 
 const STAGES = [800, 600, 1800, 2600, 1600];
 
@@ -83,7 +82,7 @@ const VARIANTS_ZH = {
   },
 };
 
-const TONES = ["var(--accent, #0285ff)", "var(--orange, #ef720c)", "var(--green, #189a4d)"];
+const TONES = ["bg-accent", "bg-orange", "bg-green"];
 
 export class NaiThinking extends NaiBaseElement {
   static get observedAttributes() {
@@ -101,202 +100,153 @@ export class NaiThinking extends NaiBaseElement {
     return this.getAttribute("variant") || "Steps";
   }
 
-  get autoPlay() {
-    return this.getAttribute("auto") !== "false";
-  }
-
   onMount() {
-    this._startSequence();
-  }
-
-  _startSequence() {
-    if (!this.autoPlay) {
-      this._stage = STAGES.length;
-      return;
-    }
     this._stage = 0;
-    const runNext = (s) => {
-      if (s >= STAGES.length - 1) return;
+    const runStage = (i) => {
+      if (i >= STAGES.length - 1) return;
       this.registerTimeout(() => {
-        this._stage = s + 1;
+        this._stage = i + 1;
         this.render();
-        runNext(s + 1);
-      }, STAGES[s]);
+        runStage(this._stage);
+      }, STAGES[i]);
     };
-    runNext(0);
-  }
-
-  toggleExpand() {
-    const autoExpanded = this._stage >= 1 && this._stage < 4;
-    const currentExpanded = this._manualExpanded ?? autoExpanded;
-    this._manualExpanded = !currentExpanded;
-    this.render();
+    runStage(0);
   }
 
   render() {
     const zh = this.isZh;
-    const variants = zh ? VARIANTS_ZH : VARIANTS_EN;
-    const v = variants[this.variant] ?? variants.Steps;
+    const variant = this.variant;
+    const VARIANTS = zh ? VARIANTS_ZH : VARIANTS_EN;
+    const v = VARIANTS[variant] ?? VARIANTS.Steps;
 
     const autoExpanded = this._stage >= 1 && this._stage < 4;
     const expanded = this._manualExpanded ?? autoExpanded;
     const working = this._stage < 3;
-    const visibleCount = this._stage < 2 ? 0 : this._stage === 2 ? Math.min(2, v.rows.length) : v.rows.length;
+    const visible = this._stage < 2 ? 0 : this._stage === 2 ? Math.min(2, v.rows.length) : v.rows.length;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          max-width: 380px;
-          min-height: 140px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        button {
-          font-family: inherit;
-          cursor: pointer;
-        }
-        .header-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 4px 6px;
-          margin: 0 -6px;
-          background: transparent;
-          border: none;
-          border-radius: var(--radius-control, 8px);
-          color: inherit;
-          transition: background-color 0.12s ease;
-        }
-        .header-btn:hover {
-          background-color: var(--hover-2, #e7e9eb);
-        }
-        .spark-icon {
-          color: ${working ? "var(--ink-2, #62656b)" : "var(--ink-3, #9a9da3)"};
-          display: flex;
-          align-items: center;
-        }
-        .title-working {
-          font-size: 13px;
-          font-weight: 500;
-          white-space: nowrap;
-          color: transparent;
-          -webkit-background-clip: text;
-          background-clip: text;
-          background-image: linear-gradient(90deg, var(--ink-3, #9a9da3) 35%, var(--ink, #1f2124) 50%, var(--ink-3, #9a9da3) 65%);
-          background-size: 200% 100%;
-          animation: shimmer-text 1.4s linear infinite;
-        }
-        .title-done {
-          font-size: 13px;
-          font-weight: 500;
-          white-space: nowrap;
-          color: var(--ink-2, #62656b);
-          animation: fade-in 350ms ease-out both;
-        }
-        .chevron-icon {
-          color: var(--ink-3, #9a9da3);
-          display: flex;
-          align-items: center;
-          transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-          transform: rotate(${expanded ? "180deg" : "0deg"});
-        }
-        .trace-container {
-          position: relative;
-          margin-top: 6px;
-          padding-left: 20px;
-          display: ${expanded ? "flex" : "none"};
-          flex-direction: column;
-          gap: 8px;
-        }
-        .guide-line {
-          position: absolute;
-          left: 7px;
-          top: 4px;
-          bottom: 4px;
-          width: 1.5px;
-          background: var(--line, #ecedef);
-          border-radius: 99px;
-        }
-        .row-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 12.5px;
-          animation: fade-up 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-        .row-dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: var(--ink-3, #9a9da3);
-          flex-shrink: 0;
-        }
-        .row-primary {
-          color: var(--ink-2, #62656b);
-        }
-        .row-primary.mono {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          color: var(--ink, #1f2124);
-          font-size: 12px;
-        }
-        .row-secondary {
-          font-size: 11.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .badge-diff {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          display: inline-flex;
-          gap: 4px;
-        }
-        .badge-add { color: var(--green, #189a4d); }
-        .badge-del { color: var(--red, #e3474c); }
-        .search-link {
-          color: var(--accent-ink, #0170dd);
-          text-decoration: none;
-        }
-        .search-link:hover {
-          text-decoration: underline;
-        }
-        @keyframes shimmer-text {
-          0% { background-position: 150%; }
-          100% { background-position: -50%; }
-        }
-        @keyframes fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
-        @keyframes fade-up { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
-      </style>
+    this.setHtml(`
+      <div class="flex min-h-[176px] w-full max-w-95 flex-col">
+        {/* Header */}
+        <button
+          type="button"
+          aria-expanded="${expanded}"
+          class="header-btn toggle-btn -mx-1.5 flex w-fit items-center gap-2 rounded-control px-1.5 py-1 transition-colors duration-100 hover:bg-hover-2 cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${working ? "var(--ink-2)" : "var(--ink-3)"}">
+            <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+          </svg>
+          ${
+            working
+              ? `
+            <span
+              class="text-[13px] font-medium whitespace-nowrap text-transparent"
+              style="
+                background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
+                background-size: 200% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                animation: shimmer-text 1.4s linear infinite;
+              "
+            >
+              ${v.active}
+            </span>
+          `
+              : `
+            <span class="text-[13px] font-medium whitespace-nowrap text-ink-2">
+              ${v.done}
+            </span>
+          `
+          }
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--ink-3)"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="transition-transform duration-300"
+            style="transform: ${expanded ? "rotate(180deg)" : "rotate(0)"};"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
 
-      <button type="button" class="header-btn" aria-expanded="${expanded}">
-        <span class="spark-icon">${ICONS.spark}</span>
-        ${working ? `<span class="title-working">${v.active}</span>` : `<span class="title-done">${v.done}</span>`}
-        <span class="chevron-icon">${ICONS.chevronDown}</span>
-      </button>
-
-      <div class="trace-container">
-        <div class="guide-line"></div>
-        ${v.rows
-          .slice(0, visibleCount)
-          .map(
-            (row, idx) => `
-              <div class="row-item" style="animation-delay: ${idx * 60}ms">
-                <span class="row-dot"></span>
-                <span class="row-primary ${row.mono ? "mono" : ""}">
-                  ${row.href ? `<a href="${row.href}" target="_blank" rel="noreferrer" class="search-link">${row.primary}</a>` : row.primary}
-                </span>
-                ${row.secondary ? `<span class="row-secondary ${row.mono ? "mono" : ""}">${row.secondary}</span>` : ""}
-                ${row.add !== undefined ? `<span class="badge-diff"><span class="badge-add">+${row.add}</span><span class="badge-del">-${row.del}</span></span>` : ""}
+        {/* Expandable Trace */}
+        <div
+          class="trace-container grid transition-all duration-400"
+          style="
+            grid-template-rows: ${expanded ? "1fr" : "0fr"};
+            opacity: ${expanded ? 1 : 0};
+          "
+        >
+          <div class="overflow-hidden">
+            <div class="relative mt-1 ml-[5px] pl-4 border-l border-line">
+              <div class="flex flex-col gap-1 py-1">
+                ${
+                  v.query
+                    ? `
+                  <div class="flex h-6 items-center gap-2 px-1.5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0">
+                      <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+                    </svg>
+                    <span class="text-[12.5px] text-ink-2">${v.query}</span>
+                  </div>
+                `
+                    : ""
+                }
+                ${v.rows
+                  .slice(0, visible)
+                  .map((row, i) => {
+                    const isLastWorking = i === visible - 1 && working;
+                    return `
+                    <div
+                      class="flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-0.5 text-left transition-colors duration-150 ${
+                        variant === "Search" ? "hover:bg-hover cursor-pointer" : ""
+                      }"
+                      style="animation: fade-up 320ms cubic-bezier(0.23,1,0.32,1) ${i * 120}ms both;"
+                    >
+                      ${
+                        variant === "Search"
+                          ? `<span class="flex size-3.5 shrink-0 items-center justify-center rounded-full text-white ${TONES[i % 3]}">
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" /><path d="M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
+                            </span>`
+                          : variant === "Steps"
+                          ? isLastWorking
+                            ? `<span class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 animate-spin"></span>`
+                            : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M20 6L9 17l-5-5" /></svg>`
+                          : ""
+                      }
+                      <span class="min-w-0 truncate text-[12.5px] ${
+                        variant === "Reasoning" ? "whitespace-normal leading-relaxed text-ink-2" : "font-medium text-ink"
+                      }">
+                        ${row.primary}
+                      </span>
+                      ${row.secondary ? `<span class="shrink-0 text-[11.5px] text-ink-3 ${row.mono ? "font-mono" : ""}">${row.secondary}</span>` : ""}
+                      ${
+                        row.add !== undefined
+                          ? `<span class="shrink-0 font-mono text-[11px] tabular-nums"><span class="text-green">+${row.add}</span> <span class="text-red">−${row.del}</span></span>`
+                          : ""
+                      }
+                    </div>
+                  `;
+                  })
+                  .join("")}
               </div>
-            `
-          )
-          .join("")}
+            </div>
+          </div>
+        </div>
       </div>
-    `;
+    `);
 
-    const btn = this.shadowRoot.querySelector(".header-btn");
-    btn?.addEventListener("click", () => this.toggleExpand());
+    const toggleBtn = this.shadowRoot?.querySelector(".toggle-btn");
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        this._manualExpanded = !(this._manualExpanded ?? autoExpanded);
+        this.render();
+      });
+    }
   }
 }
 

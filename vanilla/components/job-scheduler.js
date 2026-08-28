@@ -68,237 +68,75 @@ export class NaiJobScheduler extends NaiBaseElement {
     const zh = this.isZh;
     const activeCount = this._jobs.filter((j) => j.enabled).length;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 576px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        * { box-sizing: border-box; }
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 2px #1018280a, 0 2px 6px #10182808);
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 14px;
-          border-bottom: 1px solid var(--line, #ecedef);
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .icon-box {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-        .title-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .harness-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .sub-text {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .count-text {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          color: var(--ink-2, #62656b);
-        }
+    const extraCss = `
+      .bg-inset\\/40 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 40%, transparent); }
+      .bg-hover\\/20 { background-color: color-mix(in srgb, var(--hover, #f4f5f6) 20%, transparent); }
+      .bg-page\\/40 { background-color: color-mix(in srgb, var(--page, #fafafb) 40%, transparent); }
+      .border-line\\/60 { border-color: color-mix(in srgb, var(--line, #ecedef) 60%, transparent); }
+      .size-3\\.5 { width: 14px; height: 14px; }
+      .size-6 { width: 24px; height: 24px; }
+      .py-0\\.2 { padding-top: 1px; padding-bottom: 1px; }
+    `;
 
-        .jobs-list {
-          margin-top: 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .job-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          padding: 12px;
-          transition: all 0.2s;
-        }
-        .job-enabled {
-          background: rgba(247, 248, 249, 0.4);
-        }
-        .job-enabled:hover {
-          border-color: var(--line-strong, #e0e2e5);
-          background: rgba(244, 245, 246, 0.2);
-        }
-        .job-disabled {
-          background: rgba(250, 250, 251, 0.4);
-          border-color: rgba(236, 237, 239, 0.6);
-          opacity: 0.6;
-        }
-
-        .job-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-        .toggle-btn {
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          cursor: pointer;
-          flex-shrink: 0;
-          transition: background-color 0.15s, border-color 0.15s;
-          padding: 0;
-        }
-        .toggle-active {
-          border-color: var(--accent, #0285ff);
-          background: var(--accent, #0285ff);
-        }
-
-        .job-info {
-          min-width: 0;
-        }
-        .job-title-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .job-name {
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .cron-chip {
-          border-radius: var(--radius-chip, 6px);
-          background: var(--field, #f2f2f3);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-2, #62656b);
-        }
-        .next-run {
-          margin-top: 2px;
-          display: block;
-          font-size: 10.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .job-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-shrink: 0;
-          padding-left: 8px;
-        }
-        .status-badge {
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-weight: 500;
-        }
-        .badge-success { background: var(--green-tint, #e8f5ed); color: var(--green, #189a4d); }
-        .badge-failed { background: var(--red-tint, #fcecec); color: var(--red, #e3474c); }
-        .badge-running { background: var(--accent-tint, #e9f3ff); color: var(--accent-ink, #0170dd); }
-
-        .btn-trigger {
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 3px 8px;
-          font-size: 10.5px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .btn-trigger:hover:not(:disabled) {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .btn-trigger:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      </style>
-
-      <div class="card">
-        <div class="header">
-          <div class="header-left">
-            <span class="icon-box">
+    this.setHtml(`
+      <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
+        {/* Header */}
+        <div class="flex items-center justify-between pb-3.5 border-b border-line">
+          <div class="flex items-center gap-2">
+            <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             </span>
             <div>
-              <div class="title-row">
-                <h3 class="title">${zh ? "持久化任务与 Cron 调度" : "Durable Job Scheduler"}</h3>
-                <span class="harness-chip">Harness.Jobs</span>
+              <div class="flex items-center gap-2">
+                <h3 class="text-[13px] font-semibold text-ink">
+                  ${zh ? "持久化任务与 Cron 调度" : "Durable Job Scheduler"}
+                </h3>
+                <span class="rounded-chip border border-line bg-inset px-1.5 py-0.2 font-mono text-[9.5px] text-ink-3">
+                  Harness.Jobs
+                </span>
               </div>
-              <p class="sub-text">${zh ? "后台持久化 Cron 触发器与执行队列" : "Durable background cron triggers & queue"}</p>
+              <p class="text-[11px] text-ink-3">
+                ${zh ? "后台持久化 Cron 触发器与执行队列" : "Durable background cron triggers & queue"}
+              </p>
             </div>
           </div>
 
-          <span class="count-text">${activeCount} ${zh ? "个活跃 Cron" : "Active Crons"}</span>
+          <span class="font-mono text-[11px] text-ink-2">
+            ${activeCount} ${zh ? "个活跃 Cron" : "Active Crons"}
+          </span>
         </div>
 
-        <div class="jobs-list">
+        {/* Jobs List */}
+        <div class="mt-3.5 flex flex-col gap-2">
           ${this._jobs
             .map((job) => {
               const isTriggering = this._triggeringId === job.id;
-              const badgeClass =
+              const statusStyle =
                 job.lastStatusEn === "Success"
-                  ? "badge-success"
+                  ? "bg-green-tint text-green"
                   : job.lastStatusEn === "Failed"
-                  ? "badge-failed"
-                  : "badge-running";
+                  ? "bg-red-tint text-red"
+                  : "bg-accent-tint text-accent-ink";
               const statusLabel = zh ? job.lastStatusZh : job.lastStatusEn;
 
               return `
-              <div class="job-card ${job.enabled ? "job-enabled" : "job-disabled"}">
-                <div class="job-left">
+              <div
+                class="flex items-center justify-between rounded-control border p-3 transition-all ${
+                  job.enabled
+                    ? "border-line bg-inset/40 hover:border-line-strong hover:bg-hover/20"
+                    : "border-line/60 bg-page/40 opacity-60"
+                }"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
                   <button
                     type="button"
-                    class="toggle-btn ${job.enabled ? "toggle-active" : ""}"
                     data-toggle="${job.id}"
+                    class="toggle-btn size-3.5 rounded-full border transition-colors cursor-pointer shrink-0 ${
+                      job.enabled ? "border-accent bg-accent" : "border-line bg-surface"
+                    }"
                     title="${
                       job.enabled
                         ? zh
@@ -309,25 +147,34 @@ export class NaiJobScheduler extends NaiBaseElement {
                         : "Enable cron"
                     }"
                   ></button>
-                  <div class="job-info">
-                    <div class="job-title-row">
-                      <span class="job-name">${zh ? job.nameZh : job.nameEn}</span>
-                      <span class="cron-chip">${job.cron}</span>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-[12px] font-medium text-ink truncate">
+                        ${zh ? job.nameZh : job.nameEn}
+                      </span>
+                      <span class="rounded-chip bg-field px-1.5 py-0.2 font-mono text-[9.5px] text-ink-2">
+                        ${job.cron}
+                      </span>
                     </div>
-                    <span class="next-run">
+                    <span class="text-[10.5px] text-ink-3">
                       ${zh ? "下次运行: " : "Next run: "}
                       ${zh ? job.nextRunZh : job.nextRunEn}
                     </span>
                   </div>
                 </div>
 
-                <div class="job-right">
-                  <span class="status-badge ${badgeClass}">${statusLabel}</span>
+                <div class="flex items-center gap-2 shrink-0 pl-2">
+                  <span
+                    class="rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium ${statusStyle}"
+                  >
+                    ${statusLabel}
+                  </span>
+
                   <button
                     type="button"
-                    class="btn-trigger"
                     data-trigger="${job.id}"
                     ${isTriggering || !job.enabled ? "disabled" : ""}
+                    class="btn-trigger rounded-control border border-line bg-surface px-2 py-0.5 text-[10.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50 transition-colors cursor-pointer"
                   >
                     ${
                       isTriggering
@@ -346,7 +193,7 @@ export class NaiJobScheduler extends NaiBaseElement {
             .join("")}
         </div>
       </div>
-    `;
+    `, extraCss);
 
     this.shadowRoot.querySelectorAll("[data-toggle]").forEach((btn) => {
       btn.addEventListener("click", () => {

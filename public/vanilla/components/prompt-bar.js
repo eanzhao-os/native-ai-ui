@@ -1,11 +1,10 @@
 import { NaiBaseElement } from "../core/base-element.js";
-import { ICONS } from "../core/icons.js";
 
 const SOURCES = [
-  { key: "attach", nameEn: "Add photos & files", nameZh: "添加图片和文件", descEn: "Upload from computer", descZh: "从本地上传", icon: ICONS.clip },
-  { key: "scoop", nameEn: "Scoop Data", nameZh: "Scoop 数据", descEn: "Sales & churn metrics", descZh: "销售与产量指标", icon: ICONS.chart },
-  { key: "flavors", nameEn: "Flavor records", nameZh: "风味档案", descEn: "26 makers, tags, links", descZh: "26 家厂商与配方", icon: ICONS.layers },
-  { key: "web", nameEn: "Web search", nameZh: "联网搜索", descEn: "Real-time news and info", descZh: "实时新闻与资讯", icon: ICONS.globe },
+  { key: "attach", nameEn: "Add photos & files", nameZh: "添加图片和文件", descEn: "Upload from your computer", descZh: "从本地上传", glyph: "clip", attach: true },
+  { key: "scoop", nameEn: "Scoop Data", nameZh: "Scoop 数据", descEn: "Sales & churn metrics", descZh: "销售与产量指标", glyph: "chart" },
+  { key: "flavors", nameEn: "Flavor records", nameZh: "风味档案", descEn: "26 makers, tags, links", descZh: "26 家厂商、标签与链接", glyph: "layers" },
+  { key: "web", nameEn: "Web search", nameZh: "联网搜索", descEn: "Real-time news and info", descZh: "实时新闻与资讯", glyph: "globe" },
 ];
 
 const COMMANDS = [
@@ -22,19 +21,26 @@ const MODELS = [
   { key: "freezer-burn", name: "Freezer Burn 0.4", tagEn: "Stale", tagZh: "过时" },
 ];
 
+const GLYPHS = {
+  clip: `<path d="m21.4 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />`,
+  chart: `<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />`,
+  layers: `<g><path d="M12 2 2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" /></g>`,
+  globe: `<g><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z" /></g>`,
+};
+
 export class NaiPromptBar extends NaiBaseElement {
   static get observedAttributes() {
-    return ["variant", "lang", "placeholder"];
+    return ["variant", "lang"];
   }
 
   constructor() {
     super();
     this._draft = "";
-    this._menu = null; // 'at' | 'slash' | null
-    this._activeIdx = 0;
+    this._menu = null; // 'at' | 'slash' | 'plus' | null
     this._modelOpen = false;
     this._model = MODELS[0];
-    this._sweeping = false;
+    this._listening = false;
+    this._attachments = [];
   }
 
   get variant() {
@@ -46,7 +52,6 @@ export class NaiPromptBar extends NaiBaseElement {
   }
 
   onMount() {
-    // Optional click outside handler
     this.registerListener(document, "click", (e) => {
       if (!this.contains(e.target) && !this.shadowRoot?.contains(e.target)) {
         if (this._menu || this._modelOpen) {
@@ -73,16 +78,19 @@ export class NaiPromptBar extends NaiBaseElement {
     const tok = this._parseToken(val);
     if (tok) {
       this._menu = tok.kind;
-      this._activeIdx = 0;
-    } else {
+    } else if (this._menu === "at" || this._menu === "slash") {
       this._menu = null;
     }
     this.render();
   }
 
   _selectItem(item) {
-    if (this._menu === "at") {
-      this._draft = this._draft.replace(/@[\w-]*$/, `@${item.name} `);
+    if (this._menu === "at" || this._menu === "plus") {
+      if (item.attach) {
+        this._attachments.push("uploaded-file.pdf");
+      } else {
+        this._draft = this._draft.replace(/@[\w-]*$/, `@${item.nameEn} `);
+      }
     } else if (this._menu === "slash") {
       this._draft = item.name + " ";
     }
@@ -98,21 +106,18 @@ export class NaiPromptBar extends NaiBaseElement {
   _selectModel(m) {
     this._model = m;
     this._modelOpen = false;
-    if (m.key === "sprinkles-5") {
-      this._sweeping = true;
-      this.registerTimeout(() => {
-        this._sweeping = false;
-        this.render();
-      }, 1500);
-    }
     this.render();
   }
 
   send() {
-    if (!this._draft.trim()) return;
-    const text = this._draft.trim();
-    this.dispatchEvent(new CustomEvent("submit", { detail: { text, model: this._model.key } }));
+    if (!this._draft.trim() && this._attachments.length === 0) return;
+    const detail = {
+      text: this._draft.trim(),
+      model: this._model.key,
+    };
+    this.dispatchEvent(new CustomEvent("submit", { detail }));
     this._draft = "";
+    this._attachments = [];
     this._menu = null;
     this.render();
   }
@@ -120,304 +125,265 @@ export class NaiPromptBar extends NaiBaseElement {
   render() {
     const zh = this.isZh;
     const pill = this.isPill;
-    const placeholder =
-      this.getAttribute("placeholder") ||
-      (zh ? "向 Agent 提问、输入 @ 关联资源，或输入 / 触发指令..." : "Ask the agent, type @ for sources, or / for commands...");
+    const canSend = this._draft.trim().length > 0 || this._attachments.length > 0;
+    const expanded = this._draft.length > 40 || this._draft.includes("\n");
 
     const rows =
-      this._menu === "at"
-        ? SOURCES.map((s) => ({
-            key: s.key,
-            name: zh ? s.nameZh : s.nameEn,
-            desc: zh ? s.descZh : s.descEn,
-            icon: s.icon,
-          }))
+      this._menu === "at" || this._menu === "plus"
+        ? SOURCES.map((s) => ({ ...s, name: zh ? s.nameZh : s.nameEn, desc: zh ? s.descZh : s.descEn }))
         : this._menu === "slash"
-          ? COMMANDS.map((c) => ({
-              key: c.key,
-              name: c.name,
-              desc: zh ? c.descZh : c.descEn,
-              icon: ICONS.spark,
-            }))
-          : [];
+        ? COMMANDS.map((c) => ({ ...c, name: c.name, desc: zh ? c.descZh : c.descEn }))
+        : [];
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 600px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          position: relative;
-        }
-        .composer {
-          display: flex;
-          flex-direction: column;
-          background: var(--surface, #fff);
-          border: 1px solid var(--line, #ecedef);
-          border-radius: ${pill ? "24px" : "var(--radius-card, 10px)"};
-          box-shadow: var(--shadow-card);
-          padding: 10px 12px;
-          position: relative;
-          overflow: hidden;
-          transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .composer:focus-within {
-          border-color: var(--line-strong, #e0e2e5);
-          box-shadow: var(--shadow-raised);
-        }
-        .sweep-overlay {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          background: linear-gradient(90deg, transparent, rgba(61, 154, 255, 0.12), rgba(246, 143, 60, 0.12), rgba(61, 187, 114, 0.12), transparent);
-          background-size: 200% 100%;
-          animation: sweep-run 1.4s ease-out both;
-        }
-        @keyframes sweep-run {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        textarea {
-          width: 100%;
-          min-height: 48px;
-          max-height: 140px;
-          border: none;
-          outline: none;
-          background: transparent;
-          font-family: inherit;
-          font-size: 13.5px;
-          color: var(--ink, #1f2124);
-          resize: none;
-          line-height: 1.5;
-        }
-        textarea::placeholder {
-          color: var(--ink-3, #9a9da3);
-        }
-        .bottom-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-top: 6px;
-        }
-        .left-controls, .right-controls {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .btn-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: ${pill ? "50%" : "var(--radius-control, 8px)"};
-          border: none;
-          background: transparent;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-          transition: background-color 0.12s, color 0.12s;
-        }
-        .btn-icon:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .model-picker-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 4px 8px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          color: var(--ink-2, #62656b);
-          font-size: 12px;
-          cursor: pointer;
-          transition: background-color 0.12s;
-        }
-        .model-picker-btn:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .btn-send {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 30px;
-          height: 30px;
-          border-radius: ${pill ? "50%" : "var(--radius-control, 8px)"};
-          border: none;
-          background: ${this._draft.trim() ? "var(--accent, #0285ff)" : "var(--hover, #f4f5f6)"};
-          color: ${this._draft.trim() ? "#fff" : "var(--ink-3, #9a9da3)"};
-          cursor: ${this._draft.trim() ? "pointer" : "default"};
-          transition: background-color 0.12s, color 0.12s;
-        }
-        /* Autocomplete Menu */
-        .autocomplete-popup {
-          position: absolute;
-          bottom: 100%;
-          left: 0;
-          margin-bottom: 8px;
-          width: 280px;
-          background: var(--surface, #fff);
-          border: 1px solid var(--line-strong, #e0e2e5);
-          border-radius: var(--radius-card, 10px);
-          box-shadow: var(--shadow-overlay);
-          padding: 4px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          z-index: 50;
-        }
-        .menu-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 8px;
-          border-radius: var(--radius-control, 8px);
-          border: none;
-          background: transparent;
-          color: var(--ink, #1f2124);
-          text-align: left;
-          cursor: pointer;
-          transition: background 0.1s;
-        }
-        .menu-row:hover {
-          background: var(--hover, #f4f5f6);
-        }
-        .menu-row-icon {
-          color: var(--ink-2, #62656b);
-          display: flex;
-          align-items: center;
-        }
-        .menu-row-content {
-          display: flex;
-          flex-direction: column;
-        }
-        .menu-row-title {
-          font-size: 12.5px;
-          font-weight: 500;
-        }
-        .menu-row-desc {
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        /* Model Menu Popup */
-        .model-popup {
-          position: absolute;
-          bottom: 100%;
-          left: 12px;
-          margin-bottom: 8px;
-          width: 220px;
-          background: var(--surface, #fff);
-          border: 1px solid var(--line-strong, #e0e2e5);
-          border-radius: var(--radius-card, 10px);
-          box-shadow: var(--shadow-overlay);
-          padding: 4px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          z-index: 50;
-        }
-        .model-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 6px 8px;
-          border-radius: var(--radius-control, 8px);
-          border: none;
-          background: transparent;
-          color: var(--ink, #1f2124);
-          font-size: 12.5px;
-          cursor: pointer;
-        }
-        .model-item:hover {
-          background: var(--hover, #f4f5f6);
-        }
-        .model-item.active {
-          color: var(--accent-ink, #0170dd);
-          font-weight: 500;
-        }
-        .model-tag {
-          font-size: 10.5px;
-          padding: 1px 6px;
-          border-radius: 4px;
-          background: var(--inset, #f7f8f9);
-          color: var(--ink-2, #62656b);
-        }
-      </style>
-
-      ${this._menu && rows.length > 0 ? `
-        <div class="autocomplete-popup">
-          ${rows
-            .map(
-              (r) => `
-                <button type="button" class="menu-row" data-key="${r.key}">
-                  <span class="menu-row-icon">${r.icon}</span>
-                  <div class="menu-row-content">
-                    <span class="menu-row-title">${r.name}</span>
-                    <span class="menu-row-desc">${r.desc}</span>
-                  </div>
+    this.setHtml(`
+      <div class="relative w-full max-w-lg select-none">
+        {/* Dropdown Menu */}
+        ${
+          this._menu && rows.length > 0
+            ? `
+          <div
+            class="absolute left-0 bottom-full z-20 mb-2 w-72 rounded-card border border-line bg-surface p-1 shadow-raised overflow-hidden"
+            style="animation: pop-in 180ms cubic-bezier(0.23,1,0.32,1) both;"
+          >
+            <div class="flex flex-col gap-0.5 max-h-56 overflow-y-auto">
+              ${rows
+                .map(
+                  (row, i) => `
+                <button
+                  type="button"
+                  data-idx="${i}"
+                  class="menu-item flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left transition-colors duration-100 hover:bg-hover cursor-pointer"
+                >
+                  ${
+                    row.glyph
+                      ? `<span class="flex size-5.5 shrink-0 items-center justify-center text-ink-2">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            ${GLYPHS[row.glyph]}
+                          </svg>
+                        </span>`
+                      : ""
+                  }
+                  <span class="shrink-0 text-[12.5px] font-medium text-ink">${row.name}</span>
+                  <span class="min-w-0 flex-1 truncate text-[12px] text-ink-3">${row.desc}</span>
                 </button>
               `
-            )
-            .join("")}
-        </div>
-      ` : ""}
-
-      ${this._modelOpen ? `
-        <div class="model-popup">
-          ${MODELS.map((m) => `
-            <button type="button" class="model-item ${m.key === this._model.key ? "active" : ""}" data-model="${m.key}">
-              <span>${m.name}</span>
-              <span class="model-tag">${zh ? m.tagZh : m.tagEn}</span>
-            </button>
-          `).join("")}
-        </div>
-      ` : ""}
-
-      <div class="composer">
-        ${this._sweeping ? `<div class="sweep-overlay"></div>` : ""}
-        <textarea placeholder="${placeholder}">${this._draft}</textarea>
-        <div class="bottom-bar">
-          <div class="left-controls">
-            <button type="button" class="btn-icon btn-plus" title="${zh ? "添加上下文 (@)" : "Add context (@)"}">
-              ${ICONS.plus}
-            </button>
-            <button type="button" class="model-picker-btn" id="model-toggle">
-              <span>${this._model.name}</span>
-              <span>${ICONS.chevronDown}</span>
-            </button>
+                )
+                .join("")}
+            </div>
+            <div class="mt-1 border-t border-line px-2 pt-1.5 pb-1 text-[11px] text-ink-3">
+              ${this._menu === "at" ? (zh ? "输入以搜索数据源与文件" : "Type to search sources & files") : zh ? "输入以搜索命令" : "Type to search commands"}
+            </div>
           </div>
-          <div class="right-controls">
-            <button type="button" class="btn-icon btn-mic" title="${zh ? "语音输入" : "Dictate"}">
-              ${ICONS.mic}
+        `
+            : ""
+        }
+
+        {/* Model Menu */}
+        ${
+          this._modelOpen
+            ? `
+          <div
+            class="absolute right-0 bottom-full z-20 mb-2 w-44 rounded-card border border-line bg-surface p-1 shadow-raised overflow-hidden"
+            style="animation: pop-in 180ms cubic-bezier(0.23,1,0.32,1) both;"
+          >
+            ${MODELS.map(
+              (m) => `
+              <button
+                type="button"
+                data-model="${m.key}"
+                class="model-item flex h-7.5 w-full items-center gap-2 rounded-[6px] px-2 text-left transition-colors duration-100 hover:bg-hover cursor-pointer"
+              >
+                <span class="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink">${m.name}</span>
+                <span class="shrink-0 text-[11px] text-ink-3">${zh ? m.tagZh : m.tagEn}</span>
+                <span class="shrink-0 text-ink ${m.key === this._model.key ? "" : "opacity-0"}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </span>
+              </button>
+            `
+            ).join("")}
+          </div>
+        `
+            : ""
+        }
+
+        {/* Main Composer Box */}
+        <div
+          class="relative isolate flex flex-col gap-1.5 overflow-hidden border border-line bg-surface p-1.5 shadow-card transition-all duration-150 ${
+            pill ? (this._attachments.length > 0 || expanded ? "rounded-[24px]" : "rounded-full") : "rounded-[14px]"
+          }"
+        >
+          ${
+            this._attachments.length > 0
+              ? `
+            <div class="flex flex-wrap gap-1.5 pt-0.5 ${pill ? "px-1" : "px-0.5"}">
+              ${this._attachments
+                .map(
+                  (file, idx) => `
+                <span class="flex h-6.5 items-center gap-1.5 bg-field py-1 pr-1 pl-1.5 text-[11.5px] text-ink-2 shadow-xs ${
+                  pill ? "rounded-full" : "rounded-chip"
+                }">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" />
+                  </svg>
+                  <span class="max-w-36 truncate">${file}</span>
+                  <button type="button" data-remove="${idx}" class="flex size-4 items-center justify-center text-ink-3 hover:text-ink cursor-pointer">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              `
+                )
+                .join("")}
+            </div>
+          `
+              : ""
+          }
+
+          <div
+            class="grid items-end gap-x-1 gap-y-1.5 ${
+              expanded ? "grid-cols-[minmax(0,1fr)_auto_28px_28px]" : "grid-cols-[28px_minmax(0,1fr)_auto_28px_28px]"
+            }"
+          >
+            {/* Plus button */}
+            <button
+              type="button"
+              aria-label="${zh ? "添加附件与数据源" : "Add attachments and sources"}"
+              class="plus-btn flex size-7 shrink-0 items-center justify-center justify-self-start text-ink-3 transition-colors duration-150 hover:bg-hover hover:text-ink cursor-pointer ${
+                pill ? "rounded-full" : "rounded-[8px]"
+              } ${this._menu === "plus" ? "bg-hover text-ink" : ""}"
+              style="grid-column-start: 1; grid-row-start: ${expanded ? "2" : "1"};"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
             </button>
-            <button type="button" class="btn-send" title="${zh ? "发送" : "Send"}">
-              ${ICONS.send}
+
+            {/* Input textarea */}
+            <textarea
+              rows="1"
+              placeholder="${zh ? "输入消息…" : "Write a message…"}"
+              aria-label="${zh ? "提示词输入框" : "Prompt"}"
+              class="min-h-7 min-w-0 w-full resize-none bg-transparent px-1 py-[5px] text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-3"
+              style="
+                grid-column: ${expanded ? "1 / -1" : "2"};
+                grid-row-start: 1;
+              "
+            >${this._draft}</textarea>
+
+            {/* Model Picker button */}
+            <button
+              type="button"
+              aria-label="${zh ? "选择模型" : "Choose model"}"
+              class="model-picker-btn flex h-7 shrink-0 items-center gap-1 px-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink cursor-pointer ${
+                pill ? "rounded-full" : "rounded-[8px]"
+              }"
+              style="grid-column-start: ${expanded ? "2" : "3"}; grid-row-start: ${expanded ? "2" : "1"};"
+            >
+              <span>${this._model.name}</span>
+              <span class="text-ink-3">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+
+            {/* Dictation button */}
+            <button
+              type="button"
+              aria-label="${zh ? "听写" : "Dictation"}"
+              class="mic-btn flex size-7 shrink-0 items-center justify-center transition-colors duration-150 cursor-pointer ${
+                pill ? "rounded-full" : "rounded-[8px]"
+              } ${this._listening ? "bg-accent-tint text-accent-ink" : "text-ink-3 hover:bg-hover hover:text-ink"}"
+              style="grid-column-start: ${expanded ? "3" : "4"}; grid-row-start: ${expanded ? "2" : "1"};"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3" />
+              </svg>
+            </button>
+
+            {/* Send button */}
+            <button
+              type="button"
+              aria-label="${zh ? "发送" : "Send"}"
+              ${!canSend ? "disabled" : ""}
+              class="send-btn flex size-7 shrink-0 items-center justify-center transition-all duration-200 ${
+                pill ? "rounded-full" : "rounded-[8px]"
+              }"
+              style="
+                grid-column-start: ${expanded ? "4" : "5"};
+                grid-row-start: ${expanded ? "2" : "1"};
+                background: ${canSend ? "var(--ink)" : "var(--line-strong)"};
+                color: ${canSend ? "var(--surface)" : "var(--ink-2)"};
+                cursor: ${canSend ? "pointer" : "default"};
+              "
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
             </button>
           </div>
         </div>
       </div>
-    `;
+    `);
 
-    const textarea = this.shadowRoot.querySelector("textarea");
-    textarea?.addEventListener("input", (e) => this._handleInput(e.target.value));
-    textarea?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        this.send();
-      }
+    // Wire up interactions
+    const textarea = this.shadowRoot?.querySelector("textarea");
+    const plusBtn = this.shadowRoot?.querySelector(".plus-btn");
+    const modelPickerBtn = this.shadowRoot?.querySelector(".model-picker-btn");
+    const micBtn = this.shadowRoot?.querySelector(".mic-btn");
+    const sendBtn = this.shadowRoot?.querySelector(".send-btn");
+
+    if (textarea) {
+      textarea.addEventListener("input", (e) => this._handleInput(e.target.value));
+      textarea.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          this.send();
+        }
+      });
+    }
+
+    if (plusBtn) {
+      plusBtn.addEventListener("click", () => {
+        this._modelOpen = false;
+        this._menu = this._menu === "plus" ? null : "plus";
+        this.render();
+      });
+    }
+
+    if (modelPickerBtn) {
+      modelPickerBtn.addEventListener("click", () => {
+        this._menu = null;
+        this._modelOpen = !this._modelOpen;
+        this.render();
+      });
+    }
+
+    if (micBtn) {
+      micBtn.addEventListener("click", () => {
+        this._listening = !this._listening;
+        if (this._listening) {
+          this._draft = zh ? "对比开心果口味周末销量与去年同期" : "Compare pistachio weekends to last summer";
+        }
+        this.render();
+      });
+    }
+
+    if (sendBtn) {
+      sendBtn.addEventListener("click", () => this.send());
+    }
+
+    this.shadowRoot?.querySelectorAll(".menu-item").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = Number(el.getAttribute("data-idx"));
+        this._selectItem(rows[idx]);
+      });
     });
 
-    this.shadowRoot.querySelector("#model-toggle")?.addEventListener("click", () => {
-      this._modelOpen = !this._modelOpen;
-      this._menu = null;
-      this.render();
-    });
-
-    this.shadowRoot.querySelectorAll(".model-item").forEach((el) => {
+    this.shadowRoot?.querySelectorAll(".model-item").forEach((el) => {
       el.addEventListener("click", () => {
         const key = el.getAttribute("data-model");
         const found = MODELS.find((m) => m.key === key);
@@ -425,21 +391,14 @@ export class NaiPromptBar extends NaiBaseElement {
       });
     });
 
-    this.shadowRoot.querySelectorAll(".menu-row").forEach((el) => {
-      el.addEventListener("click", () => {
-        const key = el.getAttribute("data-key");
-        const found = rows.find((r) => r.key === key);
-        if (found) this._selectItem(found);
+    this.shadowRoot?.querySelectorAll("[data-remove]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const idx = Number(el.getAttribute("data-remove"));
+        this._attachments.splice(idx, 1);
+        this.render();
       });
     });
-
-    this.shadowRoot.querySelector(".btn-plus")?.addEventListener("click", () => {
-      this._menu = this._menu === "at" ? null : "at";
-      this._modelOpen = false;
-      this.render();
-    });
-
-    this.shadowRoot.querySelector(".btn-send")?.addEventListener("click", () => this.send());
   }
 }
 

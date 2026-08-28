@@ -46,215 +46,21 @@ export class NaiSandboxManager extends NaiBaseElement {
   render() {
     const zh = this.isZh;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 576px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        * { box-sizing: border-box; }
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 2px #1018280a, 0 2px 6px #10182808);
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 14px;
-          border-bottom: 1px solid var(--line, #ecedef);
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .icon-box {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          background: var(--green-tint, #e8f5ed);
-          color: var(--green, #189a4d);
-        }
-        .title-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .status-chip {
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-weight: 500;
-        }
-        .status-running { background: var(--green-tint, #e8f5ed); color: var(--green, #189a4d); }
-        .status-restarting { background: var(--orange-tint, #fdf1e5); color: var(--orange, #ef720c); }
+    const extraCss = `
+      .bg-inset\\/40 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 40%, transparent); }
+      .bg-inset\\/30 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 30%, transparent); }
+      .divide-line\\/60 > * + * { border-top-color: color-mix(in srgb, var(--line, #ecedef) 60%, transparent); }
+      .size-6 { width: 24px; height: 24px; }
+      .py-0\\.2 { padding-top: 1px; padding-bottom: 1px; }
+      .max-w-\\[240px\\] { max-width: 240px; }
+    `;
 
-        .sub-text {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .btn-restart {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--field, #f2f2f3);
-          padding: 4px 10px;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .btn-restart:hover:not(:disabled) {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .btn-restart:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .gauges-grid {
-          margin-top: 14px;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-        .gauge-card {
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: rgba(247, 248, 249, 0.4);
-          padding: 12px;
-        }
-        .gauge-header {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-        }
-        .gauge-label {
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .gauge-value {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .bar-track {
-          margin-top: 8px;
-          height: 6px;
-          width: 100%;
-          border-radius: 9999px;
-          background: var(--line, #ecedef);
-          overflow: hidden;
-        }
-        .bar-cpu {
-          height: 100%;
-          border-radius: 9999px;
-          background: var(--accent, #0285ff);
-          transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-        }
-        .bar-mem {
-          height: 100%;
-          border-radius: 9999px;
-          background: var(--green, #189a4d);
-          transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-        }
-        .gauge-sub {
-          margin-top: 4px;
-          display: block;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .process-box {
-          margin-top: 14px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: rgba(247, 248, 249, 0.3);
-          padding: 12px;
-        }
-        .process-title {
-          font-size: 11px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .process-list {
-          margin-top: 8px;
-          display: flex;
-          flex-direction: column;
-        }
-        .process-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid rgba(236, 237, 239, 0.6);
-          font-size: 11px;
-        }
-        .process-row:last-child {
-          border-bottom: none;
-        }
-        .process-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-        .process-pid {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .process-cmd {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 240px;
-        }
-        .process-stats {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-2, #62656b);
-          flex-shrink: 0;
-        }
-      </style>
-
-      <div class="card">
-        <div class="header">
-          <div class="header-left">
-            <span class="icon-box">
+    this.setHtml(`
+      <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
+        {/* Header */}
+        <div class="flex items-center justify-between pb-3.5 border-b border-line">
+          <div class="flex items-center gap-2">
+            <span class="flex size-6 items-center justify-center rounded-control bg-green-tint text-green">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
                 <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
@@ -263,21 +69,29 @@ export class NaiSandboxManager extends NaiBaseElement {
               </svg>
             </span>
             <div>
-              <div class="title-row">
-                <h3 class="title">${zh ? "E2B 容器沙盒运行态" : "E2B Sandbox Container"}</h3>
-                <span class="status-chip ${this._isRunning ? "status-running" : "status-restarting"}">
+              <div class="flex items-center gap-2">
+                <h3 class="text-[13px] font-semibold text-ink">
+                  ${zh ? "E2B 容器沙盒运行态" : "E2B Sandbox Container"}
+                </h3>
+                <span
+                  class="rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium ${
+                    this._isRunning ? "bg-green-tint text-green" : "bg-orange-tint text-orange"
+                  }"
+                >
                   ${this._isRunning ? (zh ? "运行中" : "Running") : zh ? "重启中..." : "Restarting..."}
                 </span>
               </div>
-              <p class="sub-text">${zh ? "隔离环境 Linux x86_64 • Harness.Sandbox.E2b" : "Isolated Linux x86_64 • Harness.Sandbox.E2b"}</p>
+              <p class="text-[11px] text-ink-3">
+                ${zh ? "隔离环境 Linux x86_64 • Harness.Sandbox.E2b" : "Isolated Linux x86_64 • Harness.Sandbox.E2b"}
+              </p>
             </div>
           </div>
 
           <button
             type="button"
             id="btn-restart"
-            class="btn-restart"
             ${!this._isRunning ? "disabled" : ""}
+            class="flex items-center gap-1 rounded-control border border-line bg-field px-2.5 py-1 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer disabled:opacity-50"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
@@ -286,50 +100,68 @@ export class NaiSandboxManager extends NaiBaseElement {
           </button>
         </div>
 
-        <div class="gauges-grid">
-          <div class="gauge-card">
-            <div class="gauge-header">
-              <span class="gauge-label">${zh ? "vCPU 算力利用率" : "vCPU Utilization"}</span>
-              <span class="gauge-value">${this._cpuUsage}%</span>
+        {/* Resource Metrics Gauges */}
+        <div class="mt-3.5 grid grid-cols-2 gap-2.5">
+          <div class="rounded-control border border-line bg-inset/40 p-3">
+            <div class="flex items-baseline justify-between">
+              <span class="text-[11px] text-ink-3">${zh ? "vCPU 算力利用率" : "vCPU Utilization"}</span>
+              <span class="font-mono text-[12px] font-semibold text-ink">${this._cpuUsage}%</span>
             </div>
-            <div class="bar-track">
-              <div class="bar-cpu" style="width: ${this._cpuUsage * 2}%;"></div>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-line overflow-hidden">
+              <div
+                class="h-full bg-accent rounded-full transition-all duration-500"
+                style="width: ${this._cpuUsage * 2}%;"
+              ></div>
             </div>
-            <span class="gauge-sub">${zh ? "独占 2 核心 vCPU" : "2 vCPUs dedicated"}</span>
+            <span class="mt-1 block font-mono text-[9.5px] text-ink-3">
+              ${zh ? "独占 2 核心 vCPU" : "2 vCPUs dedicated"}
+            </span>
           </div>
 
-          <div class="gauge-card">
-            <div class="gauge-header">
-              <span class="gauge-label">${zh ? "内存占用 (RAM)" : "Memory (RAM)"}</span>
-              <span class="gauge-value">${this._memUsage} MB</span>
+          <div class="rounded-control border border-line bg-inset/40 p-3">
+            <div class="flex items-baseline justify-between">
+              <span class="text-[11px] text-ink-3">${zh ? "内存占用 (RAM)" : "Memory (RAM)"}</span>
+              <span class="font-mono text-[12px] font-semibold text-ink">${this._memUsage} MB</span>
             </div>
-            <div class="bar-track">
-              <div class="bar-mem" style="width: ${(this._memUsage / 2048) * 100}%;"></div>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-line overflow-hidden">
+              <div
+                class="h-full bg-green rounded-full transition-all duration-500"
+                style="width: ${(this._memUsage / 2048) * 100}%;"
+              ></div>
             </div>
-            <span class="gauge-sub">${zh ? "内存配额上限: 2,048 MB" : "Limit: 2,048 MB"}</span>
+            <span class="mt-1 block font-mono text-[9.5px] text-ink-3">
+              ${zh ? "内存配额上限: 2,048 MB" : "Limit: 2,048 MB"}
+            </span>
           </div>
         </div>
 
-        <div class="process-box">
-          <span class="process-title">${zh ? "活动隔离进程树" : "Active Isolated Processes"}</span>
-          <div class="process-list">
-            ${SAMPLE_PROCESSES.map((p) => `
-              <div class="process-row">
-                <div class="process-left">
-                  <span class="process-pid">#${p.pid}</span>
-                  <span class="process-cmd">${p.command}</span>
+        {/* Process Table */}
+        <div class="mt-3.5 rounded-control border border-line bg-inset/30 p-3">
+          <span class="text-[11px] font-semibold text-ink">
+            ${zh ? "活动隔离进程树" : "Active Isolated Processes"}
+          </span>
+          <div class="mt-2 flex flex-col divide-y divide-line/60">
+            ${SAMPLE_PROCESSES.map(
+              (p) => `
+              <div class="flex items-center justify-between py-2 text-[11px]">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="font-mono text-[10px] text-ink-3">#${p.pid}</span>
+                  <span class="font-mono text-[11px] font-medium text-ink truncate max-w-[240px]">
+                    ${p.command}
+                  </span>
                 </div>
-                <div class="process-stats">
+                <div class="flex items-center gap-2 font-mono text-[10px] text-ink-2 shrink-0">
                   <span>${p.cpuPct}% CPU</span>
                   <span>•</span>
                   <span>${p.memMb} MB</span>
                 </div>
               </div>
-            `).join("")}
+            `
+            ).join("")}
           </div>
         </div>
       </div>
-    `;
+    `, extraCss);
 
     this.shadowRoot.querySelector("#btn-restart")?.addEventListener("click", () => {
       this.handleRestart();

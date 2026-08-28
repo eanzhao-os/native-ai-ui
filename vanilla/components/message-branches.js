@@ -50,182 +50,60 @@ export class NaiMessageBranches extends NaiBaseElement {
     const branch = BRANCHES[branchIndex];
     const continuingFrom = this._continuingFrom;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .container {
-          width: 100%;
-          overflow: hidden;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-card, 0 0 0 1px var(--line));
-        }
-        .header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 16px;
-          border-bottom: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 12px 16px;
-        }
-        .title {
-          margin: 0;
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .subtitle {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .count-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 4px 8px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-2, #62656b);
-        }
-        .body {
-          padding: 16px;
-        }
-        .meta-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 10.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .green-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--green, #189a4d);
-        }
-        .model-info {
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-        }
-        .answer-text {
-          margin: 12px 0 0 0;
-          min-height: 64px;
-          font-size: 13px;
-          line-height: 1.6;
-          color: var(--ink, #1f2124);
-        }
-        .footer {
-          margin-top: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 12px;
-        }
-        .nav-btns {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .btn-nav {
-          display: flex;
-          height: 28px;
-          width: 32px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          font-size: 14px;
-          color: var(--ink-2, #62656b);
-          box-shadow: var(--shadow-btn);
-          cursor: pointer;
-          transition: background-color 0.12s;
-        }
-        .btn-nav:hover:not(:disabled) {
-          background-color: var(--hover, #f4f5f6);
-        }
-        .btn-nav:disabled {
-          opacity: 0.35;
-          cursor: not-allowed;
-        }
-        .btn-continue {
-          border-radius: var(--radius-control, 8px);
-          border: none;
-          background: var(--ink, #1f2124);
-          padding: 6px 12px;
-          font-size: 10.5px;
-          font-weight: 500;
-          color: var(--surface, #fff);
-          cursor: pointer;
-          transition: opacity 0.12s;
-        }
-        .btn-continue:hover {
-          opacity: 0.85;
-        }
-        .status-msg {
-          margin: 8px 0 0 0;
-          min-height: 16px;
-          text-align: right;
-          font-size: 10.5px;
-          font-weight: 500;
-          color: var(--accent-ink, #0170dd);
-        }
-      </style>
-
-      <section class="container" aria-labelledby="message-branches-title">
-        <header class="header">
+    const html = `
+      <section
+        aria-labelledby="message-branches-title"
+        class="w-full max-w-lg overflow-hidden rounded-card border border-line bg-surface shadow-card"
+      >
+        <header class="flex items-start justify-between gap-4 border-b border-line bg-inset px-4 py-3">
           <div>
-            <h3 id="message-branches-title" class="title">
+            <h3
+              id="message-branches-title"
+              class="text-[13px] font-semibold text-ink"
+            >
               ${zh ? "回答分支" : "Answer branches"}
             </h3>
-            <p class="subtitle">
+            <p class="mt-0.5 text-[11px] text-ink-3">
               ${zh ? "比较重新生成的回答" : "Compare regenerated responses"}
             </p>
           </div>
-          <span class="count-chip">
+          <span class="rounded-chip border border-line bg-surface px-2 py-1 font-mono text-[10px] tabular-nums text-ink-2">
             ${branchIndex + 1} / ${BRANCHES.length}
           </span>
         </header>
 
-        <div class="body">
-          <div class="meta-row">
-            <span class="green-dot" aria-hidden="true"></span>
-            <span class="model-info">${branch.model} · ${branch.time}</span>
+        <div class="px-4 py-4">
+          <div class="flex items-center gap-2 text-[10.5px] text-ink-3">
+            <span class="h-1.5 w-1.5 rounded-full bg-green" aria-hidden="true"></span>
+            <span class="font-medium text-ink-2">
+              ${branch.model} · ${branch.time}
+            </span>
           </div>
 
-          <p class="answer-text" aria-live="polite">
+          <p
+            aria-live="polite"
+            class="mt-3 min-h-16 text-[13px] leading-6 text-ink"
+          >
             ${zh ? branch.answerZh : branch.answerEn}
           </p>
 
-          <div class="footer">
-            <div class="nav-btns">
+          <div class="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
+            <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                class="btn-nav"
                 id="btn-prev"
                 aria-label="${zh ? "上一个分支" : "Previous branch"}"
                 ${branchIndex === 0 ? "disabled" : ""}
+                class="flex h-7 w-8 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none cursor-pointer"
               >
                 <span aria-hidden="true">←</span>
               </button>
               <button
                 type="button"
-                class="btn-nav"
                 id="btn-next"
                 aria-label="${zh ? "下一个分支" : "Next branch"}"
                 ${branchIndex === BRANCHES.length - 1 ? "disabled" : ""}
+                class="flex h-7 w-8 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none cursor-pointer"
               >
                 <span aria-hidden="true">→</span>
               </button>
@@ -233,15 +111,19 @@ export class NaiMessageBranches extends NaiBaseElement {
 
             <button
               type="button"
-              class="btn-continue"
               id="btn-continue"
               aria-label="${zh ? "从此分支继续" : "Continue from this branch"}"
+              class="rounded-control bg-ink px-3 py-1.5 text-[10.5px] font-medium text-surface transition-opacity hover:opacity-85 motion-reduce:transition-none cursor-pointer"
             >
               ${zh ? "从此分支继续" : "Continue from here"}
             </button>
           </div>
 
-          <p role="status" aria-live="polite" class="status-msg">
+          <p
+            role="status"
+            aria-live="polite"
+            class="mt-2 min-h-4 text-right text-[10.5px] font-medium text-accent-ink"
+          >
             ${
               continuingFrom === null
                 ? ""
@@ -253,6 +135,8 @@ export class NaiMessageBranches extends NaiBaseElement {
         </div>
       </section>
     `;
+
+    this.setHtml(html);
 
     this.shadowRoot.querySelector("#btn-prev")?.addEventListener("click", () => this.navigate(this._branchIndex - 1));
     this.shadowRoot.querySelector("#btn-next")?.addEventListener("click", () => this.navigate(this._branchIndex + 1));

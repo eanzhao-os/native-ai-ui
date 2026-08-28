@@ -101,314 +101,83 @@ export class NaiCordisPluginTree extends NaiBaseElement {
     const zh = this.isZh;
     const activeCount = this._plugins.filter((p) => p.enabled).length;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 576px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        * { box-sizing: border-box; }
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 2px #1018280a, 0 2px 6px #10182808);
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 14px;
-          border-bottom: 1px solid var(--line, #ecedef);
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .icon-box {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-        .title-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .hmr-tag {
-          border-radius: var(--radius-chip, 6px);
-          background: var(--green-tint, #e8f5ed);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-weight: 500;
-          color: var(--green, #189a4d);
-        }
-        .sub-text {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .count-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 2px 8px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          color: var(--ink-2, #62656b);
-        }
+    const extraCss = `
+      .bg-inset\\/30 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 30%, transparent); }
+      .bg-hover\\/20 { background-color: color-mix(in srgb, var(--hover, #f4f5f6) 20%, transparent); }
+      .bg-page\\/50 { background-color: color-mix(in srgb, var(--page, #fafafb) 50%, transparent); }
+      .bg-surface\\/50 { background-color: color-mix(in srgb, var(--surface, #fff) 50%, transparent); }
+      .border-line\\/60 { border-color: color-mix(in srgb, var(--line, #ecedef) 60%, transparent); }
+      .border-line\\/80 { border-color: color-mix(in srgb, var(--line, #ecedef) 80%, transparent); }
+      .size-3\\.5 { width: 14px; height: 14px; }
+      .size-6 { width: 24px; height: 24px; }
+      .py-0\\.2 { padding-top: 1px; padding-bottom: 1px; }
+      .max-w-\\[180px\\] { max-width: 180px; }
+    `;
 
-        .plugin-list {
-          margin-top: 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .plugin-card {
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          transition: all 0.2s;
-        }
-        .plugin-enabled {
-          background: rgba(247, 248, 249, 0.3);
-        }
-        .plugin-enabled:hover {
-          border-color: var(--line-strong, #e0e2e5);
-          background: rgba(244, 245, 246, 0.2);
-        }
-        .plugin-disabled {
-          background: rgba(250, 250, 251, 0.5);
-          border-color: rgba(236, 237, 239, 0.6);
-          opacity: 0.6;
-        }
-
-        .plugin-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px;
-        }
-        .plugin-info {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-        .toggle-btn {
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          cursor: pointer;
-          flex-shrink: 0;
-          transition: background-color 0.15s, border-color 0.15s;
-          padding: 0;
-        }
-        .toggle-active {
-          border-color: var(--accent, #0285ff);
-          background: var(--accent, #0285ff);
-        }
-        .plugin-name {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 12.5px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .version-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .scope-badge {
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          font-weight: 500;
-        }
-        .scope-kernel { background: var(--orange-tint, #fdf1e5); color: var(--orange, #ef720c); }
-        .scope-harness { background: var(--accent-tint, #e9f3ff); color: var(--accent-ink, #0170dd); }
-        .scope-extension { background: var(--green-tint, #e8f5ed); color: var(--green, #189a4d); }
-
-        .plugin-actions {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-shrink: 0;
-        }
-        .rev-label {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .btn-hmr {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 4px 8px;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .btn-hmr:hover:not(:disabled) {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .btn-hmr:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .services-box {
-          border-top: 1px solid rgba(236, 237, 239, 0.6);
-          background: rgba(255, 255, 255, 0.5);
-          padding: 8px 12px;
-          font-size: 11px;
-        }
-        .service-row {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .service-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .service-target {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .service-name {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          font-weight: 600;
-          color: var(--accent-ink, #0170dd);
-        }
-        .arrow { color: var(--ink-3, #9a9da3); }
-        .provider-name {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-2, #62656b);
-          max-width: 180px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .consumers-count {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .consumers-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-          margin-top: 2px;
-        }
-        .consumer-tag {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid rgba(236, 237, 239, 0.8);
-          background: var(--field, #f2f2f3);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          color: var(--ink-2, #62656b);
-        }
-
-        .footer {
-          margin-top: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 12px;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .footer-mono {
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-
-        @keyframes spin {
-          to { transform: rotate(1turn); }
-        }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-      </style>
-
-      <div class="card">
-        <div class="header">
-          <div class="header-left">
-            <span class="icon-box">
+    this.setHtml(`
+      <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
+        {/* Header */}
+        <div class="flex items-center justify-between pb-3.5 border-b border-line">
+          <div class="flex items-center gap-2">
+            <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </span>
             <div>
-              <div class="title-row">
-                <h3 class="title">${zh ? "Cordis 插件运行时拓扑" : "Cordis Plugin Runtime"}</h3>
-                <span class="hmr-tag">${zh ? "HMR 热重载就绪" : "HMR Active"}</span>
+              <div class="flex items-center gap-2">
+                <h3 class="text-[13px] font-semibold text-ink">
+                  ${zh ? "Cordis 插件运行时拓扑" : "Cordis Plugin Runtime"}
+                </h3>
+                <span class="rounded-chip bg-green-tint px-1.5 py-0.2 font-mono text-[9.5px] font-medium text-green">
+                  ${zh ? "HMR 热重载就绪" : "HMR Active"}
+                </span>
               </div>
-              <p class="sub-text">${zh ? "Harness 插件微内核依赖关系图" : "Agent harness plugin dependency graph"}</p>
+              <p class="text-[11px] text-ink-3">
+                ${zh ? "Harness 插件微内核依赖关系图" : "Agent harness plugin dependency graph"}
+              </p>
             </div>
           </div>
-          <span class="count-chip">${activeCount} ${zh ? "个活跃插件" : "Active Plugins"}</span>
+
+          <div class="flex items-center gap-2 font-mono text-[11px] text-ink-2">
+            <span class="rounded-chip border border-line bg-inset px-2 py-0.5">
+              ${activeCount} ${zh ? "个活跃插件" : "Active Plugins"}
+            </span>
+          </div>
         </div>
 
-        <div class="plugin-list">
+        {/* Plugin Cards List */}
+        <div class="mt-3.5 flex flex-col gap-2.5">
           ${this._plugins
             .map((plugin) => {
               const isReloading = this._reloadingId === plugin.id;
-              const scopeClass =
+              const scopeStyle =
                 plugin.scope === "Kernel"
-                  ? "scope-kernel"
+                  ? "bg-orange-tint text-orange"
                   : plugin.scope === "Harness"
-                  ? "scope-harness"
-                  : "scope-extension";
+                  ? "bg-accent-tint text-accent-ink"
+                  : "bg-green-tint text-green";
               const scopeLabel = plugin.scope === "Kernel" ? (zh ? "内核" : "Kernel") : plugin.scope;
 
               return `
-              <div class="plugin-card ${plugin.enabled ? "plugin-enabled" : "plugin-disabled"}">
-                <div class="plugin-header">
-                  <div class="plugin-info">
+              <div
+                class="rounded-control border transition-all ${
+                  plugin.enabled
+                    ? "border-line bg-inset/30 hover:border-line-strong hover:bg-hover/20"
+                    : "border-line/60 bg-page/50 opacity-60"
+                }"
+              >
+                {/* Plugin Header Bar */}
+                <div class="flex items-center justify-between p-3">
+                  <div class="flex items-center gap-2 min-w-0">
                     <button
                       type="button"
-                      class="toggle-btn ${plugin.enabled ? "toggle-active" : ""}"
                       data-toggle="${plugin.id}"
+                      class="toggle-btn size-3.5 rounded-full border transition-colors cursor-pointer ${
+                        plugin.enabled
+                          ? "border-accent bg-accent"
+                          : "border-line bg-surface"
+                      }"
                       title="${
                         plugin.enabled
                           ? zh
@@ -419,18 +188,28 @@ export class NaiCordisPluginTree extends NaiBaseElement {
                           : "Enable plugin"
                       }"
                     ></button>
-                    <span class="plugin-name">${plugin.name}</span>
-                    <span class="version-chip">v${plugin.version}</span>
-                    <span class="scope-badge ${scopeClass}">${scopeLabel}</span>
+                    <span class="text-[12.5px] font-mono font-medium text-ink truncate">
+                      ${plugin.name}
+                    </span>
+                    <span class="rounded-chip border border-line bg-surface px-1.5 py-0.2 font-mono text-[9.5px] text-ink-3">
+                      v${plugin.version}
+                    </span>
+                    <span
+                      class="rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${scopeStyle}"
+                    >
+                      ${scopeLabel}
+                    </span>
                   </div>
 
-                  <div class="plugin-actions">
-                    <span class="rev-label">rev #${plugin.hmrVersion}</span>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span class="font-mono text-[10px] text-ink-3">
+                      rev #${plugin.hmrVersion}
+                    </span>
                     <button
                       type="button"
-                      class="btn-hmr"
                       data-hmr="${plugin.id}"
                       ${isReloading || !plugin.enabled ? "disabled" : ""}
+                      class="flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50 transition-all cursor-pointer"
                     >
                       <svg
                         width="10"
@@ -439,8 +218,7 @@ export class NaiCordisPluginTree extends NaiBaseElement {
                         fill="none"
                         stroke="currentColor"
                         stroke-width="2.5"
-                        class="${isReloading ? "spin" : ""}"
-                        style="${isReloading ? "color: var(--accent, #0285ff);" : ""}"
+                        class="${isReloading ? "animate-spin text-accent" : ""}"
                       >
                         <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                       </svg>
@@ -449,27 +227,40 @@ export class NaiCordisPluginTree extends NaiBaseElement {
                   </div>
                 </div>
 
+                {/* Service Definitions */}
                 ${
                   plugin.enabled
                     ? `
-                  <div class="services-box">
+                  <div class="border-t border-line/60 bg-surface/50 px-3 py-2 text-[11px]">
                     ${plugin.services
                       .map(
-                        (svc) => `
-                      <div class="service-row">
-                        <div class="service-header">
-                          <div class="service-target">
-                            <span class="service-name">${svc.name}</span>
-                            <span class="arrow">→</span>
-                            <span class="provider-name">${svc.provider}</span>
+                        (svc, i) => `
+                      <div class="flex flex-col gap-1 ${i > 0 ? "mt-2" : ""}">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-1.5">
+                            <span class="font-mono text-[10.5px] font-semibold text-accent-ink">
+                              ${svc.name}
+                            </span>
+                            <span class="text-ink-3">→</span>
+                            <span class="font-mono text-[10px] text-ink-2 truncate max-w-[180px]">
+                              ${svc.provider}
+                            </span>
                           </div>
-                          <span class="consumers-count">${svc.consumers.length} ${
-                          zh ? "个消费者" : "consumers"
-                        }</span>
+                          <span class="font-mono text-[9.5px] text-ink-3">
+                            ${svc.consumers.length} ${zh ? "个消费者" : "consumers"}
+                          </span>
                         </div>
-                        <div class="consumers-tags">
+                        <div class="flex flex-wrap gap-1 mt-0.5">
                           ${svc.consumers
-                            .map((c) => `<span class="consumer-tag">${c}</span>`)
+                            .map(
+                              (c) => `
+                            <span
+                              class="rounded-chip border border-line/80 bg-field px-1.5 py-0.2 font-mono text-[9px] text-ink-2"
+                            >
+                              ${c}
+                            </span>
+                          `
+                            )
                             .join("")}
                         </div>
                       </div>
@@ -486,12 +277,13 @@ export class NaiCordisPluginTree extends NaiBaseElement {
             .join("")}
         </div>
 
-        <div class="footer">
+        {/* Footer */}
+        <div class="mt-3.5 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${zh ? "Harness.Boot 容器已在 84ms 内装配" : "Harness.Boot container loaded in 84ms"}</span>
-          <span class="footer-mono">Cordis v0.10.2</span>
+          <span class="font-mono">Cordis v0.10.2</span>
         </div>
       </div>
-    `;
+    `, extraCss);
 
     this.shadowRoot.querySelectorAll("[data-toggle]").forEach((btn) => {
       btn.addEventListener("click", () => {

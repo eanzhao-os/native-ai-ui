@@ -36,205 +36,86 @@ export class NaiSearch extends NaiBaseElement {
 
     const empty = query.length > 2 && results.length === 0;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          max-width: 288px;
-          min-height: 248px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-        }
-
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
-
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-raised, 0 2px 10px rgba(0,0,0,0.06), 0 0 0 1px var(--line));
-          overflow: hidden;
-        }
-
-        .input-row {
-          display: flex;
-          height: 40px;
-          align-items: center;
-          gap: 8px;
-          border-bottom: 1px solid var(--line, #ecedef);
-          padding: 0 12px;
-        }
-
-        .search-icon {
-          color: var(--ink-3, #9a9da3);
-          flex-shrink: 0;
-          display: flex;
-        }
-
-        .search-input {
-          min-width: 0;
-          flex: 1;
-          border: none;
-          background: transparent;
-          font-size: 13px;
-          color: var(--ink, #1f2124);
-          outline: none;
-        }
-
-        .search-input::placeholder {
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .btn-clear {
-          display: flex;
-          width: 22px;
-          height: 22px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          border: none;
-          background: transparent;
-          color: var(--ink-3, #9a9da3);
-          cursor: pointer;
-          transition: background-color 0.1s, color 0.1s;
-        }
-
-        .btn-clear:hover {
-          background: color-mix(in srgb, var(--line, #ecedef) 70%, transparent);
-          color: var(--ink, #1f2124);
-        }
-
-        .results-list {
-          padding: 4px;
-        }
-
-        .result-item {
-          display: flex;
-          height: 32px;
-          width: 100%;
-          align-items: center;
-          border-radius: 6px;
-          border: none;
-          background: transparent;
-          padding: 0 8px;
-          text-align: left;
-          font-size: 13px;
-          color: var(--ink, #1f2124);
-          cursor: pointer;
-          transition: background-color 0.1s;
-        }
-
-        .result-item:hover {
-          background: var(--hover, #f4f5f6);
-        }
-
-        .empty-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          padding: 32px 16px;
-          text-align: center;
-        }
-
-        .empty-icon {
-          display: flex;
-          width: 32px;
-          height: 32px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          background: var(--inset, #f7f8f9);
-          color: var(--ink-3, #9a9da3);
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          margin-bottom: 6px;
-        }
-
-        .empty-title {
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-        }
-
-        .empty-sub {
-          font-size: 12px;
-          color: var(--ink-3, #9a9da3);
-        }
-      </style>
-
-      <div class="card">
-        <div class="input-row">
-          <span class="search-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    this.setHtml(`
+      <div class="flex min-h-[248px] w-full max-w-72 flex-col items-stretch">
+        <div class="w-full self-start overflow-hidden rounded-card bg-surface shadow-raised">
+          {/* input row */}
+          <div class="flex h-10 items-center gap-2 border-b border-line px-3">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.3-4.3" />
             </svg>
-          </span>
-
-          <input
-            id="search-input"
-            class="search-input"
-            placeholder="${zh ? "搜索风味…" : "Search flavors…"}"
-            aria-label="${zh ? "搜索风味" : "Search flavors"}"
-            value="${query}"
-          />
-
-          ${
-            query
-              ? `
-            <button type="button" class="btn-clear" id="btn-clear" aria-label="${zh ? "清除搜索" : "Clear search"}">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          `
-              : ""
-          }
-        </div>
-
-        ${
-          empty
-            ? `
-          <div class="empty-state">
-            <div class="empty-icon">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.3-4.3" />
-              </svg>
-            </div>
-            <span class="empty-title">${zh ? "未找到相关结果" : "No results found"}</span>
-            <span class="empty-sub">${zh ? "换个关键词再试一次" : "Adjust your search to try again"}</span>
-          </div>
-        `
-            : `
-          <div class="results-list">
-            ${results
-              .map(
-                (item) => `
-              <button type="button" class="result-item" data-text="${labelOf(item)}">
-                ${labelOf(item)}
+            <input
+              id="search-input"
+              value="${query}"
+              placeholder="${zh ? "搜索风味…" : "Search flavors…"}"
+              aria-label="${zh ? "搜索风味" : "Search flavors"}"
+              class="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
+            />
+            ${
+              query
+                ? `
+              <button
+                id="btn-clear"
+                aria-label="${zh ? "清除搜索" : "Clear search"}"
+                type="button"
+                class="flex size-5.5 items-center justify-center rounded-full text-ink-3 transition-colors duration-100 hover:bg-line/70 hover:text-ink cursor-pointer"
+                style="animation: fade-in 150ms ease-out both;"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
               </button>
             `
-              )
-              .join("")}
+                : ""
+            }
           </div>
-        `
-        }
-      </div>
-    `;
 
-    const input = this.shadowRoot.querySelector("#search-input");
+          {/* results / empty state */}
+          ${
+            empty
+              ? `
+            <div class="flex flex-col items-center justify-center gap-1 px-4 py-8" style="animation: fade-in 250ms ease-out both;">
+              <span class="mb-1.5 flex size-8 items-center justify-center rounded-control bg-inset text-ink-3 shadow-hairline">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              </span>
+              <span class="text-[13px] font-medium text-ink">${zh ? "未找到相关结果" : "No results found"}</span>
+              <span class="text-[12px] text-ink-3">${zh ? "换个关键词再试一次" : "Adjust your search to try again"}</span>
+            </div>
+          `
+              : `
+            <div class="p-1">
+              ${results
+                .map(
+                  (item) => `
+                <button
+                  key="${item.en}"
+                  type="button"
+                  data-text="${labelOf(item)}"
+                  class="result-item flex h-8 w-full items-center rounded-[6px] px-2 text-left text-[13px] text-ink transition-colors duration-100 hover:bg-hover cursor-pointer"
+                  style="animation: fade-in 200ms ease-out both;"
+                >
+                  ${labelOf(item)}
+                </button>
+              `
+                )
+                .join("")}
+            </div>
+          `
+          }
+        </div>
+      </div>
+    `);
+
+    const input = this.shadowRoot?.querySelector("#search-input");
     if (input) {
       input.addEventListener("input", (e) => {
         this._query = e.target.value;
         this.render();
-        const nextInput = this.shadowRoot.querySelector("#search-input");
+        const nextInput = this.shadowRoot?.querySelector("#search-input");
         if (nextInput) {
           nextInput.focus();
           nextInput.selectionStart = nextInput.selectionEnd = this._query.length;
@@ -242,11 +123,11 @@ export class NaiSearch extends NaiBaseElement {
       });
     }
 
-    this.shadowRoot.querySelector("#btn-clear")?.addEventListener("click", () => {
+    this.shadowRoot?.querySelector("#btn-clear")?.addEventListener("click", () => {
       this.setQuery("");
     });
 
-    this.shadowRoot.querySelectorAll(".result-item").forEach((btn) => {
+    this.shadowRoot?.querySelectorAll(".result-item").forEach((btn) => {
       btn.addEventListener("click", () => {
         const text = btn.getAttribute("data-text");
         if (text) this.setQuery(text);

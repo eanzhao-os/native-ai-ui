@@ -1,12 +1,5 @@
 import { NaiBaseElement } from "../core/base-element.js";
 
-const STATE_LABELS = {
-  listening: { en: "Listening", zh: "倾听中", color: "var(--accent, #0285ff)" },
-  thinking: { en: "Thinking", zh: "思考中", color: "var(--orange, #ef720c)" },
-  speaking: { en: "Speaking", zh: "回答中", color: "var(--green, #189a4d)" },
-  idle: { en: "Idle", zh: "已就绪", color: "var(--ink-3, #9a9da3)" },
-};
-
 const TRANSCRIPTS_EN = {
   listening: "Listening to your request...",
   thinking: "Analyzing AST and resolving circular dependencies...",
@@ -21,6 +14,13 @@ const TRANSCRIPTS_ZH = {
   idle: "点击麦克风开始实时语音对话",
 };
 
+const STATE_LABELS = {
+  listening: { en: "Listening", zh: "倾听中" },
+  thinking: { en: "Thinking", zh: "思考中" },
+  speaking: { en: "Speaking", zh: "回答中" },
+  idle: { en: "Idle", zh: "已就绪" },
+};
+
 export class NaiAudioOrb extends NaiBaseElement {
   static get observedAttributes() {
     return ["lang"];
@@ -30,11 +30,49 @@ export class NaiAudioOrb extends NaiBaseElement {
     super();
     this._state = "speaking"; // "listening" | "thinking" | "speaking" | "idle"
     this._isMuted = false;
-    this._bars = new Array(16).fill(12);
+    this._bars = [12, 24, 18, 32, 28, 40, 36, 48, 42, 34, 26, 38, 20, 16, 28, 14];
+  }
+
+  onMount() {
+    this.registerInterval(() => {
+      if (this._state === "idle") {
+        this._bars = this._bars.map(() => 4);
+      } else {
+        this._bars = this._bars.map(() => {
+          if (this._state === "speaking") return Math.floor(Math.random() * 38) + 10;
+          if (this._state === "listening") return Math.floor(Math.random() * 20) + 6;
+          if (this._state === "thinking") return Math.floor(Math.random() * 12) + 4;
+          return 4;
+        });
+      }
+      this._updateBarsOnly();
+    }, 120);
+  }
+
+  _updateBarsOnly() {
+    const barsContainer = this.shadowRoot?.querySelector("#equalizer-bars");
+    if (!barsContainer) return;
+    const color =
+      this._state === "speaking"
+        ? "var(--accent)"
+        : this._state === "listening"
+        ? "var(--green)"
+        : this._state === "thinking"
+        ? "var(--orange)"
+        : "var(--line-strong)";
+
+    const spans = barsContainer.querySelectorAll("span");
+    spans.forEach((span, i) => {
+      span.style.height = `${this._bars[i]}px`;
+      span.style.backgroundColor = color;
+    });
   }
 
   setState(nextState) {
     this._state = nextState;
+    if (nextState === "idle") {
+      this._bars = this._bars.map(() => 4);
+    }
     this.render();
   }
 
@@ -43,375 +81,188 @@ export class NaiAudioOrb extends NaiBaseElement {
     this.render();
   }
 
-  onMount() {
-    this._initCanvasAnimation();
-  }
-
-  _initCanvasAnimation() {
-    const canvas = this.shadowRoot?.querySelector("#orb-canvas");
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let angle = 0;
-    const dpr = window.devicePixelRatio || 1;
-    const w = 240;
-    const h = 180;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    ctx.scale(dpr, dpr);
-
-    this.registerRaf((time) => {
-      angle += 0.025;
-      ctx.clearRect(0, 0, w, h);
-
-      const cx = w / 2;
-      const cy = 70;
-      const state = this._state;
-
-      // Color scheme based on state
-      let mainColor = "rgba(24, 154, 77, "; // green for speaking
-      let ringColor = "rgba(2, 133, 255, "; // blue
-      let pulseSpeed = 2;
-
-      if (state === "speaking") {
-        mainColor = "rgba(2, 133, 255, ";
-        ringColor = "rgba(59, 130, 246, ";
-        pulseSpeed = 3;
-      } else if (state === "listening") {
-        mainColor = "rgba(24, 154, 77, ";
-        ringColor = "rgba(52, 211, 153, ";
-        pulseSpeed = 2;
-      } else if (state === "thinking") {
-        mainColor = "rgba(239, 114, 12, ";
-        ringColor = "rgba(251, 191, 36, ";
-        pulseSpeed = 4;
-      } else {
-        mainColor = "rgba(154, 157, 163, ";
-        ringColor = "rgba(224, 226, 229, ";
-        pulseSpeed = 0.5;
-      }
-
-      const pulse = state === "idle" ? 0 : Math.sin(time * 0.003 * pulseSpeed) * 4;
-      const baseRadius = 38 + pulse;
-
-      // 1. Outer Glow
-      const glowGrad = ctx.createRadialGradient(cx, cy, baseRadius * 0.5, cx, cy, baseRadius * 1.8);
-      glowGrad.addColorStop(0, mainColor + "0.35)");
-      glowGrad.addColorStop(0.6, mainColor + "0.12)");
-      glowGrad.addColorStop(1, mainColor + "0)");
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, baseRadius * 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 2. Rotating orbital dashed ring
-      if (state !== "idle") {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(angle * (state === "thinking" ? 1.5 : 0.8));
-        ctx.strokeStyle = ringColor + "0.45)";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.arc(0, 0, baseRadius + 14, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // 3. Fluid Sphere
-      const orbGrad = ctx.createRadialGradient(
-        cx - baseRadius * 0.3,
-        cy - baseRadius * 0.3,
-        baseRadius * 0.1,
-        cx,
-        cy,
-        baseRadius
-      );
-      orbGrad.addColorStop(0, "#ffffff");
-      orbGrad.addColorStop(0.2, mainColor + "0.95)");
-      orbGrad.addColorStop(0.7, mainColor + "0.75)");
-      orbGrad.addColorStop(1, mainColor + "0.4)");
-
-      ctx.fillStyle = orbGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 4. Highlight reflection
-      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-      ctx.beginPath();
-      ctx.arc(cx - baseRadius * 0.35, cy - baseRadius * 0.35, baseRadius * 0.28, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 5. Equalizer bars underneath
-      const barCount = 16;
-      const barWidth = 3;
-      const barSpacing = 4;
-      const totalWidth = barCount * (barWidth + barSpacing) - barSpacing;
-      const startX = (w - totalWidth) / 2;
-      const barBaseY = 155;
-
-      for (let i = 0; i < barCount; i++) {
-        let barHeight = 4;
-        if (state === "speaking") {
-          barHeight = Math.sin(time * 0.008 + i * 0.5) * 12 + Math.cos(time * 0.004 + i) * 6 + 18;
-        } else if (state === "listening") {
-          barHeight = Math.sin(time * 0.006 + i * 0.4) * 8 + 10;
-        } else if (state === "thinking") {
-          barHeight = Math.sin(time * 0.01 + i * 0.8) * 5 + 7;
-        } else {
-          barHeight = 3;
-        }
-        barHeight = Math.max(3, barHeight);
-
-        const bx = startX + i * (barWidth + barSpacing);
-        ctx.fillStyle = mainColor + "0.85)";
-        ctx.beginPath();
-        ctx.roundRect(bx, barBaseY - barHeight / 2, barWidth, barHeight, 2);
-        ctx.fill();
-      }
-    });
-  }
-
   render() {
     const zh = this.isZh;
     const state = this._state;
-    const statusMeta = STATE_LABELS[state];
-    const transcripts = zh ? TRANSCRIPTS_ZH : TRANSCRIPTS_EN;
+    const isMuted = this._isMuted;
+    const bars = this._bars;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          width: 100%;
-          max-width: 360px;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 3px rgba(0,0,0,0.06));
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-        }
+    const orbBg =
+      state === "speaking"
+        ? "radial-gradient(circle at 30% 30%, #60a5fa, #2563eb, #1e3a8a)"
+        : state === "listening"
+        ? "radial-gradient(circle at 30% 30%, #34d399, #059669, #064e3b)"
+        : state === "thinking"
+        ? "radial-gradient(circle at 30% 30%, #fbbf24, #d97706, #78350f)"
+        : "radial-gradient(circle at 30% 30%, var(--ink-3), var(--ink-2), var(--ink))";
 
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
+    const barColor =
+      state === "speaking"
+        ? "var(--accent)"
+        : state === "listening"
+        ? "var(--green)"
+        : state === "thinking"
+        ? "var(--orange)"
+        : "var(--line-strong)";
 
-        .status-header {
-          display: flex;
-          width: 100%;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .status-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-
-        .pulse-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: ${statusMeta.color};
-          animation: ${state === "idle" ? "none" : "pulse-anim 1.5s infinite"};
-        }
-
-        .status-label {
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-        }
-
-        .latency-text {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-        }
-
-        .canvas-wrapper {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 180px;
-          margin: 6px 0;
-        }
-
-        canvas {
-          display: block;
-          width: 240px;
-          height: 180px;
-        }
-
-        .transcript-box {
-          min-height: 40px;
-          margin-top: 6px;
-          text-align: center;
-          font-size: 12px;
-          line-height: 1.5;
-          color: var(--ink-2, #62656b);
-        }
-
-        .state-pills {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: var(--radius-control, 8px);
-          background: var(--field, #f2f2f3);
-          padding: 4px;
-          margin-top: 12px;
-        }
-
-        .pill-btn {
-          border: none;
-          background: transparent;
-          border-radius: var(--radius-chip, 6px);
-          padding: 4px 8px;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink-3, #9a9da3);
-          cursor: pointer;
-          transition: background-color 0.15s, color 0.15s;
-        }
-
-        .pill-btn:hover {
-          color: var(--ink-2, #62656b);
-        }
-
-        .pill-btn.active {
-          background: var(--surface, #fff);
-          color: var(--ink, #1f2124);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-        }
-
-        .actions-footer {
-          display: flex;
-          width: 100%;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 16px;
-          margin-top: 16px;
-        }
-
-        .btn-mute {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          border: 1px solid var(--line, #ecedef);
-          background: ${this._isMuted ? "var(--red-tint, #fcecec)" : "var(--field, #f2f2f3)"};
-          color: ${this._isMuted ? "var(--red, #e3474c)" : "var(--ink-2, #62656b)"};
-          cursor: pointer;
-          transition: background-color 0.15s, color 0.15s;
-        }
-
-        .btn-mute:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-
-        .btn-end {
-          display: flex;
-          height: 32px;
-          align-items: center;
-          gap: 6px;
-          border-radius: 9999px;
-          border: none;
-          background: var(--red, #e3474c);
-          color: #fff;
-          padding: 0 14px;
-          font-size: 11.5px;
-          font-weight: 500;
-          cursor: pointer;
-          box-shadow: 0 1px 2px rgba(227, 71, 76, 0.2);
-          transition: opacity 0.15s;
-        }
-
-        .btn-end:hover {
-          opacity: 0.9;
-        }
-
-        .end-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #fff;
-        }
-
-        @keyframes pulse-anim {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.15); }
-        }
-      </style>
-
-      <div class="status-header">
-        <div class="status-badge">
-          <span class="pulse-dot"></span>
-          <span class="status-label">${zh ? statusMeta.zh : statusMeta.en}</span>
+    this.setHtml(`
+      <div class="flex w-full max-w-sm flex-col items-center rounded-card border border-line bg-surface p-6 shadow-card">
+        {/* Top Status & Latency Bar */}
+        <div class="flex w-full items-center justify-between text-[11px] text-ink-3">
+          <div class="flex items-center gap-1.5 font-mono">
+            <span
+              class="size-2 rounded-full ${
+                state === "speaking"
+                  ? "bg-green animate-pulse"
+                  : state === "listening"
+                  ? "bg-accent animate-pulse"
+                  : state === "thinking"
+                  ? "bg-orange animate-pulse"
+                  : "bg-ink-3"
+              }"
+            ></span>
+            <span class="capitalize font-medium text-ink-2">
+              ${zh ? STATE_LABELS[state].zh : STATE_LABELS[state].en}
+            </span>
+          </div>
+          <span class="font-mono text-[10.5px]">210ms • Opus 48kHz</span>
         </div>
-        <span class="latency-text">210ms • Opus 48kHz</span>
-      </div>
 
-      <div class="canvas-wrapper">
-        <canvas id="orb-canvas"></canvas>
-      </div>
+        {/* Fluid Gradient Orb */}
+        <div class="relative my-8 flex size-36 items-center justify-center">
+          <div
+            class="absolute inset-0 rounded-full blur-xl transition-all duration-700 ${
+              state === "speaking"
+                ? "bg-accent/30 scale-125"
+                : state === "listening"
+                ? "bg-green/25 scale-110"
+                : state === "thinking"
+                ? "bg-orange/30 scale-115"
+                : "bg-line/40 scale-90"
+            }"
+          ></div>
 
-      <p class="transcript-box">
-        ${transcripts[state]}
-      </p>
+          <div
+            class="absolute inset-0 rounded-full border border-dashed transition-all duration-500 ${
+              state === "speaking"
+                ? "border-accent/40 animate-spin"
+                : state === "thinking"
+                ? "border-orange/50 animate-spin"
+                : "border-line"
+            }"
+            style="${
+              state === "speaking"
+                ? "animation-duration: 8s;"
+                : state === "thinking"
+                ? "animation-duration: 4s;"
+                : ""
+            }"
+          ></div>
 
-      <div class="state-pills">
-        ${(["listening", "thinking", "speaking", "idle"])
-          .map(
-            (mode) => `
-          <button type="button" class="pill-btn ${state === mode ? "active" : ""}" data-mode="${mode}">
-            ${zh ? STATE_LABELS[mode].zh : STATE_LABELS[mode].en}
+          <div
+            class="relative flex size-28 items-center justify-center rounded-full shadow-lg transition-transform duration-500 ${
+              state === "speaking"
+                ? "scale-105"
+                : state === "listening"
+                ? "scale-95 animate-pulse"
+                : state === "thinking"
+                ? "scale-90"
+                : "scale-85 opacity-70"
+            }"
+            style="background: ${orbBg};"
+          >
+            <div class="size-10 rounded-full bg-white/40 blur-[6px] animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Audio Waveform Equalizer */}
+        <div id="equalizer-bars" class="flex h-10 w-full items-center justify-center gap-1">
+          ${bars
+            .map(
+              (height) => `
+            <span
+              class="w-1 rounded-full transition-all duration-100"
+              style="height: ${height}px; background-color: ${barColor};"
+            ></span>
+          `
+            )
+            .join("")}
+        </div>
+
+        {/* Streaming Live Transcript */}
+        <p class="mt-4 min-h-[38px] text-center text-[12px] leading-relaxed text-ink-2">
+          ${zh ? TRANSCRIPTS_ZH[state] : TRANSCRIPTS_EN[state]}
+        </p>
+
+        {/* State Switcher Pills */}
+        <div class="mt-4 flex items-center gap-1 rounded-control bg-field p-1 text-[11px]">
+          ${(["listening", "thinking", "speaking", "idle"])
+            .map(
+              (mode) => `
+            <button
+              key="${mode}"
+              type="button"
+              data-mode="${mode}"
+              class="pill-btn rounded-chip px-2.5 py-1 font-medium transition-colors cursor-pointer ${
+                state === mode ? "bg-surface text-ink shadow-sm" : "text-ink-3 hover:text-ink-2"
+              }"
+            >
+              ${zh ? STATE_LABELS[mode].zh : STATE_LABELS[mode].en}
+            </button>
+          `
+            )
+            .join("")}
+        </div>
+
+        {/* Bottom Controls */}
+        <div class="mt-5 flex w-full items-center justify-center gap-3 border-t border-line pt-4">
+          <button
+            type="button"
+            id="btn-mute"
+            class="flex size-8 items-center justify-center rounded-full border border-line transition-colors cursor-pointer ${
+              isMuted ? "bg-red-tint text-red" : "bg-field text-ink-2 hover:bg-hover hover:text-ink"
+            }"
+            title="${isMuted ? (zh ? "取消静音" : "Unmute") : zh ? "静音" : "Mute"}"
+          >
+            ${
+              isMuted
+                ? `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="1" y1="1" x2="23" y2="23" />
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+                <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+              </svg>
+            `
+                : `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
+              </svg>
+            `
+            }
           </button>
-        `
-          )
-          .join("")}
+
+          <button
+            type="button"
+            id="btn-end"
+            class="flex h-8 items-center gap-1.5 rounded-full bg-red px-3.5 text-[11.5px] font-medium text-white shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            <span class="size-2 rounded-full bg-white"></span>
+            <span>${zh ? "挂断通话" : "End Voice"}</span>
+          </button>
+        </div>
       </div>
+    `);
 
-      <div class="actions-footer">
-        <button type="button" class="btn-mute" id="btn-mute" title="${this._isMuted ? (zh ? "取消静音" : "Unmute") : zh ? "静音" : "Mute"}">
-          ${
-            this._isMuted
-              ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/></svg>`
-              : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>`
-          }
-        </button>
-
-        <button type="button" class="btn-end" id="btn-end">
-          <span class="end-dot"></span>
-          <span>${zh ? "挂断通话" : "End Voice"}</span>
-        </button>
-      </div>
-    `;
-
-    this.shadowRoot.querySelectorAll(".pill-btn").forEach((btn) => {
+    this.shadowRoot?.querySelectorAll("[data-mode]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const mode = btn.getAttribute("data-mode");
         if (mode) this.setState(mode);
       });
     });
 
-    this.shadowRoot.querySelector("#btn-mute")?.addEventListener("click", () => this.toggleMute());
-    this.shadowRoot.querySelector("#btn-end")?.addEventListener("click", () => this.setState("idle"));
-
-    this._initCanvasAnimation();
+    this.shadowRoot?.querySelector("#btn-mute")?.addEventListener("click", () => this.toggleMute());
+    this.shadowRoot?.querySelector("#btn-end")?.addEventListener("click", () => this.setState("idle"));
   }
 }
 

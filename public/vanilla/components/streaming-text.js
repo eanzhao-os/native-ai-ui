@@ -1,5 +1,4 @@
 import { NaiBaseElement } from "../core/base-element.js";
-import { ICONS } from "../core/icons.js";
 
 const WORD_MS = 55;
 const HOLD_MS = 3400;
@@ -34,15 +33,24 @@ const FOLLOW_UPS_ZH = [
   "对比意式硬冰与软冰淇淋的利润率",
 ];
 
+const SOURCE_IMAGES = {
+  scoop:
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231f7a5f'/%3E%3Cpath d='M20 36c0 7 5.4 12 12 12s12-5 12-12H20Z' fill='%23fff'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23bff3dd'/%3E%3Cpath d='M24 24c4-7 13-7 17 0' fill='none' stroke='%231f7a5f' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E",
+  trends:
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f6fec'/%3E%3Cpath d='M15 43 27 31l8 7 14-18' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='20' r='5' fill='%23bfe0ff'/%3E%3C/svg%3E",
+  market:
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e56d24'/%3E%3Cpath d='M17 45V25h8v20h-8Zm11 0V16h8v29h-8Zm11 0V30h8v15h-8Z' fill='%23fff'/%3E%3Cpath d='M16 49h32' stroke='%23ffd6b8' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E",
+};
+
 const SOURCES = [
-  { name: "Scoop Data", domain: "scoopdata.io", href: "https://scoopdata.io/" },
-  { name: "Trends Index", domain: "trends.google.com", href: "https://trends.google.com/trends/" },
-  { name: "Market Basket", domain: "marketbasket.io", href: "https://marketbasket.io/" },
+  { name: "Scoop Data", domain: "scoopdata.io", href: "https://scoopdata.io/", image: SOURCE_IMAGES.scoop },
+  { name: "Trends Index", domain: "trends.google.com", href: "https://trends.google.com/trends/", image: SOURCE_IMAGES.trends },
+  { name: "Market Basket", domain: "marketbasket.io", href: "https://marketbasket.io/", image: SOURCE_IMAGES.market },
 ];
 
 export class NaiStreamingText extends NaiBaseElement {
   static get observedAttributes() {
-    return ["lang", "auto"];
+    return ["lang"];
   }
 
   constructor() {
@@ -52,233 +60,144 @@ export class NaiStreamingText extends NaiBaseElement {
     this._copied = false;
   }
 
-  get autoPlay() {
-    return this.getAttribute("auto") !== "false";
-  }
-
   onMount() {
-    this._startStream();
-  }
-
-  _startStream() {
     this._count = 0;
-    if (!this.autoPlay) {
-      const tokens = this.isZh ? TOKENS_ZH : TOKENS_EN;
-      this._count = tokens.length;
-      this.render();
-      return;
-    }
-
-    const streamLoop = () => {
-      const tokens = this.isZh ? TOKENS_ZH : TOKENS_EN;
-      if (this._count < tokens.length) {
-        this._count++;
-        this.render();
-        this.registerTimeout(streamLoop, WORD_MS);
-      } else {
-        this.registerTimeout(() => {
-          this._count = 0;
-          this.render();
-          streamLoop();
-        }, HOLD_MS);
-      }
-    };
-
-    this.registerTimeout(streamLoop, 300);
+    this._tick();
   }
 
-  copyText() {
+  _tick() {
     const zh = this.isZh;
-    const fullText = zh
-      ? "开心果口味是当前增长最快的产品 — 本月销量环比上涨 23%，毛利率相比传统香草高出 8 个百分点。同品类中，以蜜桃与黄杏为代表的水果风味也呈现出强劲的同步增长势头。"
-      : "Pistachio is your fastest-growing flavor — sales are up 23% this month and margins beat vanilla by 8 points. Stone-fruit flavors are trending in the same range.";
+    const TOKENS = zh ? TOKENS_ZH : TOKENS_EN;
+    const done = this._count >= TOKENS.length;
 
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(fullText).then(() => {
-        this._copied = true;
-        this.render();
-        this.registerTimeout(() => {
-          this._copied = false;
-          this.render();
-        }, 1800);
-      });
-    }
-  }
-
-  toggleSources() {
-    this._sourcesOpen = !this._sourcesOpen;
-    this.render();
+    this.registerTimeout(() => {
+      this._count = this._count >= TOKENS.length ? 0 : this._count + 1;
+      this.render();
+      this._tick();
+    }, done ? HOLD_MS : WORD_MS);
   }
 
   render() {
     const zh = this.isZh;
-    const tokens = zh ? TOKENS_ZH : TOKENS_EN;
-    const followUps = zh ? FOLLOW_UPS_ZH : FOLLOW_UPS_EN;
-    const visibleTokens = tokens.slice(0, this._count);
-    const isDone = this._count >= tokens.length;
+    const TOKENS = zh ? TOKENS_ZH : TOKENS_EN;
+    const FOLLOW_UPS = zh ? FOLLOW_UPS_ZH : FOLLOW_UPS_EN;
+    const done = this._count >= TOKENS.length;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          width: 100%;
-          max-width: 480px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .content {
-          font-size: 13.5px;
-          line-height: 1.6;
-          color: var(--ink, #1f2124);
-        }
-        .token {
-          display: inline;
-        }
-        .space {
-          display: inline;
-        }
-        .caret {
-          display: inline-block;
-          width: 2px;
-          height: 1.1em;
-          vertical-align: text-bottom;
-          background: var(--ink, #1f2124);
-          margin-left: 2px;
-          border-radius: 1px;
-          animation: ${isDone ? "caret-blink 1s step-end infinite" : "none"};
-        }
-        .source-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 1px 6px;
-          margin: 0 4px;
-          background: var(--inset, #f7f8f9);
-          border: 1px solid var(--line, #ecedef);
-          border-radius: 5px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          color: var(--ink-2, #62656b);
-          text-decoration: none;
-          vertical-align: baseline;
-          transition: background-color 0.12s ease;
-        }
-        .source-chip:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .actions-bar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-top: 4px;
-        }
-        .btn-group {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .icon-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 26px;
-          height: 26px;
-          border-radius: 6px;
-          border: none;
-          background: transparent;
-          color: var(--ink-3, #9a9da3);
-          cursor: pointer;
-          transition: background-color 0.12s, color 0.12s;
-        }
-        .icon-btn:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .copied-badge {
-          font-size: 11px;
-          color: var(--green, #189a4d);
-          font-weight: 500;
-          animation: fade-in 200ms ease;
-        }
-        .follow-ups {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          margin-top: 4px;
-        }
-        .follow-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 10px;
-          border-radius: 99px;
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          color: var(--ink-2, #62656b);
-          font-size: 12px;
-          cursor: pointer;
-          transition: border-color 0.15s, color 0.15s, background-color 0.15s;
-        }
-        .follow-pill:hover {
-          border-color: var(--line-strong, #e0e2e5);
-          color: var(--ink, #1f2124);
-          background: var(--hover, #f4f5f6);
-        }
-        @keyframes caret-blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-        @keyframes fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
-      </style>
+    this.setHtml(`
+      <div class="min-h-[15.5rem] w-full max-w-95">
+        <p class="content text-[13px] leading-relaxed text-ink">
+          ${TOKENS.slice(0, this._count)
+            .map((token) =>
+              token.cite
+                ? `
+              <a
+                href="${SOURCES[0].href}"
+                target="_blank"
+                rel="noreferrer"
+                class="ml-0 mr-1 inline-flex h-4.5 translate-y-[-1px] items-center gap-1 rounded-[5px] bg-inset pr-[3px] pl-[3px] align-middle font-mono text-[10.5px] text-ink-2 shadow-xs transition-colors duration-150 hover:bg-hover hover:text-ink"
+                style="animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;"
+              >
+                <img src="${SOURCES[0].image}" alt="" class="size-3 rounded-[3px]" />
+                <span>${SOURCES[0].domain}</span>
+              </a>
+            `
+                : `
+              <span class="inline" style="animation: stream-in 420ms cubic-bezier(0.22,0.61,0.25,1) both;">
+                ${token.text}${zh ? "" : " "}
+              </span>
+            `
+            )
+            .join("")}
+          ${
+            !done
+              ? `<span class="ml-0.5 inline-block h-3 w-0.5 translate-y-0.5 rounded-full bg-ink" style="animation: fade-in 150ms ease-out both;"></span>`
+              : ""
+          }
+        </p>
 
-      <div class="content">
-        ${visibleTokens
-          .map((tok, i) => {
-            if (tok.cite) {
-              return `<a href="${SOURCES[0].href}" target="_blank" rel="noreferrer" class="source-chip">${SOURCES[0].domain}</a>`;
+        {/* Action icons row */}
+        <div
+          class="mt-2 flex items-center gap-0.5 transition-opacity duration-400"
+          style="opacity: ${done ? 1 : 0}; pointer-events: ${done ? "auto" : "none"};"
+        >
+          <button
+            type="button"
+            class="copy-btn flex size-7 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink cursor-pointer"
+            aria-label="${zh ? "复制" : "Copy"}"
+          >
+            ${
+              this._copied
+                ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>`
+                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>`
             }
-            return `<span class="token">${tok.text}</span>${zh ? "" : " "}`;
-          })
-          .join("")}
-        <span class="caret"></span>
-      </div>
-
-      <div class="actions-bar">
-        <div class="btn-group">
-          <button type="button" class="icon-btn copy-btn" title="${zh ? "复制回答" : "Copy response"}">
-            ${this._copied ? `<span class="copied-badge">✓</span>` : ICONS.copy}
           </button>
-          <button type="button" class="icon-btn retry-btn" title="${zh ? "重新生成" : "Regenerate"}">
-            ${ICONS.retry}
+          <button
+            type="button"
+            class="retry-btn flex size-7 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink cursor-pointer"
+            aria-label="${zh ? "重新生成" : "Retry"}"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+            </svg>
           </button>
-          <button type="button" class="icon-btn thumb-up" title="${zh ? "有用" : "Helpful"}">
-            ${ICONS.thumbsUp}
+          <button
+            type="button"
+            class="flex size-7 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink cursor-pointer"
+            aria-label="${zh ? "赞" : "Thumbs up"}"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 10v12M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z" />
+            </svg>
           </button>
-          <button type="button" class="icon-btn thumb-down" title="${zh ? "不满意" : "Not helpful"}">
-            ${ICONS.thumbsDown}
+          <button
+            type="button"
+            class="flex size-7 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink cursor-pointer"
+            aria-label="${zh ? "踩" : "Thumbs down"}"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 14V2M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88z" />
+            </svg>
           </button>
         </div>
-      </div>
 
-      <div class="follow-ups">
-        ${followUps
-          .map(
-            (item) => `
-              <button type="button" class="follow-pill">
-                <span>${item}</span>
-                <span>→</span>
+        {/* Follow ups */}
+        <div
+          class="mt-3 flex flex-col gap-1.5 transition-opacity duration-500"
+          style="opacity: ${done ? 1 : 0}; pointer-events: ${done ? "auto" : "none"};"
+        >
+          <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+            ${zh ? "后续建议" : "Suggested follow-ups"}
+          </span>
+          <div class="flex flex-wrap gap-1.5">
+            ${FOLLOW_UPS.map(
+              (f) => `
+              <button
+                type="button"
+                class="rounded-control border border-line bg-surface px-2.5 py-1 text-[11.5px] text-ink shadow-xs transition-colors duration-150 hover:bg-hover cursor-pointer"
+              >
+                ${f}
               </button>
             `
-          )
-          .join("")}
+            ).join("")}
+          </div>
+        </div>
       </div>
-    `;
+    `);
 
-    this.shadowRoot.querySelector(".copy-btn")?.addEventListener("click", () => this.copyText());
-    this.shadowRoot.querySelector(".retry-btn")?.addEventListener("click", () => this._startStream());
+    // Wire up events
+    this.shadowRoot?.querySelector(".copy-btn")?.addEventListener("click", () => {
+      this._copied = true;
+      this.render();
+      this.registerTimeout(() => {
+        this._copied = false;
+        this.render();
+      }, 1600);
+    });
+
+    this.shadowRoot?.querySelector(".retry-btn")?.addEventListener("click", () => {
+      this._count = 0;
+      this.render();
+    });
   }
 }
 

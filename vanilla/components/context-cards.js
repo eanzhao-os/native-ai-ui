@@ -38,7 +38,7 @@ export class NaiContextCards extends NaiBaseElement {
           : "Cold-chain certification must be verified before a new dairy can be added to the reorder workflow.",
         source: "Dairy Onboarding SOP.pdf",
         badge: "PDF",
-        badgeBg: "var(--red, #e3474c)",
+        tone: "bg-red",
       },
       {
         title: zh ? "季节性需求走势" : "Seasonal demand row",
@@ -48,171 +48,57 @@ export class NaiContextCards extends NaiBaseElement {
           : "Q4 velocity table: pistachio +18%, vanilla +6%, rocky road -11%; retire flavors below 40 scoops weekly.",
         source: "Sales Velocity Export.csv",
         badge: "CSV",
-        badgeBg: "var(--green, #189a4d)",
+        tone: "bg-green",
       },
     ];
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 380px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .container {
-          display: flex;
-          width: 100%;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 0 2px;
-          animation: fade-in 400ms ease-out both;
-        }
-        .header-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .count-chip {
-          display: inline-flex;
-          height: 20px;
-          align-items: center;
-          border-radius: var(--radius-chip, 6px);
-          background: var(--inset, #f7f8f9);
-          padding: 0 6px;
-          font-size: 11.5px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          font-variant-numeric: tabular-nums;
-        }
-        .card {
-          overflow: hidden;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-card, 0 0 0 1px var(--line));
-          border: 1px solid var(--line, #ecedef);
-        }
-        .card-bar {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          border-bottom: 1px solid var(--line, #ecedef);
-          padding: 10px 12px;
-          background: var(--surface, #fff);
-        }
-        .card-title-wrap {
-          display: flex;
-          min-width: 0;
-          align-items: center;
-          gap: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-        }
-        .card-title {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .card-chars {
-          margin-left: auto;
-          flex-shrink: 0;
-          font-size: 12px;
-          color: var(--ink-3, #9a9da3);
-          font-variant-numeric: tabular-nums;
-        }
-        .card-body {
-          padding: 8px 12px 4px 12px;
-          margin: 0;
-          font-size: 12.5px;
-          line-height: 1.6;
-          color: var(--ink-2, #62656b);
-        }
-        .card-footer {
-          padding: 0 12px 12px 12px;
-        }
-        .source-chip {
-          display: inline-flex;
-          height: 24px;
-          align-items: center;
-          gap: 6px;
-          border-radius: 99px;
-          background: var(--inset, #f7f8f9);
-          padding: 0 8px;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          box-shadow: var(--shadow-btn, 0 0 0 1px var(--line-strong));
-          cursor: pointer;
-          transition: opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-                      transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-                      background-color 0.12s;
-        }
-        .source-chip:hover {
-          background-color: var(--hover, #f4f5f6);
-        }
-        .badge-kind {
-          display: flex;
-          width: 14px;
-          height: 14px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 4px;
-          font-size: 7px;
-          font-weight: 700;
-          color: #fff;
-        }
-        @keyframes fade-in {
-          0% { opacity: 0; }
-          100% { opacity: 1; }
-        }
-        @keyframes fade-up {
-          0% { opacity: 0; transform: translateY(6px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-      </style>
-
-      <div class="container">
-        <div class="header">
-          <span class="header-title">${zh ? "检索知识分块" : "All chunks"}</span>
-          <span class="count-chip">32</span>
+    const html = `
+      <div class="flex w-full max-w-95 flex-col gap-2">
+        <div
+          class="flex items-center gap-2 px-0.5"
+          style="animation: fade-in 400ms ease-out both;"
+        >
+          <span class="text-[13px] font-semibold text-ink">
+            ${zh ? "检索知识分块" : "All chunks"}
+          </span>
+          <span class="count-chip inline-flex h-5 items-center rounded-md bg-inset px-1.5 text-[11.5px] font-medium text-ink-2 shadow-hairline tabular-nums">32</span>
         </div>
 
         ${chunks
           .map(
             (chunk, i) => `
           <div
-            class="card"
+            class="card overflow-hidden rounded-card bg-surface shadow-card"
             style="animation: fade-up 400ms cubic-bezier(0.23,1,0.32,1) ${i * 100}ms both;"
           >
-            <div class="card-bar">
-              <span class="card-title-wrap">
+            <div class="primitive-card-bar flex items-center gap-2.5 border-b border-line">
+              <span class="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-ink">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                   <path d="M4 6h16M4 12h16M4 18h10" />
                 </svg>
-                <span class="card-title">${chunk.title}</span>
+                <span class="truncate">${chunk.title}</span>
               </span>
-              <span class="card-chars">${chunk.chars}</span>
+              <span class="ml-auto shrink-0 text-[12px] text-ink-3 tabular-nums">${chunk.chars}</span>
             </div>
-
-            <p class="card-body">${chunk.body}</p>
-
-            <div class="card-footer">
+            <p class="px-3 pt-2 pb-1 text-[12.5px] leading-relaxed text-ink-2">
+              ${chunk.body}
+            </p>
+            <div class="px-3 pb-3">
               <span
-                class="source-chip"
-                style="opacity: ${chipsShown ? 1 : 0}; transform: ${chipsShown ? "scale(1)" : "scale(0.95)"}; transition-delay: ${i * 80}ms;"
+                class="inline-flex h-6 items-center gap-1.5 rounded-full bg-inset px-2
+                  text-[12px] font-medium text-ink-2 shadow-btn
+                  transition-[opacity,transform,background-color] duration-300 hover:bg-hover cursor-pointer"
+                style="
+                  opacity: ${chipsShown ? 1 : 0};
+                  transform: ${chipsShown ? "scale(1)" : "scale(0.95)"};
+                  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+                  transition-delay: ${i * 80}ms;
+                "
               >
-                <span class="badge-kind" style="background-color: ${chunk.badgeBg};">
+                <span class="flex size-3.5 items-center justify-center rounded-[4px] ${chunk.tone} text-[7px] font-bold text-white">
                   ${chunk.badge}
                 </span>
-                <span>${chunk.source}</span>
+                ${chunk.source}
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M7 17L17 7M7 7h10v10" />
                 </svg>
@@ -224,6 +110,8 @@ export class NaiContextCards extends NaiBaseElement {
           .join("")}
       </div>
     `;
+
+    this.setHtml(html);
   }
 }
 

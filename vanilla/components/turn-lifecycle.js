@@ -17,6 +17,22 @@ const EVENTS = [
   { type: "turn/end", depth: 0, tone: "accent", closes: "turn", summaryEn: "Turn 3 · completed", summaryZh: "第 3 轮 · 已完成", meta: "2 steps · 2 calls" },
 ];
 
+const TONE_DOT = {
+  accent: "bg-accent",
+  green: "bg-green",
+  orange: "bg-orange",
+  muted: "bg-ink-3",
+  dim: "bg-line-strong",
+};
+
+const TONE_CHIP = {
+  accent: "bg-accent-tint text-accent-ink",
+  green: "bg-green-tint text-green",
+  orange: "bg-orange-tint text-orange",
+  muted: "bg-hover-2/60 text-ink-2",
+  dim: "bg-field text-ink-3",
+};
+
 const STEP_MS = 620;
 const HOLD_MS = 3600;
 
@@ -75,235 +91,81 @@ export class NaiTurnLifecycle extends NaiBaseElement {
       return g;
     });
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        * { box-sizing: border-box; }
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 2px #1018280a, 0 2px 6px #10182808);
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 12px;
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          flex-shrink: 0;
-          background: ${done ? "var(--green, #189a4d)" : "var(--accent, #0285ff)"};
-          ${!done ? "animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;" : ""}
-        }
-        .title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .session-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 2px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .counter {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-        .timeline {
-          position: relative;
-          display: flex;
-          min-height: 304px;
-          flex-direction: column;
-          gap: 3px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 12px;
-        }
-        .event-row {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          border-radius: var(--radius-chip, 6px);
-          padding: 5px 6px;
-          font-size: 11.5px;
-          animation: fade-up 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-        .guide-turn {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 1px;
-          background: var(--accent, #0285ff);
-          opacity: 0.35;
-          left: 12px;
-          pointer-events: none;
-        }
-        .guide-step {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 1px;
-          background: var(--line-strong, #e0e2e5);
-          left: 34px;
-          pointer-events: none;
-        }
-        .elbow-turn {
-          position: absolute;
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          border: 1.5px solid var(--accent, #0285ff);
-          background: var(--accent-tint, #e9f3ff);
-          left: 9px;
-          pointer-events: none;
-        }
-        .elbow-step {
-          position: absolute;
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          border: 1.5px solid var(--line-strong, #e0e2e5);
-          background: var(--surface, #fff);
-          left: 31px;
-          pointer-events: none;
-        }
-        .dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          flex-shrink: 0;
-        }
-        .dot-accent { background: var(--accent, #0285ff); }
-        .dot-green { background: var(--green, #189a4d); }
-        .dot-orange { background: var(--orange, #ef720c); }
-        .dot-muted { background: var(--ink-3, #9a9da3); }
-        .dot-dim { background: var(--line-strong, #e0e2e5); }
+    const extraCss = `
+      .bg-accent\\/35 { background-color: color-mix(in srgb, var(--accent, #0285ff) 35%, transparent); }
+      .bg-hover-2\\/60 { background-color: color-mix(in srgb, var(--hover-2, #e7e9eb) 60%, transparent); }
+      .bg-inset\\/50 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 50%, transparent); }
+      .size-\\[7px\\] { width: 7px; height: 7px; }
+      .size-1\\.5 { width: 6px; height: 6px; }
+      .size-2 { width: 8px; height: 8px; }
+      .py-\\[5px\\] { padding-top: 5px; padding-bottom: 5px; }
+      .py-px { padding-top: 1px; padding-bottom: 1px; }
+      .border-\\[1\\.5px\\] { border-width: 1.5px; }
+    `;
 
-        .chip {
-          flex-shrink: 0;
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-        }
-        .chip-accent { background: var(--accent-tint, #e9f3ff); color: var(--accent-ink, #0170dd); }
-        .chip-green { background: var(--green-tint, #e8f5ed); color: var(--green, #189a4d); }
-        .chip-orange { background: var(--orange-tint, #fdf1e5); color: var(--orange, #ef720c); }
-        .chip-muted { background: var(--hover-2, #e7e9eb); color: var(--ink-2, #62656b); }
-        .chip-dim { background: var(--field, #f2f2f3); color: var(--ink-3, #9a9da3); }
-
-        .summary {
-          min-width: 0;
-          flex: 1;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          color: var(--ink-2, #62656b);
-        }
-        .meta {
-          flex-shrink: 0;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-        .caret-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 4px 6px;
-        }
-        .caret-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--ink-3, #9a9da3);
-          animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        .caret-text {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .footer {
-          margin-top: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 12px;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .footer-mono {
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-
-        @keyframes fade-up {
-          0% { opacity: 0; transform: translateY(6px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse {
-          50% { opacity: 0.5; }
-        }
-      </style>
-
-      <div class="card">
-        <div class="header">
-          <div class="header-left">
-            <span class="status-dot"></span>
-            <h3 class="title">${zh ? "Turn 括号事件流" : "Turn Bracket Stream"}</h3>
-            <span class="session-chip">session/7c1d</span>
+    this.setHtml(`
+      <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
+        {/* Header */}
+        <div class="flex items-center justify-between pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex size-2 rounded-full ${done ? "bg-green" : "bg-accent animate-pulse"}"></span>
+            <h3 class="title text-[13px] font-semibold text-ink">${zh ? "Turn 括号事件流" : "Turn Bracket Stream"}</h3>
+            <span class="rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
+              session/7c1d
+            </span>
           </div>
-          <span class="counter">${Math.min(this._visible, EVENTS.length)}/${EVENTS.length} events</span>
+          <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
+            ${Math.min(this._visible, EVENTS.length)}/${EVENTS.length} events
+          </span>
         </div>
 
-        <div class="timeline">
+        {/* Timeline */}
+        <div class="timeline relative flex min-h-[304px] flex-col gap-[3px] rounded-control border border-line bg-inset/50 p-3">
           ${rows
             .map((e, i) => {
               const g = guides[i];
               const isLast = i === rows.length - 1;
-              const padLeft = 6 + e.depth * 22;
-              const bg = isLast && !done ? "background: var(--hover, #f4f5f6);" : "";
               return `
-                <div class="event-row" style="padding-left: ${padLeft}px; ${bg}">
-                  ${g.turn ? `<span class="guide-turn" aria-hidden="true"></span>` : ""}
-                  ${e.depth >= 1 && g.step ? `<span class="guide-step" aria-hidden="true"></span>` : ""}
+                <div
+                  class="relative flex items-center gap-2.5 rounded-chip px-1.5 py-[5px]"
+                  style="padding-left: ${6 + e.depth * 22}px; animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both; ${
+                    isLast && !done ? "background: var(--hover);" : ""
+                  }"
+                >
                   ${
-                    e.closes
-                      ? `<span class="${e.closes === "turn" ? "elbow-turn" : "elbow-step"}" aria-hidden="true"></span>`
+                    g.turn
+                      ? `<span aria-hidden="true" class="absolute top-0 bottom-0 w-px bg-accent/35" style="left: 12px;"></span>`
                       : ""
                   }
-                  <span class="dot dot-${e.tone}"></span>
-                  <code class="chip chip-${e.tone}">${e.type}</code>
-                  <span class="summary">${zh ? e.summaryZh : e.summaryEn}</span>
-                  ${e.meta ? `<span class="meta">${e.meta}</span>` : ""}
+                  ${
+                    e.depth >= 1 && g.step
+                      ? `<span aria-hidden="true" class="absolute top-0 bottom-0 w-px bg-line-strong" style="left: ${
+                          12 + 22
+                        }px;"></span>`
+                      : ""
+                  }
+                  ${
+                    e.closes
+                      ? `<span aria-hidden="true" class="absolute size-[7px] rounded-full border-[1.5px] ${
+                          e.closes === "turn"
+                            ? "border-accent bg-accent-tint"
+                            : "border-line-strong bg-surface"
+                        }" style="left: ${12 + (e.closes === "turn" ? 0 : 22) - 3}px;"></span>`
+                      : ""
+                  }
+
+                  <span class="size-1.5 shrink-0 rounded-full ${TONE_DOT[e.tone]}"></span>
+                  <code class="shrink-0 rounded-chip px-1.5 py-px font-mono text-[10px] ${TONE_CHIP[e.tone]}">
+                    ${e.type}
+                  </code>
+                  <span class="min-w-0 flex-1 truncate text-[11.5px] text-ink-2">
+                    ${zh ? e.summaryZh : e.summaryEn}
+                  </span>
+                  ${
+                    e.meta
+                      ? `<span class="shrink-0 font-mono text-[9.5px] tabular-nums text-ink-3">${e.meta}</span>`
+                      : ""
+                  }
                 </div>
               `;
             })
@@ -312,23 +174,29 @@ export class NaiTurnLifecycle extends NaiBaseElement {
           ${
             !done
               ? `
-              <div class="caret-row" style="padding-left: ${
-                6 + Math.min((EVENTS[this._visible]?.depth ?? 0) * 22 + 22, 66)
-              }px">
-                <span class="caret-dot"></span>
-                <span class="caret-text">${zh ? "等待下一事件…" : "awaiting next event…"}</span>
-              </div>
-            `
+            <div
+              class="flex items-center gap-2 px-1.5 py-1"
+              style="padding-left: ${6 + Math.min((EVENTS[this._visible]?.depth ?? 0) * 22 + 22, 66)}px;"
+            >
+              <span class="size-1.5 rounded-full bg-ink-3 animate-pulse"></span>
+              <span class="font-mono text-[10px] text-ink-3">
+                ${zh ? "等待下一事件…" : "awaiting next event…"}
+              </span>
+            </div>
+          `
               : ""
           }
         </div>
 
-        <div class="footer">
-          <span>${zh ? "括号结构: turn ⊃ step ⊃ tool/call" : "Brackets: turn ⊃ step ⊃ tool/call"}</span>
-          <span class="footer-mono">agent/loop · durable</span>
+        {/* Footer */}
+        <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
+          <span>
+            ${zh ? "括号结构: turn ⊃ step ⊃ tool/call" : "Brackets: turn ⊃ step ⊃ tool/call"}
+          </span>
+          <span class="font-mono">agent/loop · durable</span>
         </div>
       </div>
-    `;
+    `, extraCss);
   }
 }
 

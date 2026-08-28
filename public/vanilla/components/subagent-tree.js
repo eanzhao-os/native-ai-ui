@@ -84,345 +84,133 @@ export class NaiSubagentTree extends NaiBaseElement {
   render() {
     const zh = this.isZh;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .container {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 0 0 1px var(--line));
-          box-sizing: border-box;
-        }
-        .coordinator {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 12px;
-        }
-        .coord-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .coord-icon {
-          position: relative;
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          background: var(--accent, #0285ff);
-          color: #fff;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .coord-title-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .coord-title {
-          font-size: 12.5px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .coord-model {
-          border-radius: var(--radius-chip, 6px);
-          background: var(--accent-tint, #e9f3ff);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--accent-ink, #0170dd);
-        }
-        .coord-desc {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-2, #62656b);
-        }
-        .coord-status {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .pulse-dot {
-          display: flex;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--green, #189a4d);
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        .tree-body {
-          position: relative;
-          margin-top: 16px;
-          padding-left: 24px;
-        }
-        .tree-line-v {
-          position: absolute;
-          left: 10px;
-          top: 0;
-          bottom: 24px;
-          width: 1px;
-          background: var(--line-strong, #e0e2e5);
-        }
-        .agent-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .agent-wrapper {
-          position: relative;
-        }
-        .tree-line-h {
-          position: absolute;
-          left: -14px;
-          top: 18px;
-          height: 1px;
-          width: 14px;
-          background: var(--line-strong, #e0e2e5);
-        }
-        .agent-card {
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          overflow: hidden;
-        }
-        .agent-card:hover {
-          border-color: var(--line-strong, #e0e2e5);
-          background: var(--hover, #f4f5f6);
-        }
-        .agent-card.expanded {
-          border-color: var(--line-strong, #e0e2e5);
-          background: var(--hover, #f4f5f6);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .agent-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px;
-        }
-        .agent-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-        .status-icon {
-          display: flex;
-          width: 18px;
-          height: 18px;
-          flex-shrink: 0;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-        .status-completed {
-          background: var(--green-tint, #e8f5ed);
-          color: var(--green, #189a4d);
-        }
-        .status-running {
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-        .status-waiting {
-          background: var(--field, #f2f2f3);
-          color: var(--ink-3, #9a9da3);
-        }
-        .status-failed {
-          background: var(--red-tint, #fcecec);
-          color: var(--red, #e3474c);
-        }
-        .agent-info {
-          min-width: 0;
-        }
-        .agent-name-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .agent-name {
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .agent-model-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 0 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .agent-action {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-2, #62656b);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 240px;
-        }
-        .agent-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-shrink: 0;
-          padding-left: 8px;
-        }
-        .agent-duration {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-        .chevron {
-          color: var(--ink-3, #9a9da3);
-          transition: transform 0.2s ease;
-        }
-        .chevron.expanded {
-          transform: rotate(180deg);
-        }
-        .trace-box {
-          border-top: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 12px;
-          font-size: 11px;
-        }
-        .trace-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          color: var(--ink-3, #9a9da3);
-          margin-bottom: 8px;
-        }
-        .trace-title {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .trace-tokens {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          font-variant-numeric: tabular-nums;
-        }
-        .trace-logs {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          color: var(--ink-2, #62656b);
-        }
-        .trace-log-line {
-          display: flex;
-          align-items: flex-start;
-          gap: 6px;
-        }
-        .trace-prompt {
-          color: var(--ink-3, #9a9da3);
-          user-select: none;
-        }
-        .trace-log-text {
-          word-break: break-all;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .spin {
-          animation: spin 1.2s linear infinite;
-        }
-      </style>
-
-      <div class="container">
+    const html = `
+      <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Root Coordinator -->
-        <div class="coordinator">
-          <div class="coord-left">
-            <div class="coord-icon">
+        <div class="coordinator flex items-center justify-between rounded-control border border-line bg-inset p-3">
+          <div class="flex items-center gap-2.5">
+            <div class="relative flex size-6 items-center justify-center rounded-full bg-accent text-white shadow-sm">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
             </div>
             <div>
-              <div class="coord-title-row">
-                <span class="coord-title">${zh ? "主协调器 (Coordinator)" : "Main Coordinator"}</span>
-                <span class="coord-model">Claude 3.7</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[12.5px] font-semibold text-ink">
+                  ${zh ? "主协调器 (Coordinator)" : "Main Coordinator"}
+                </span>
+                <span class="rounded-chip bg-accent-tint px-1.5 py-0.2 font-mono text-[10px] text-accent-ink">
+                  Claude 3.7
+                </span>
               </div>
-              <p class="coord-desc">${zh ? "正在调度 3 个并行子智能体工作" : "Orchestrating 3 parallel subagent workers"}</p>
+              <p class="text-[11px] text-ink-2">
+                ${zh ? "正在调度 3 个并行子智能体工作" : "Orchestrating 3 parallel subagent workers"}
+              </p>
             </div>
           </div>
-          <div class="coord-status">
-            <span class="pulse-dot"></span>
+
+          <div class="flex items-center gap-2 font-mono text-[11px] text-ink-3">
+            <span class="flex size-1.5 rounded-full bg-green animate-pulse"></span>
             <span>${zh ? "运行中" : "Active"}</span>
           </div>
         </div>
 
         <!-- Subagent Hierarchy -->
-        <div class="tree-body">
-          <div class="tree-line-v"></div>
-          <div class="agent-list">
+        <div class="relative mt-4 pl-6">
+          <div class="absolute left-2.5 top-0 bottom-6 w-px bg-line-strong"></div>
+
+          <div class="flex flex-col gap-3">
             ${SUBAGENTS.map((agent) => {
               const isExpanded = this._expandedId === agent.id;
-              let statusIconSvg = "";
-              let statusClass = `status-${agent.status}`;
-
-              if (agent.status === "completed") {
-                statusIconSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
-              } else if (agent.status === "running") {
-                statusIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
-              } else if (agent.status === "waiting") {
-                statusIconSvg = `<span style="width: 4px; height: 4px; border-radius: 50%; background: var(--ink-3, #9a9da3);"></span>`;
-              } else if (agent.status === "failed") {
-                statusIconSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
-              }
-
-              const logs = zh ? agent.logsZh : agent.logsEn;
-
               return `
-                <div class="agent-wrapper">
-                  <div class="tree-line-h"></div>
-                  <div class="agent-card ${isExpanded ? "expanded" : ""}" data-id="${agent.id}">
-                    <div class="agent-header">
-                      <div class="agent-left">
-                        <span class="status-icon ${statusClass}">${statusIconSvg}</span>
-                        <div class="agent-info">
-                          <div class="agent-name-row">
-                            <span class="agent-name">${zh ? agent.nameZh : agent.nameEn}</span>
-                            <span class="agent-model-chip">${agent.model}</span>
+                <div class="relative">
+                  <div class="absolute -left-3.5 top-4.5 h-px w-3.5 bg-line-strong"></div>
+
+                  <div
+                    data-id="${agent.id}"
+                    class="agent-card rounded-control border transition-all cursor-pointer ${
+                      isExpanded
+                        ? "border-line-strong bg-hover/40 shadow-sm"
+                        : "border-line bg-surface hover:border-line-strong hover:bg-hover/20"
+                    }"
+                  >
+                    <div class="flex items-center justify-between p-3">
+                      <div class="flex items-center gap-2.5 min-w-0">
+                        ${
+                          agent.status === "completed"
+                            ? `
+                          <span class="flex size-4.5 items-center justify-center rounded-full bg-green-tint text-green shrink-0">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </span>
+                        `
+                            : agent.status === "running"
+                            ? `
+                          <span class="relative flex size-4.5 items-center justify-center rounded-full bg-accent-tint text-accent-ink shrink-0">
+                            <svg
+                              width="11"
+                              height="11"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2.5"
+                              class="animate-spin"
+                            >
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                          </span>
+                        `
+                            : agent.status === "waiting"
+                            ? `
+                          <span class="flex size-4.5 items-center justify-center rounded-full bg-field text-ink-3 shrink-0">
+                            <span class="size-1 rounded-full bg-ink-3"></span>
+                          </span>
+                        `
+                            : `
+                          <span class="flex size-4.5 items-center justify-center rounded-full bg-red-tint text-red shrink-0">
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                          </span>
+                        `
+                        }
+
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-[12px] font-medium text-ink truncate">
+                              ${zh ? agent.nameZh : agent.nameEn}
+                            </span>
+                            <span class="rounded-chip border border-line bg-inset px-1 font-mono text-[9.5px] text-ink-3">
+                              ${agent.model}
+                            </span>
                           </div>
-                          <p class="agent-action">${zh ? agent.actionZh : agent.actionEn}</p>
+                          <p class="text-[11px] text-ink-2 truncate max-w-[240px] mt-0.5">
+                            ${zh ? agent.actionZh : agent.actionEn}
+                          </p>
                         </div>
                       </div>
-                      <div class="agent-right">
-                        ${agent.duration !== "—" ? `<span class="agent-duration">${agent.duration}</span>` : ""}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron ${isExpanded ? "expanded" : ""}">
-                          <polyline points="6 9 12 15 18 9"/>
+
+                      <div class="flex items-center gap-2 shrink-0 pl-2">
+                        ${
+                          agent.duration !== "—"
+                            ? `
+                          <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
+                            ${agent.duration}
+                          </span>
+                        `
+                            : ""
+                        }
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          class="text-ink-3 transition-transform ${isExpanded ? "rotate-180" : ""}"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
                         </svg>
                       </div>
                     </div>
@@ -430,18 +218,28 @@ export class NaiSubagentTree extends NaiBaseElement {
                     ${
                       isExpanded
                         ? `
-                      <div class="trace-box">
-                        <div class="trace-header">
-                          <span class="trace-title">${zh ? "执行追踪日志 (Trace)" : "Execution Trace"}</span>
-                          ${agent.tokens !== "0" ? `<span class="trace-tokens">${agent.tokens} tokens</span>` : ""}
+                      <div class="border-t border-line/60 bg-inset/70 p-3 text-[11px]">
+                        <div class="mb-2 flex items-center justify-between text-ink-3">
+                          <span class="font-mono text-[10px] uppercase tracking-wider">
+                            ${zh ? "执行追踪日志 (Trace)" : "Execution Trace"}
+                          </span>
+                          ${
+                            agent.tokens !== "0"
+                              ? `
+                            <span class="font-mono text-[10px] tabular-nums">
+                              ${agent.tokens} tokens
+                            </span>
+                          `
+                              : ""
+                          }
                         </div>
-                        <div class="trace-logs">
-                          ${logs
+                        <div class="flex flex-col gap-1 font-mono text-[10.5px] text-ink-2">
+                          ${(zh ? agent.logsZh : agent.logsEn)
                             .map(
                               (log) => `
-                            <div class="trace-log-line">
-                              <span class="trace-prompt">›</span>
-                              <span class="trace-log-text">${log}</span>
+                            <div class="flex items-start gap-1.5">
+                              <span class="text-ink-3 select-none">›</span>
+                              <span class="break-all">${log}</span>
                             </div>
                           `
                             )
@@ -459,6 +257,8 @@ export class NaiSubagentTree extends NaiBaseElement {
         </div>
       </div>
     `;
+
+    this.setHtml(html);
 
     this.shadowRoot.querySelectorAll(".agent-card").forEach((card) => {
       card.addEventListener("click", () => {

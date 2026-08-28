@@ -46,229 +46,12 @@ export class NaiContextSpillover extends NaiBaseElement {
       0
     );
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .container {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 0 0 1px var(--line));
-          box-sizing: border-box;
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 12px;
-          border-bottom: 1px solid var(--line, #ecedef);
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .icon-box {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-        .header-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .header-subtitle {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .saved-badge {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--green, #189a4d);
-        }
-        .gauge-card {
-          margin-top: 14px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 12px;
-        }
-        .gauge-header {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          font-size: 11.5px;
-        }
-        .gauge-label {
-          color: var(--ink-2, #62656b);
-        }
-        .gauge-pct {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-weight: 600;
-          color: var(--accent, #0285ff);
-        }
-        .gauge-bar-wrap {
-          margin-top: 8px;
-          display: flex;
-          height: 8px;
-          width: 100%;
-          align-items: center;
-          gap: 4px;
-        }
-        .gauge-dot-active {
-          width: 8px;
-          height: 8px;
-          flex-shrink: 0;
-          border-radius: 50%;
-          background: var(--accent, #0285ff);
-        }
-        .gauge-bar-track {
-          height: 8px;
-          flex: 1;
-          overflow: hidden;
-          border-radius: 99px;
-          background: var(--line, #ecedef);
-        }
-        .gauge-bar-fill {
-          height: 100%;
-          border-radius: 99px;
-          background: rgba(24, 154, 77, 0.6);
-        }
-        .gauge-legend {
-          margin-top: 8px;
-          display: flex;
-          justify-content: space-between;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .records-list {
-          margin-top: 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .record-card {
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 12px;
-          transition: border-color 0.15s;
-        }
-        .record-card:hover {
-          border-color: var(--line-strong, #e0e2e5);
-        }
-        .record-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .record-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-        .file-icon {
-          display: flex;
-          width: 18px;
-          height: 18px;
-          flex-shrink: 0;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          background: var(--field, #f2f2f3);
-          color: var(--ink-3, #9a9da3);
-        }
-        .record-info {
-          min-width: 0;
-        }
-        .record-path-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .record-path {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11.5px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .size-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 0 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .record-meta {
-          margin-top: 2px;
-          font-size: 10.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .btn-hydrate {
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--field, #f2f2f3);
-          padding: 4px 8px;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-          flex-shrink: 0;
-          transition: background-color 0.12s, color 0.12s;
-        }
-        .btn-hydrate:hover {
-          background-color: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .hydrate-preview {
-          margin-top: 10px;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 8px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          color: var(--ink-2, #62656b);
-        }
-        .preview-box {
-          border-radius: var(--radius-control, 8px);
-          background: var(--page, #fafafb);
-          padding: 8px;
-          line-height: 1.6;
-          color: var(--ink-3, #9a9da3);
-        }
-      </style>
-
-      <div class="container">
+    const html = `
+      <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
-        <div class="header">
-          <div class="header-left">
-            <span class="icon-box">
+        <div class="flex items-center justify-between pb-3 border-b border-line">
+          <div class="flex items-center gap-2">
+            <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
@@ -276,65 +59,77 @@ export class NaiContextSpillover extends NaiBaseElement {
               </svg>
             </span>
             <div>
-              <h3 class="header-title">${zh ? "上下文压缩与磁盘溢出" : "Context Compaction & Spill"}</h3>
-              <p class="header-subtitle">${zh ? "Harness.Spill 超限数据磁盘分流存储" : "Harness.Spill disk-offloaded oversized tools"}</p>
+              <h3 class="text-[13px] font-semibold text-ink">
+                ${zh ? "上下文压缩与磁盘溢出" : "Context Compaction & Spill"}
+              </h3>
+              <p class="text-[11px] text-ink-3">
+                ${zh ? "Harness.Spill 超限数据磁盘分流存储" : "Harness.Spill disk-offloaded oversized tools"}
+              </p>
             </div>
           </div>
-          <div class="saved-badge">
+
+          <div class="flex items-center gap-1 font-mono text-[11px] text-green font-medium">
             <span>↓ ${totalSaved.toLocaleString()} ${zh ? "token 已节省" : "tok saved"}</span>
           </div>
         </div>
 
         <!-- Compaction Efficiency Gauge -->
-        <div class="gauge-card">
-          <div class="gauge-header">
-            <span class="gauge-label">${zh ? "压缩比率" : "Compaction Ratio"}</span>
-            <span class="gauge-pct">${zh ? "96.8% Token 压缩率" : "96.8% token compression"}</span>
+        <div class="mt-3.5 rounded-control border border-line bg-inset/50 p-3">
+          <div class="flex items-baseline justify-between text-[11.5px]">
+            <span class="text-ink-2">${zh ? "压缩比率" : "Compaction Ratio"}</span>
+            <span class="font-mono font-semibold text-accent">
+              ${zh ? "96.8% Token 压缩率" : "96.8% token compression"}
+            </span>
           </div>
 
-          <div class="gauge-bar-wrap">
-            <span class="gauge-dot-active" title="${zh ? "内存活跃 3.2%" : "In-memory 3.2%"}"></span>
-            <div class="gauge-bar-track">
-              <div class="gauge-bar-fill" style="width: 96.8%;"></div>
+          <div class="mt-2 flex h-2 w-full items-center gap-1">
+            <span class="size-2 shrink-0 rounded-full bg-accent" title="${zh ? "内存活跃 3.2%" : "In-memory 3.2%"}"></span>
+            <div class="h-2 flex-1 overflow-hidden rounded-full bg-line">
+              <div class="h-full rounded-full bg-green/60" style="width: 96.8%;"></div>
             </div>
           </div>
 
-          <div class="gauge-legend">
+          <div class="mt-2 flex justify-between font-mono text-[10px] text-ink-3">
             <span>${zh ? "内存活跃上下文 (3.2%)" : "In-Memory Active (3.2%)"}</span>
             <span>${zh ? "溢出至磁盘存储 (96.8%)" : "Spilled to Disk (96.8%)"}</span>
           </div>
         </div>
 
         <!-- Spilled Files List -->
-        <div class="records-list">
+        <div class="mt-3.5 flex flex-col gap-2">
           ${SPILL_RECORDS.map((rec) => {
             const isHydrated = hydratedId === rec.id;
-
             return `
-              <div class="record-card">
-                <div class="record-header">
-                  <div class="record-left">
-                    <span class="file-icon">
+              <div
+                class="rounded-control border border-line bg-surface p-3 hover:border-line-strong transition-all"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="flex size-4.5 items-center justify-center rounded-full bg-field text-ink-3 shrink-0">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
                       </svg>
                     </span>
-                    <div class="record-info">
-                      <div class="record-path-row">
-                        <span class="record-path">${rec.diskPath}</span>
-                        <span class="size-chip">${rec.sizeBytes}</span>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-mono text-[11.5px] font-medium text-ink truncate">
+                          ${rec.diskPath}
+                        </span>
+                        <span class="rounded-chip border border-line bg-inset px-1 font-mono text-[9px] text-ink-3">
+                          ${rec.sizeBytes}
+                        </span>
                       </div>
-                      <div class="record-meta">
+                      <span class="text-[10.5px] text-ink-3">
                         ${zh ? "源自" : "From"} ${rec.sourceTool} • ${zh ? rec.spilledAtZh : rec.spilledAtEn}
-                      </div>
+                      </span>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    class="btn-hydrate"
                     data-id="${rec.id}"
+                    class="btn-hydrate rounded-control border border-line bg-field px-2 py-1 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer shrink-0"
                   >
                     ${
                       isHydrated
@@ -351,8 +146,8 @@ export class NaiContextSpillover extends NaiBaseElement {
                 ${
                   isHydrated
                     ? `
-                  <div class="hydrate-preview">
-                    <div class="preview-box">
+                  <div class="hydrate-preview mt-2.5 border-t border-line/60 pt-2 font-mono text-[10.5px] text-ink-2">
+                    <div class="rounded bg-page p-2 leading-relaxed text-ink-3">
                       ${
                         zh
                           ? "[水合片段预览: 48,500 token 原始输出已从 Harness.Spill.Local 磁盘缓存加载。原始 SHA256: 4d89a0b12...]"
@@ -369,6 +164,8 @@ export class NaiContextSpillover extends NaiBaseElement {
         </div>
       </div>
     `;
+
+    this.setHtml(html);
 
     this.shadowRoot.querySelectorAll(".btn-hydrate").forEach((btn) => {
       btn.addEventListener("click", () => {

@@ -1,5 +1,4 @@
 import { NaiBaseElement } from "../core/base-element.js";
-import { ICONS } from "../core/icons.js";
 
 const TABS = [
   { key: "flavors", labelEn: "Flavors", labelZh: "风味" },
@@ -20,8 +19,9 @@ export class NaiChat extends NaiBaseElement {
   }
 
   onMount() {
-    const zh = this.isZh;
-    this._submitted = zh ? "对比薄荷巧克力与去年同期销量" : "Compare mint chip to last summer";
+    this._submitted = this.isZh
+      ? "对比薄荷巧克力与去年同期销量"
+      : "Compare mint chip to last summer";
   }
 
   setTab(k) {
@@ -54,181 +54,193 @@ export class NaiChat extends NaiBaseElement {
 
   render() {
     const zh = this.isZh;
-    const isWorking = this._phase === "sent" || this._phase === "reply1";
+    const sent = this._phase !== "idle";
+    const canSend = this._draft.trim().length > 0;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          max-width: 420px;
-          height: 320px;
-          background: var(--surface, #fff);
-          border: 1px solid var(--line, #ecedef);
-          border-radius: 14px;
-          box-shadow: var(--shadow-card);
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 6px 10px;
-          border-bottom: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-        }
-        .tab-btn {
-          padding: 3px 8px;
-          border-radius: 6px;
-          border: none;
-          background: transparent;
-          font-size: 12.5px;
-          color: var(--ink, #1f2124);
-          cursor: pointer;
-          opacity: 0.55;
-          transition: opacity 0.1s, background-color 0.1s;
-        }
-        .tab-btn:hover { opacity: 0.85; }
-        .tab-btn.active {
-          opacity: 1;
-          background: var(--field, #f2f2f3);
-          font-weight: 500;
-        }
-        .body-scroll {
-          flex: 1;
-          padding: 12px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .user-msg {
-          align-self: flex-end;
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-          padding: 6px 12px;
-          border-radius: 10px 10px 2px 10px;
-          font-size: 13px;
-          max-width: 85%;
-          animation: fade-up 250ms ease;
-        }
-        .agent-reply {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          animation: fade-up 300ms ease;
-        }
-        .agent-label {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11.5px;
-          color: var(--ink-2, #62656b);
-        }
-        .agent-content {
-          font-size: 13px;
-          line-height: 1.5;
-          color: var(--ink, #1f2124);
-        }
-        .composer {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 10px;
-          border-top: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-        }
-        input {
-          flex: 1;
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          border-radius: 8px;
-          padding: 6px 10px;
-          font-size: 12.5px;
-          color: var(--ink, #1f2124);
-          outline: none;
-        }
-        input:focus {
-          border-color: var(--accent, #0285ff);
-        }
-        .btn-send {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          border: none;
-          background: var(--accent, #0285ff);
-          color: #fff;
-          cursor: pointer;
-          transition: opacity 0.12s;
-        }
-        .btn-send:hover { opacity: 0.9; }
-      </style>
-
-      <div class="header">
-        <div>
-          ${TABS.map(
-            (t) => `
-              <button type="button" class="tab-btn ${this._tab === t.key ? "active" : ""}" data-tab="${t.key}">
-                ${zh ? t.labelZh : t.labelEn}
-              </button>
-            `
-          ).join("")}
+    const renderSection = (label, sub, time, forLabel, body, resolving = false) => `
+      <div
+        class="flex w-full flex-col gap-1.5 transition-all duration-400"
+        style="
+          opacity: ${resolving ? 0.55 : 1};
+          filter: ${resolving ? "blur(0.5px)" : "blur(0)"};
+          transform: ${resolving ? "scale(0.985)" : "scale(1)"};
+          transform-origin: top left;
+          animation: fade-up 400ms cubic-bezier(0.23,1,0.32,1) both;
+        "
+      >
+        <div class="flex items-center gap-1 text-[12px] leading-[1.3]">
+          <span class="font-medium text-ink">${label}</span>
+          <span class="text-ink-2">${sub}</span>
+          <span class="text-ink">${forLabel} ${time}</span>
         </div>
-      </div>
-
-      <div class="body-scroll">
-        <div class="user-msg">${this._submitted || (zh ? "对比薄荷巧克力与去年同期销量" : "Compare mint chip to last summer")}</div>
-        <div class="agent-reply">
-          <div class="agent-label">
-            <strong>Agent</strong>
-            <span>•</span>
-            <span>${zh ? "刚刚" : "Just now"}</span>
-          </div>
-          <div class="agent-content">
-            ${isWorking
-              ? `<span style="color: var(--ink-3);">${zh ? "正在比对历史销售数据..." : "Scanning historical records..."}</span>`
-              : zh
-                ? "薄荷巧克力本季度销量环比上升 18%，在气温超过 30℃ 的周末表现尤为突出，建议增加华夫筒的备货比例。"
-                : "Mint chip is up 18% quarter-over-quarter, spiking particularly on weekends above 85°F. Consider lifting waffle cone reorder thresholds."}
-          </div>
-        </div>
-      </div>
-
-      <div class="composer">
-        <input type="text" placeholder="${zh ? "回复 Agent..." : "Reply to agent..."}" value="${this._draft}">
-        <button type="button" class="btn-send" title="${zh ? "发送" : "Send"}">
-          ${ICONS.send}
-        </button>
+        <p class="text-[13px] leading-normal text-ink">${body}</p>
       </div>
     `;
 
-    this.shadowRoot.querySelectorAll(".tab-btn").forEach((el) => {
-      el.addEventListener("click", () => {
-        const k = el.getAttribute("data-tab");
-        if (k) this.setTab(k);
+    this.setHtml(`
+      <div class="flex h-[288px] w-full max-w-95 flex-col self-start overflow-hidden rounded-[14px] bg-surface shadow-card">
+        {/* header — tabs + actions */}
+        <div class="flex shrink-0 items-center justify-between border-b border-line p-1.5">
+          <div class="flex items-center">
+            ${TABS.map(
+              (item) => `
+              <button
+                type="button"
+                aria-pressed="${this._tab === item.key}"
+                data-tab="${item.key}"
+                class="tab-btn rounded-[6px] px-2 py-[3px] text-[13px] text-ink transition-colors duration-100 ${
+                  this._tab === item.key ? "bg-field" : "opacity-50 hover:opacity-75"
+                }"
+              >
+                ${zh ? item.labelZh : item.labelEn}
+              </button>
+            `
+            ).join("")}
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="${zh ? "添加" : "Add"}"
+              class="flex size-6 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink-2"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="${zh ? "历史" : "History"}"
+              class="flex size-6 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink-2"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="${zh ? "更多" : "More"}"
+              class="flex size-6 items-center justify-center rounded-[6px] text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink-2"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* conversation — fixed region */}
+        <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2.5 pb-1">
+          <div class="flex justify-end pl-14">
+            <div
+              class="rounded-xl bg-field px-3 py-1.5 text-[13px] leading-[1.4] text-ink transition-all duration-300"
+              style="
+                opacity: ${sent ? 1 : 0};
+                transform: ${sent ? "translateY(0)" : "translateY(10px)"};
+              "
+            >
+              ${this._submitted}
+            </div>
+          </div>
+
+          ${
+            this._phase === "reply1" || this._phase === "reply2" || this._phase === "done"
+              ? renderSection(
+                  zh ? "销售历史" : "Sales History",
+                  zh ? "风味数据" : "Flavor Data",
+                  "4s",
+                  zh ? "用时" : "for",
+                  zh ? "已调取近三年夏季薄荷巧克力的销售数据用于对比。" : "Pulled 3 summers of mint chip sales for comparison."
+                )
+              : ""
+          }
+
+          ${
+            this._phase === "reply2" || this._phase === "done"
+              ? renderSection(
+                  zh ? "对比分析" : "Comparison",
+                  zh ? "趋势识别" : "Trend Detection",
+                  "2s",
+                  zh ? "用时" : "for",
+                  zh ? "薄荷巧克力销量上涨 12%，周末峰值更加明显。" : "Mint chip is up 12% with stronger weekend peaks.",
+                  this._phase === "reply2"
+                )
+              : ""
+          }
+        </div>
+
+        {/* composer */}
+        <div class="mt-auto shrink-0 p-1.5">
+          <div class="composer-box flex cursor-text flex-col gap-2 rounded-control border border-line bg-field p-2.5 transition-colors duration-150">
+            <input
+              type="text"
+              value="${this._draft}"
+              placeholder="${zh ? "输入指令，或用 @ 标记风味" : "Prompt or tag a flavor with @"}"
+              aria-label="${zh ? "聊天输入框" : "Chat prompt"}"
+              class="min-h-[18px] bg-transparent text-[13px] leading-[1.4] text-ink outline-none"
+            />
+            <div class="flex items-center justify-end">
+              <button
+                type="button"
+                aria-label="${zh ? "发送" : "Send"}"
+                ${!canSend ? "disabled" : ""}
+                class="send-btn flex size-7 items-center justify-center rounded-[8px] transition-all duration-200"
+                style="
+                  background: ${canSend ? "var(--ink)" : "var(--line-strong)"};
+                  color: ${canSend ? "var(--surface)" : "var(--ink-2)"};
+                  cursor: ${canSend ? "pointer" : "default"};
+                "
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+
+    // Wire up events
+    this.shadowRoot?.querySelectorAll("[data-tab]").forEach((el) => {
+      el.addEventListener("click", () => this.setTab(el.getAttribute("data-tab")));
+    });
+
+    const input = this.shadowRoot?.querySelector("input");
+    const sendBtn = this.shadowRoot?.querySelector(".send-btn");
+    const composerBox = this.shadowRoot?.querySelector(".composer-box");
+
+    if (input) {
+      input.addEventListener("input", (e) => {
+        this._draft = e.target.value;
+        const currentCanSend = this._draft.trim().length > 0;
+        if (sendBtn) {
+          sendBtn.style.background = currentCanSend ? "var(--ink)" : "var(--line-strong)";
+          sendBtn.style.color = currentCanSend ? "var(--surface)" : "var(--ink-2)";
+          sendBtn.style.cursor = currentCanSend ? "pointer" : "default";
+          if (currentCanSend) {
+            sendBtn.removeAttribute("disabled");
+          } else {
+            sendBtn.setAttribute("disabled", "true");
+          }
+        }
       });
-    });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          this.send();
+        }
+      });
+    }
 
-    const input = this.shadowRoot.querySelector("input");
-    input?.addEventListener("input", (e) => {
-      this._draft = e.target.value;
-    });
-    input?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        this.send();
-      }
-    });
+    if (sendBtn) {
+      sendBtn.addEventListener("click", () => this.send());
+    }
 
-    this.shadowRoot.querySelector(".btn-send")?.addEventListener("click", () => this.send());
+    if (composerBox && input) {
+      composerBox.addEventListener("click", () => input.focus());
+    }
   }
 }
 
-if (typeof customElements !== "undefined" && !customElements.get("nai-chat")) {
+if (!customElements.get("nai-chat")) {
   customElements.define("nai-chat", NaiChat);
 }

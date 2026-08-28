@@ -1,4 +1,5 @@
 import { resolveLang, onLangChange } from "./lang.js";
+import { UTILITY_CSS } from "./styles.js";
 
 /**
  * Base Custom Element class for Native AI UI components.
@@ -14,6 +15,19 @@ export class NaiBaseElement extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._cleanups = [];
     this._mounted = false;
+  }
+
+  /**
+   * Helper to set innerHTML with shared utility stylesheet
+   */
+  setHtml(html, extraCss = "") {
+    this.shadowRoot.innerHTML = `
+      <style>
+        ${UTILITY_CSS}
+        ${extraCss}
+      </style>
+      ${html}
+    `;
   }
 
   /**

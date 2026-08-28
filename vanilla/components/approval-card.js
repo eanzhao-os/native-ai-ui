@@ -1,5 +1,4 @@
 import { NaiBaseElement } from "../core/base-element.js";
-import { ICONS } from "../core/icons.js";
 
 const QUESTIONS_EN = [
   {
@@ -51,52 +50,44 @@ export class NaiApprovalCard extends NaiBaseElement {
     this._open = true;
   }
 
-  toggleOption(idx) {
-    const zh = this.isZh;
-    const questions = zh ? QUESTIONS_ZH : QUESTIONS_EN;
-    const currentQ = questions[this._qi];
+  toggle(index) {
+    const QUESTIONS = this.isZh ? QUESTIONS_ZH : QUESTIONS_EN;
+    const question = QUESTIONS[this._qi];
     const picked = this._answers[this._qi] ?? [];
 
-    if (currentQ.type === "radio") {
-      this._answers[this._qi] = [idx];
+    const next =
+      question.type === "radio"
+        ? [index]
+        : picked.includes(index)
+        ? picked.filter((item) => item !== index)
+        : [...picked, index];
+
+    this._answers[this._qi] = next;
+
+    if (question.type === "radio") {
       this._custom[this._qi] = "";
       this.render();
-
       this.registerTimeout(() => {
-        if (this._qi === questions.length - 1) {
+        if (this._qi === QUESTIONS.length - 1) {
           this._sent = true;
         } else {
-          this._qi = Math.min(questions.length - 1, this._qi + 1);
+          this._qi = Math.min(QUESTIONS.length - 1, this._qi + 1);
         }
         this.render();
-      }, 450);
+      }, 480);
     } else {
-      if (picked.includes(idx)) {
-        this._answers[this._qi] = picked.filter((i) => i !== idx);
-      } else {
-        this._answers[this._qi] = [...picked, idx];
-      }
       this.render();
     }
   }
 
-  next() {
-    const zh = this.isZh;
-    const questions = zh ? QUESTIONS_ZH : QUESTIONS_EN;
-    if (this._qi < questions.length - 1) {
-      this._qi++;
-      this.render();
-    } else {
+  submitNext() {
+    const QUESTIONS = this.isZh ? QUESTIONS_ZH : QUESTIONS_EN;
+    if (this._qi === QUESTIONS.length - 1) {
       this._sent = true;
-      this.render();
+    } else {
+      this._qi = Math.min(QUESTIONS.length - 1, this._qi + 1);
     }
-  }
-
-  prev() {
-    if (this._qi > 0) {
-      this._qi--;
-      this.render();
-    }
+    this.render();
   }
 
   reset() {
@@ -110,299 +101,141 @@ export class NaiApprovalCard extends NaiBaseElement {
 
   render() {
     const zh = this.isZh;
-    const questions = zh ? QUESTIONS_ZH : QUESTIONS_EN;
-    const total = questions.length;
-    const q = questions[this._qi];
-    const selected = this._answers[this._qi] ?? [];
-    const isLast = this._qi === total - 1;
-    const hasAnswer = selected.length > 0 || Boolean(this._custom[this._qi]?.trim());
+    const QUESTIONS = zh ? QUESTIONS_ZH : QUESTIONS_EN;
 
     if (!this._open) {
-      this.shadowRoot.innerHTML = `
-        <style>
-          :host { display: inline-block; font-family: var(--font-sans, sans-serif); }
-          button {
-            padding: 8px 14px;
-            background: var(--surface, #fff);
-            color: var(--ink, #1f2124);
-            border: 1px solid var(--line-strong, #e0e2e5);
-            border-radius: var(--radius-control, 8px);
-            box-shadow: var(--shadow-btn);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.12s;
-          }
-          button:hover { background: var(--hover, #f4f5f6); }
-        </style>
-        <button type="button" id="reopen-btn">${zh ? "打开审批流卡片" : "Open approval card"}</button>
-      `;
-      this.shadowRoot.querySelector("#reopen-btn")?.addEventListener("click", () => {
+      this.setHtml(`
+        <button
+          type="button"
+          class="reopen-btn rounded-control bg-surface px-3 py-2 text-[12.5px] font-medium text-ink shadow-btn transition-colors duration-150 hover:bg-hover cursor-pointer"
+        >
+          ${zh ? "打开审批流卡片" : "Open approval"}
+        </button>
+      `);
+      this.shadowRoot?.querySelector(".reopen-btn")?.addEventListener("click", () => {
         this._open = true;
         this.render();
       });
       return;
     }
 
-    if (this._sent) {
-      this.shadowRoot.innerHTML = `
-        <style>
-          :host {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            max-width: 420px;
-            background: var(--surface, #fff);
-            border: 1px solid var(--line, #ecedef);
-            border-radius: var(--radius-card, 10px);
-            box-shadow: var(--shadow-card);
-            font-family: var(--font-sans, sans-serif);
-            color: var(--ink, #1f2124);
-            overflow: hidden;
-            animation: fade-up 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
-          }
-          .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--line, #ecedef);
-            font-size: 12.5px;
-            font-weight: 600;
-            color: var(--ink-2, #62656b);
-          }
-          .body {
-            padding: 20px 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            text-align: center;
-          }
-          .success-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--green-tint, #e8f5ed);
-            color: var(--green, #189a4d);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--ink, #1f2124);
-          }
-          .desc {
-            font-size: 12.5px;
-            color: var(--ink-2, #62656b);
-            line-height: 1.5;
-          }
-          .btn-reset {
-            margin-top: 6px;
-            padding: 6px 14px;
-            border-radius: var(--radius-control, 8px);
-            border: 1px solid var(--line-strong, #e0e2e5);
-            background: var(--surface, #fff);
-            color: var(--ink, #1f2124);
-            font-size: 12.5px;
-            cursor: pointer;
-            transition: background-color 0.12s;
-          }
-          .btn-reset:hover { background: var(--hover, #f4f5f6); }
-        </style>
-        <div class="header">
-          <span>${zh ? "人类反馈完成" : "Approval Submitted"}</span>
-          <span style="color: var(--green, #189a4d);">✓ ${zh ? "已确认" : "Approved"}</span>
-        </div>
-        <div class="body">
-          <div class="success-icon">${ICONS.check}</div>
-          <div class="title">${zh ? "已向 Agent 发送决策指引" : "Decision dispatched to Agent"}</div>
-          <div class="desc">${zh ? "Agent 已根据您的输入更新执行链路并恢复工作。" : "The agent has incorporated your input and resumed execution."}</div>
-          <button type="button" class="btn-reset" id="reset-btn">${zh ? "重新模拟提问" : "Restart demo"}</button>
-        </div>
-      `;
-      this.shadowRoot.querySelector("#reset-btn")?.addEventListener("click", () => this.reset());
-      return;
-    }
+    const question = QUESTIONS[this._qi];
+    const last = this._qi === QUESTIONS.length - 1;
+    const selected = this._answers[this._qi] ?? [];
+    const hasAnswer = selected.length > 0 || Boolean(this._custom[this._qi]?.trim());
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          max-width: 420px;
-          background: var(--surface, #fff);
-          border: 1px solid var(--line, #ecedef);
-          border-radius: var(--radius-card, 10px);
-          box-shadow: var(--shadow-card);
-          font-family: var(--font-sans, sans-serif);
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 9px 12px;
-          border-bottom: 1px solid var(--line, #ecedef);
-          font-size: 12px;
-        }
-        .header-title {
-          font-weight: 600;
-          color: var(--ink-2, #62656b);
-        }
-        .header-progress {
-          color: var(--ink-3, #9a9da3);
-          font-family: var(--font-mono, monospace);
-        }
-        .body {
-          padding: 14px 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .question-title {
-          font-size: 13.5px;
-          font-weight: 600;
-          line-height: 1.4;
-          color: var(--ink, #1f2124);
-        }
-        .options-list {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .option-item {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          padding: 8px 10px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          color: var(--ink, #1f2124);
-          font-size: 13px;
-          cursor: pointer;
-          transition: border-color 0.12s, background-color 0.12s;
-          user-select: none;
-        }
-        .option-item:hover {
-          background: var(--hover, #f4f5f6);
-          border-color: var(--line-strong, #e0e2e5);
-        }
-        .option-item.selected {
-          border-color: var(--accent, #0285ff);
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-          font-weight: 500;
-        }
-        .indicator {
-          width: 14px;
-          height: 14px;
-          border-radius: ${q.type === "radio" ? "50%" : "4px"};
-          border: 1.5px solid var(--line-strong, #e0e2e5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--surface, #fff);
-          flex-shrink: 0;
-        }
-        .option-item.selected .indicator {
-          border-color: var(--accent, #0285ff);
-          background: var(--accent, #0285ff);
-          color: #fff;
-        }
-        .footer {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 9px 12px;
-          border-top: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-        }
-        .btn-nav {
-          padding: 5px 10px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line-strong, #e0e2e5);
-          background: var(--surface, #fff);
-          color: var(--ink-2, #62656b);
-          font-size: 12px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background-color 0.12s;
-        }
-        .btn-nav:hover:not(:disabled) {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .btn-nav:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-        .btn-primary {
-          padding: 5px 12px;
-          border-radius: var(--radius-control, 8px);
-          border: none;
-          background: var(--accent, #0285ff);
-          color: #fff;
-          font-size: 12px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: opacity 0.12s;
-        }
-        .btn-primary:hover:not(:disabled) {
-          opacity: 0.9;
-        }
-        .btn-primary:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-      </style>
+    this.setHtml(`
+      <div class="flex min-h-[196px] w-full max-w-80 flex-col items-stretch">
+        <div class="w-full self-start overflow-hidden rounded-card bg-surface shadow-card p-3">
+          ${
+            this._sent
+              ? `
+            <div class="flex h-37 flex-col items-center justify-center gap-2">
+              <span
+                class="flex size-6 items-center justify-center rounded-full bg-green text-white"
+                style="animation: pop-in 300ms cubic-bezier(0.23,1,0.32,1) both;"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </span>
+              <span class="text-[13px] font-medium text-ink" style="animation: fade-up 350ms cubic-bezier(0.23,1,0.32,1) 100ms both;">
+                ${zh ? "审批决策已提交" : "Answers sent"}
+              </span>
+              <button type="button" class="reset-btn text-[12px] font-medium text-accent-ink hover:underline cursor-pointer">
+                ${zh ? "重新填写" : "Start over"}
+              </button>
+            </div>
+          `
+              : `
+            <div style="animation: fade-up 350ms cubic-bezier(0.23,1,0.32,1) both;">
+              <div class="flex items-start justify-between gap-3">
+                <span class="text-[13px] font-medium text-ink">${question.q}</span>
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  class="dismiss-btn flex size-5 items-center justify-center rounded-[4px] shrink-0 text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div class="mt-2 flex flex-col gap-0.5">
+                ${question.options
+                  .map((option, i) => {
+                    const on = selected.includes(i);
+                    return `
+                    <button
+                      type="button"
+                      data-option="${i}"
+                      class="option-item ${on ? "selected" : ""} flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-1 text-left transition-colors duration-100 cursor-pointer ${
+                        on ? "bg-accent-tint text-accent-ink font-medium" : "text-ink hover:bg-hover"
+                      }"
+                    >
+                      <span class="flex size-3.5 shrink-0 items-center justify-center rounded-${
+                        question.type === "radio" ? "full" : "[3px]"
+                      } border border-line-strong ${on ? "border-accent bg-accent text-white" : "bg-surface"}">
+                        ${
+                          on
+                            ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`
+                            : ""
+                        }
+                      </span>
+                      <span class="text-[12.5px]">${option}</span>
+                    </button>
+                  `;
+                  })
+                  .join("")}
+              </div>
 
-      <div class="header">
-        <span class="header-title">${zh ? "决策审批" : "Human Approval"}</span>
-        <span class="header-progress">${zh ? `第 ${this._qi + 1} / ${total} 题` : `${this._qi + 1} of ${total}`}</span>
-      </div>
-
-      <div class="body">
-        <div class="question-title">${q.q}</div>
-        <div class="options-list">
-          ${q.options
-            .map((opt, idx) => {
-              const isSelected = selected.includes(idx);
-              return `
-                <div class="option-item ${isSelected ? "selected" : ""}" data-idx="${idx}">
-                  <span class="indicator">${isSelected ? "✓" : ""}</span>
-                  <span>${opt}</span>
+              ${
+                question.type === "check"
+                  ? `
+                <div class="mt-3 flex items-center justify-between border-t border-line pt-2">
+                  <span class="text-[11px] text-ink-3">${zh ? `问题 ${this._qi + 1}/${QUESTIONS.length}` : `Question ${this._qi + 1}/${QUESTIONS.length}`}</span>
+                  <button
+                    type="button"
+                    ${!hasAnswer ? "disabled" : ""}
+                    class="next-btn rounded-control px-2.5 py-1 text-[11.5px] font-medium transition-all duration-150 ${
+                      hasAnswer
+                        ? "bg-accent text-white shadow-btn hover:opacity-90 cursor-pointer"
+                        : "bg-field text-ink-3 cursor-not-allowed opacity-60"
+                    }"
+                  >
+                    ${last ? (zh ? "提交" : "Submit") : zh ? "下一题" : "Next"}
+                  </button>
                 </div>
-              `;
-            })
-            .join("")}
+              `
+                  : ""
+              }
+            </div>
+          `
+          }
         </div>
       </div>
+    `);
 
-      <div class="footer">
-        <button type="button" class="btn-nav btn-prev" ${this._qi === 0 ? "disabled" : ""}>
-          ${zh ? "上一题" : "Previous"}
-        </button>
-        <button type="button" class="btn-primary btn-next" ${hasAnswer ? "" : "disabled"}>
-          ${isLast ? (zh ? "提交并执行" : "Submit & resume") : zh ? "下一题" : "Next"}
-        </button>
-      </div>
-    `;
+    // Wire up listeners
+    this.shadowRoot?.querySelector(".dismiss-btn")?.addEventListener("click", () => {
+      this._open = false;
+      this.render();
+    });
 
-    this.shadowRoot.querySelectorAll(".option-item").forEach((el) => {
+    this.shadowRoot?.querySelector(".reset-btn")?.addEventListener("click", () => {
+      this.reset();
+    });
+
+    this.shadowRoot?.querySelectorAll("[data-option]").forEach((el) => {
       el.addEventListener("click", () => {
-        const idx = parseInt(el.getAttribute("data-idx"), 10);
-        this.toggleOption(idx);
+        const idx = Number(el.getAttribute("data-option"));
+        this.toggle(idx);
       });
     });
 
-    this.shadowRoot.querySelector(".btn-prev")?.addEventListener("click", () => this.prev());
-    this.shadowRoot.querySelector(".btn-next")?.addEventListener("click", () => this.next());
+    this.shadowRoot?.querySelector(".next-btn")?.addEventListener("click", () => {
+      if (hasAnswer) this.submitNext();
+    });
   }
 }
 
