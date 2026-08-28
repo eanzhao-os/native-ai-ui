@@ -613,7 +613,7 @@ function ShowcaseContent() {
 
               <h1 className="mt-5 max-w-xl text-[34px] font-semibold leading-[1.12] tracking-tight text-ink sm:text-[40px]">
                 {zh ? (
-                  <>为 AI 原生界面打造的 <span className="text-accent-ink">{globalFramework === "react" ? "React 组件" : "Web Components"}</span></>
+                  <>为 AI 原生界面打造的 <span className="text-accent-ink">44 款交互原语</span></>
                 ) : (
                   <>Crafted primitives for <span className="text-accent-ink">AI-native</span> interfaces</>
                 )}
@@ -624,72 +624,79 @@ function ShowcaseContent() {
                   : `${totalCount} self-contained, self-animating primitives — streaming, thinking traces, approvals, agent teams, tokenomics, runtime widgets, and Kumo-style system cards. Available as React (shadcn CLI) and zero-dependency Vanilla Web Components.`}
               </p>
 
-              {/* Install command & Global Switcher */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                {globalFramework === "react" ? (
-                  <div className="flex max-w-full items-center gap-2 rounded-control border border-line bg-tooltip-bg px-3.5 py-2.5 shadow-card">
-                    <span className="shrink-0 font-mono text-[12px] text-tooltip-muted select-none">$</span>
-                    <code className="min-w-0 overflow-x-auto whitespace-nowrap font-mono text-[12px] text-tooltip-fg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      npx shadcn@latest add {REGISTRY_BASE}/chat.json
-                    </code>
-                    <CopyButton
-                      zh={zh}
-                      text={`npx shadcn@latest add ${REGISTRY_BASE}/chat.json`}
-                      className="!border-tooltip-border !bg-transparent !text-tooltip-muted hover:!text-tooltip-fg ml-1 shrink-0"
-                    />
+              {/* Integrated Install & Framework Switcher Box */}
+              <div className="mt-6 max-w-xl rounded-control border border-line bg-tooltip-bg shadow-card overflow-hidden">
+                {/* Tab header */}
+                <div className="flex items-center justify-between border-b border-tooltip-border/80 bg-black/20 px-3 py-1.5">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-pressed={globalFramework === "react"}
+                      onClick={() => setGlobalFramework("react")}
+                      className={`rounded-chip px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer ${
+                        globalFramework === "react"
+                          ? "bg-surface text-ink shadow-xs font-semibold"
+                          : "text-tooltip-muted hover:text-tooltip-fg"
+                      }`}
+                    >
+                      React (.tsx)
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={globalFramework === "vanilla"}
+                      onClick={() => setGlobalFramework("vanilla")}
+                      className={`rounded-chip px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer ${
+                        globalFramework === "vanilla"
+                          ? "bg-surface text-ink shadow-xs font-semibold"
+                          : "text-tooltip-muted hover:text-tooltip-fg"
+                      }`}
+                    >
+                      Vanilla (ESM)
+                    </button>
                   </div>
-                ) : (
-                  <div className="flex max-w-full items-center gap-2 rounded-control border border-line bg-tooltip-bg px-3.5 py-2.5 shadow-card">
-                    <span className="shrink-0 font-mono text-[12px] text-tooltip-muted select-none">&lt;&gt;</span>
-                    <code className="min-w-0 overflow-x-auto whitespace-nowrap font-mono text-[12px] text-tooltip-fg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      &lt;script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"&gt;&lt;/script&gt;
-                    </code>
-                    <CopyButton
-                      zh={zh}
-                      text={`<script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"></script>`}
-                      className="!border-tooltip-border !bg-transparent !text-tooltip-muted hover:!text-tooltip-fg ml-1 shrink-0"
-                    />
-                  </div>
-                )}
-
-                <div className="flex items-center rounded-control border border-line bg-surface p-1 shadow-btn">
-                  <button
-                    type="button"
-                    aria-pressed={globalFramework === "react"}
-                    onClick={() => setGlobalFramework("react")}
-                    className={`rounded-control px-3 py-1.5 text-[12px] font-medium transition-all cursor-pointer ${
+                  <CopyButton
+                    zh={zh}
+                    text={
                       globalFramework === "react"
-                        ? "bg-accent-tint text-accent-ink shadow-xs font-semibold"
-                        : "text-ink-2 hover:bg-hover hover:text-ink"
-                    }`}
-                  >
-                    React (.tsx)
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={globalFramework === "vanilla"}
-                    onClick={() => setGlobalFramework("vanilla")}
-                    className={`rounded-control px-3 py-1.5 text-[12px] font-medium transition-all cursor-pointer ${
-                      globalFramework === "vanilla"
-                        ? "bg-accent-tint text-accent-ink shadow-xs font-semibold"
-                        : "text-ink-2 hover:bg-hover hover:text-ink"
-                    }`}
-                  >
-                    Vanilla (ESM)
-                  </button>
+                        ? `npx shadcn@latest add ${REGISTRY_BASE}/chat.json`
+                        : `<script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"></script>`
+                    }
+                    className="!border-tooltip-border !bg-transparent !text-tooltip-muted hover:!text-tooltip-fg shrink-0"
+                  />
                 </div>
 
+                {/* Code body */}
+                <div className="flex items-center px-3.5 py-2.5 font-mono text-[12px] text-tooltip-fg min-h-[42px] overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {globalFramework === "react" ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-tooltip-muted select-none">$</span>
+                      <code>npx shadcn@latest add {REGISTRY_BASE}/chat.json</code>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-tooltip-muted select-none">&lt;&gt;</span>
+                      <code>&lt;script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"&gt;&lt;/script&gt;</code>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action row */}
+              <div className="mt-3 flex items-center gap-3">
                 <a
                   href="https://github.com/eanzhao-os/native-ai-ui"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 rounded-control border border-line bg-surface px-3.5 py-2.5 text-[12.5px] font-medium text-ink shadow-btn transition-colors hover:bg-hover cursor-pointer"
+                  className="flex items-center gap-1.5 rounded-control border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink shadow-btn transition-colors hover:bg-hover cursor-pointer"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                   </svg>
                   GitHub
                 </a>
+                <span className="text-[11px] text-ink-3">
+                  {zh ? "支持 shadcn CLI 与 CDN 原生引入" : "Supports shadcn CLI & direct CDN imports"}
+                </span>
               </div>
 
               {/* Stats row */}
