@@ -66,7 +66,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
 
 export function useLang(id?: string, override?: Lang): Lang {
   const ctx = useContext(LangContext);
-  return ctx.getLang(id, override);
+  return override ?? ctx.getLang(id);
 }
 
 export function useLangContext() {
