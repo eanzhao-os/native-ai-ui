@@ -111,4 +111,671 @@ describe("Vanilla ES Modules & Web Components", () => {
     tabBtns[1].click();
     expect(el._tab).toBe("suppliers");
   });
+
+  test("<nai-turn-lifecycle> mounts and displays event bracket stream", () => {
+    const el = document.createElement("nai-turn-lifecycle") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const title = el.shadowRoot.querySelector(".title");
+    expect(title.textContent).toBe("Turn Bracket Stream");
+    const timeline = el.shadowRoot.querySelector(".timeline");
+    expect(timeline).toBeTruthy();
+  });
+
+  test("<nai-agent-inbox> mounts and displays dual-queue lanes", () => {
+    const el = document.createElement("nai-agent-inbox") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const lanes = el.shadowRoot.querySelectorAll(".lane");
+    expect(lanes.length).toBe(2);
+    const methods = el.shadowRoot.querySelectorAll(".method-card");
+    expect(methods.length).toBe(4);
+  });
+
+  test("<nai-hook-pipeline> mounts and evaluates decision pipeline", () => {
+    const el = document.createElement("nai-hook-pipeline") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const points = el.shadowRoot.querySelectorAll(".point-tag");
+    expect(points.length).toBe(6);
+    const hooks = el.shadowRoot.querySelectorAll(".hook-item");
+    expect(hooks.length).toBe(3);
+    const mergeBar = el.shadowRoot.querySelector(".merge-bar");
+    expect(mergeBar).toBeTruthy();
+  });
+
+  test("<nai-session-telemetry> mounts and displays metrics and sparkline", () => {
+    const el = document.createElement("nai-session-telemetry") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const metrics = el.shadowRoot.querySelectorAll(".metric-tile");
+    expect(metrics.length).toBe(6);
+    const spark = el.shadowRoot.querySelector(".spark-container");
+    expect(spark).toBeTruthy();
+  });
+
+  test("<nai-workflow-run> mounts and displays slots and item grid", () => {
+    const el = document.createElement("nai-workflow-run") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const slots = el.shadowRoot.querySelectorAll(".slot-row");
+    expect(slots.length).toBe(4);
+    const items = el.shadowRoot.querySelectorAll(".item-tile");
+    expect(items.length).toBe(40);
+  });
+
+  test("<nai-checkpoint-timeline> handles checkpoint selection and restoration", () => {
+    const el = document.createElement("nai-checkpoint-timeline") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const navBtns = el.shadowRoot.querySelectorAll(".nav-btn");
+    expect(navBtns.length).toBe(3);
+
+    // Select first checkpoint
+    navBtns[0].click();
+    expect(el._selected).toBe(0);
+
+    const restoreBtn = el.shadowRoot.querySelector("#btn-trigger-restore");
+    expect(restoreBtn).toBeTruthy();
+    restoreBtn.click();
+    expect(el._confirming).toBe(true);
+
+    const confirmBtn = el.shadowRoot.querySelector("#btn-confirm-restore");
+    expect(confirmBtn).toBeTruthy();
+    confirmBtn.click();
+    expect(el._current).toBe(0);
+    expect(el._confirming).toBe(false);
+  });
+
+  test("<nai-cordis-plugin-tree> toggles plugins and triggers HMR", () => {
+    const el = document.createElement("nai-cordis-plugin-tree") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const toggleBtns = el.shadowRoot.querySelectorAll(".toggle-btn");
+    expect(toggleBtns.length).toBe(4);
+
+    // Toggle first plugin
+    toggleBtns[0].click();
+    expect(el._plugins[0].enabled).toBe(false);
+
+    // Toggle back
+    toggleBtns[0].click();
+    expect(el._plugins[0].enabled).toBe(true);
+  });
+
+  test("<nai-permission-preset-card> selects preset and replays audit", () => {
+    const el = document.createElement("nai-permission-preset-card") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const presets = el.shadowRoot.querySelectorAll(".preset-tile");
+    expect(presets.length).toBe(3);
+
+    // Select first preset
+    presets[0].click();
+    expect(el._selectedPreset).toBe("strict");
+
+    const replayBtn = el.shadowRoot.querySelector("#btn-replay-audit");
+    expect(replayBtn).toBeTruthy();
+    replayBtn.click();
+    expect(el._isReplaying).toBe(true);
+  });
+
+  test("<nai-lsp-diagnostics> filters diagnostics and triggers auto-fix", () => {
+    const el = document.createElement("nai-lsp-diagnostics") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const filterBtns = el.shadowRoot.querySelectorAll(".filter-btn");
+    expect(filterBtns.length).toBe(3);
+
+    // Filter to error
+    filterBtns[1].click();
+    expect(el._filter).toBe("error");
+
+    const fixBtn = el.shadowRoot.querySelector(".btn-fix");
+    expect(fixBtn).toBeTruthy();
+    fixBtn.click();
+    expect(el._fixedIds.length).toBe(1);
+  });
+
+  test("<nai-sandbox-manager> restarts container and updates metrics", () => {
+    const el = document.createElement("nai-sandbox-manager") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const restartBtn = el.shadowRoot.querySelector("#btn-restart");
+    expect(restartBtn).toBeTruthy();
+
+    restartBtn.click();
+    expect(el._isRunning).toBe(false);
+  });
+
+  test("<nai-job-scheduler> toggles cron jobs and triggers immediate run", () => {
+    const el = document.createElement("nai-job-scheduler") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const toggleBtns = el.shadowRoot.querySelectorAll(".toggle-btn");
+    expect(toggleBtns.length).toBe(3);
+
+    toggleBtns[0].click();
+    expect(el._jobs[0].enabled).toBe(false);
+
+    const triggerBtns = el.shadowRoot.querySelectorAll(".btn-trigger");
+    expect(triggerBtns.length).toBe(3);
+    triggerBtns[1].click();
+    expect(el._triggeringId).toBe("job-2");
+  });
+
+  test("<nai-mcp-servers> toggles accordion and handles server retry", () => {
+    const el = document.createElement("nai-mcp-servers") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const serverRows = el.shadowRoot.querySelectorAll(".server-row");
+    expect(serverRows.length).toBe(3);
+
+    // Expand second server
+    serverRows[1].click();
+    expect(el._expanded).toBe("rg");
+
+    // Expand third server (error)
+    serverRows[2].click();
+    expect(el._expanded).toBe("web");
+
+    const retryBtn = el.shadowRoot.querySelector("#btn-retry-mcp");
+    expect(retryBtn).toBeTruthy();
+    retryBtn.click();
+    expect(el._retrying).toBe(true);
+  });
+
+  test("<nai-code-block> mounts and renders code lines and copy button", async () => {
+    const el = document.createElement("nai-code-block") as any;
+    el.setAttribute("auto", "false");
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const filename = el.shadowRoot.querySelector(".filename");
+    expect(filename.textContent).toBe("churn.ts");
+    const pre = el.shadowRoot.querySelector("pre");
+    expect(pre).toBeTruthy();
+    const copyBtn = el.shadowRoot.querySelector(".copy-btn");
+    expect(copyBtn).toBeTruthy();
+  });
+
+  test("<nai-attachment-queue> mounts, retries, and removes attachments", () => {
+    const el = document.createElement("nai-attachment-queue") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const items = el.shadowRoot.querySelectorAll(".item");
+    expect(items.length).toBe(4);
+
+    // Test retry on failed item
+    const retryBtn = el.shadowRoot.querySelector(".btn-retry");
+    expect(retryBtn).toBeTruthy();
+    retryBtn.click();
+    expect(el._attachments.find((a: any) => a.id === "notes").state).toBe("uploading");
+
+    // Test remove
+    el.remove("report");
+    expect(el._attachments.length).toBe(3);
+  });
+
+  test("<nai-subagent-tree> mounts, toggles subagent expansion and displays traces", () => {
+    const el = document.createElement("nai-subagent-tree") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const coord = el.shadowRoot.querySelector(".coordinator");
+    expect(coord).toBeTruthy();
+    const agents = el.shadowRoot.querySelectorAll(".agent-card");
+    expect(agents.length).toBe(3);
+
+    // Toggle expansion
+    expect(el._expandedId).toBe("sub-2");
+    agents[0].click();
+    expect(el._expandedId).toBe("sub-1");
+  });
+
+  test("<nai-agent-teams> mounts, displays roster and task DAG", () => {
+    const el = document.createElement("nai-agent-teams") as any;
+    el.setAttribute("auto", "false");
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const members = el.shadowRoot.querySelectorAll(".member-card");
+    expect(members.length).toBe(4);
+    const tasks = el.shadowRoot.querySelectorAll(".task-item");
+    expect(tasks.length).toBe(4);
+  });
+
+  test("<nai-task-rows> mounts and toggles row detail accordion", () => {
+    const el = document.createElement("nai-task-rows") as any;
+    el.setAttribute("auto", "false");
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const rows = el.shadowRoot.querySelectorAll(".row-btn");
+    expect(rows.length).toBe(3);
+
+    // Toggle first row
+    rows[0].click();
+    expect(el._manualOpen.verify).toBe(true);
+    const details = el.shadowRoot.querySelector(".details-box");
+    expect(details).toBeTruthy();
+  });
+
+  test("<nai-tool-chips> mounts, toggles run visibility and row detail", () => {
+    const el = document.createElement("nai-tool-chips") as any;
+    el.setAttribute("auto", "false");
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const headerBtn = el.shadowRoot.querySelector(".header-btn");
+    expect(headerBtn).toBeTruthy();
+
+    headerBtn.click();
+    expect(el._open).toBe(false);
+
+    headerBtn.click();
+    expect(el._open).toBe(true);
+
+    const rows = el.shadowRoot.querySelectorAll(".row-btn");
+    expect(rows.length).toBe(4);
+    rows[0].click();
+    expect(el._openRows.has("Thinking")).toBe(true);
+  });
+
+  test("<nai-clarification-card> handles option selection, custom text, submit and reset", () => {
+    const el = document.createElement("nai-clarification-card") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const options = el.shadowRoot.querySelectorAll(".option-label");
+    expect(options.length).toBe(3);
+
+    // Select second option
+    options[1].click();
+    expect(el._selectedId).toBe("dual");
+
+    // Submit
+    const submitBtn = el.shadowRoot.querySelector("#submit-btn");
+    expect(submitBtn).toBeTruthy();
+    submitBtn.click();
+    expect(el._isSubmitted).toBe(true);
+
+    // Reset
+    const resetBtn = el.shadowRoot.querySelector("#reset-btn");
+    expect(resetBtn).toBeTruthy();
+    resetBtn.click();
+    expect(el._isSubmitted).toBe(false);
+    expect(el._selectedId).toBe("soft");
+  });
+
+  test("<nai-message-branches> navigates branches and continues from branch", () => {
+    const el = document.createElement("nai-message-branches") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._branchIndex).toBe(1);
+
+    const prevBtn = el.shadowRoot.querySelector("#btn-prev");
+    expect(prevBtn).toBeTruthy();
+    prevBtn.click();
+    expect(el._branchIndex).toBe(0);
+
+    const nextBtn = el.shadowRoot.querySelector("#btn-next");
+    expect(nextBtn).toBeTruthy();
+    nextBtn.click();
+    expect(el._branchIndex).toBe(1);
+
+    const continueBtn = el.shadowRoot.querySelector("#btn-continue");
+    expect(continueBtn).toBeTruthy();
+    continueBtn.click();
+    expect(el._continuingFrom).toBe(1);
+  });
+
+  test("<nai-context-window> mounts, toggles pruning and updates metrics", () => {
+    const el = document.createElement("nai-context-window") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const pruneBtn = el.shadowRoot.querySelector("#btn-prune");
+    expect(pruneBtn).toBeTruthy();
+
+    // Prune history
+    pruneBtn.click();
+    expect(el._isPruned).toBe(true);
+    const historySeg = el._segments.find((s: any) => s.id === "history");
+    expect(historySeg.tokens).toBeLessThan(16850);
+
+    // Restore
+    pruneBtn.click();
+    expect(el._isPruned).toBe(false);
+    const restoredHistory = el._segments.find((s: any) => s.id === "history");
+    expect(restoredHistory.tokens).toBe(16850);
+  });
+
+  test("<nai-memory-inspector> filters, pins, deletes, and adds memories", () => {
+    const el = document.createElement("nai-memory-inspector") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const tabBtns = el.shadowRoot.querySelectorAll(".tab-btn");
+    expect(tabBtns.length).toBe(4);
+
+    // Filter to rules
+    tabBtns[2].click();
+    expect(el._filter).toBe("rule");
+
+    // Toggle Pin on item
+    el.setFilter("all");
+    const pinBtns = el.shadowRoot.querySelectorAll(".icon-action-btn.pin");
+    pinBtns[2].click(); // mem-3
+    expect(el._memories.find((m: any) => m.id === "mem-3").pinned).toBe(true);
+
+    // Delete item
+    const deleteBtns = el.shadowRoot.querySelectorAll(".icon-action-btn.delete");
+    deleteBtns[0].click(); // mem-1
+    expect(el._memories.find((m: any) => m.id === "mem-1")).toBeUndefined();
+
+    // Add fact
+    const addFactBtn = el.shadowRoot.querySelector("#btn-add-fact");
+    expect(addFactBtn).toBeTruthy();
+    addFactBtn.click();
+    expect(el._memories.length).toBe(4);
+  });
+
+  test("<nai-context-cards> mounts and displays chunk cards with source tags", () => {
+    const el = document.createElement("nai-context-cards") as any;
+    el.setAttribute("auto", "false");
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const cards = el.shadowRoot.querySelectorAll(".card");
+    expect(cards.length).toBe(2);
+    const countChip = el.shadowRoot.querySelector(".count-chip");
+    expect(countChip.textContent).toBe("32");
+  });
+
+  test("<nai-context-spillover> toggles hydration preview on spilled files", () => {
+    const el = document.createElement("nai-context-spillover") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const hydrateBtns = el.shadowRoot.querySelectorAll(".btn-hydrate");
+    expect(hydrateBtns.length).toBe(2);
+
+    // Click hydrate on first file
+    hydrateBtns[0].click();
+    expect(el._hydratedId).toBe("spill-1");
+    const preview = el.shadowRoot.querySelector(".hydrate-preview");
+    expect(preview).toBeTruthy();
+
+    // Toggle off
+    hydrateBtns[0].click();
+    expect(el._hydratedId).toBe(null);
+  });
+
+  test("<nai-artifact-sandbox> switches tabs, viewports and handles copy", () => {
+    const el = document.createElement("nai-artifact-sandbox") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const tabCode = el.shadowRoot.querySelector("#tab-code");
+    expect(tabCode).toBeTruthy();
+    tabCode.click();
+    expect(el._tab).toBe("code");
+
+    const tabPreview = el.shadowRoot.querySelector("#tab-preview");
+    tabPreview.click();
+    expect(el._tab).toBe("preview");
+
+    const vpMobile = el.shadowRoot.querySelector("#vp-mobile");
+    expect(vpMobile).toBeTruthy();
+    vpMobile.click();
+    expect(el._viewport).toBe("mobile");
+  });
+
+  test("<nai-diff-table> mounts and renders headers and rows", () => {
+    const el = document.createElement("nai-diff-table") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const title = el.shadowRoot.querySelector(".card-title");
+    expect(title.textContent).toBe("Proposed menu cleanup");
+    const rows = el.shadowRoot.querySelectorAll("tr.row-item");
+    expect(rows.length).toBe(3);
+  });
+
+  test("<nai-records-table> selects rows, sorts columns, and calculates totals", () => {
+    const el = document.createElement("nai-records-table") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const rows = el.shadowRoot.querySelectorAll("tr.records-row");
+    expect(rows.length).toBe(26);
+
+    // Toggle single row selection
+    const firstCheck = el.shadowRoot.querySelector(".row-check");
+    expect(firstCheck).toBeTruthy();
+    firstCheck.click();
+    expect(el._selected.size).toBe(1);
+
+    // Toggle sort
+    const sortLastBtn = el.shadowRoot.querySelector("#sort-last");
+    expect(sortLastBtn).toBeTruthy();
+    sortLastBtn.click();
+    expect(el._sort.key).toBe("last");
+  });
+
+  test("<nai-filter-table> filters rows by status", () => {
+    const el = document.createElement("nai-filter-table") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const chips = el.shadowRoot.querySelectorAll(".chip-btn");
+    expect(chips.length).toBe(4);
+
+    // Filter to 'todo'
+    chips[1].click();
+    expect(el._filter).toBe("todo");
+    const visibleRows = el.shadowRoot.querySelectorAll(".row-wrapper.visible");
+    expect(visibleRows.length).toBe(2);
+  });
+
+  test("<nai-selection-actions> runs action and resets state", () => {
+    const el = document.createElement("nai-selection-actions") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._mode).toBe("idle");
+
+    const improveBtn = el.shadowRoot.querySelector("#btn-improve");
+    expect(improveBtn).toBeTruthy();
+    improveBtn.click();
+    expect(el._mode).toBe("thinking");
+
+    el.reset();
+    expect(el._mode).toBe("idle");
+  });
+
+  test("<nai-audio-orb> switches voice state and toggles mute", () => {
+    const el = document.createElement("nai-audio-orb") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._state).toBe("speaking");
+
+    const pills = el.shadowRoot.querySelectorAll(".pill-btn");
+    expect(pills.length).toBe(4);
+
+    // Switch to listening
+    pills[0].click();
+    expect(el._state).toBe("listening");
+
+    // Toggle mute
+    const muteBtn = el.shadowRoot.querySelector("#btn-mute");
+    expect(muteBtn).toBeTruthy();
+    muteBtn.click();
+    expect(el._isMuted).toBe(true);
+  });
+
+  test("<nai-model-arena> registers model vote", () => {
+    const el = document.createElement("nai-model-arena") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._voted).toBe(null);
+
+    const voteABtn = el.shadowRoot.querySelector("#vote-a");
+    expect(voteABtn).toBeTruthy();
+    voteABtn.click();
+    expect(el._voted).toBe("A");
+
+    const voteBBtn = el.shadowRoot.querySelector("#vote-b");
+    voteBBtn.click();
+    expect(el._voted).toBe("B");
+  });
+
+  test("<nai-insight-cards> navigates carousel and toggles anomaly metrics", () => {
+    const el = document.createElement("nai-insight-cards") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._page).toBe(0);
+
+    const nextBtn = el.shadowRoot.querySelector("#btn-next");
+    expect(nextBtn).toBeTruthy();
+    nextBtn.click();
+    expect(el._page).toBe(1);
+
+    const metricUsage = el.shadowRoot.querySelector("#metric-usage");
+    expect(metricUsage).toBeTruthy();
+    metricUsage.click();
+    expect(el._anomalyMetric).toBe("usage");
+  });
+
+  test("<nai-recommendation-card> selects alternatives and toggles drawer", () => {
+    const el = document.createElement("nai-recommendation-card") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._activeKey).toBe("high");
+
+    const toggleAltBtn = el.shadowRoot.querySelector("#btn-toggle-alt");
+    expect(toggleAltBtn).toBeTruthy();
+    toggleAltBtn.click();
+    expect(el._openDrawer).toBe(true);
+
+    const altOptions = el.shadowRoot.querySelectorAll(".alt-option");
+    expect(altOptions.length).toBe(3);
+    altOptions[1].click();
+    expect(el._activeKey).toBe("review");
+  });
+
+  test("<nai-sensitive-input> toggles reveal and input update", () => {
+    const el = document.createElement("nai-sensitive-input") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._revealed).toBe(false);
+
+    const revealBtn = el.shadowRoot.querySelector("#btn-reveal");
+    expect(revealBtn).toBeTruthy();
+    revealBtn.click();
+    expect(el._revealed).toBe(true);
+
+    const input = el.shadowRoot.querySelector("#token-input");
+    expect(input.type).toBe("text");
+  });
+
+  test("<nai-layer-card> toggles collapse and switches tabs", () => {
+    const el = document.createElement("nai-layer-card") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._isOpen).toBe(true);
+
+    const tabEvents = el.shadowRoot.querySelector("#tab-events");
+    expect(tabEvents).toBeTruthy();
+    tabEvents.click();
+    expect(el._activeTab).toBe("events");
+
+    const toggleBtn = el.shadowRoot.querySelector("#btn-toggle");
+    expect(toggleBtn).toBeTruthy();
+    toggleBtn.click();
+    expect(el._isOpen).toBe(false);
+  });
+
+  test("<nai-sidebar-nav> switches active section and adds tasks", () => {
+    const el = document.createElement("nai-sidebar-nav") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._active).toBe("tasks");
+
+    const homeItem = el.shadowRoot.querySelector('[data-key="activity"]');
+    expect(homeItem).toBeTruthy();
+    homeItem.click();
+    expect(el._active).toBe("activity");
+
+    const newTaskBtn = el.shadowRoot.querySelector("#btn-new-task");
+    expect(newTaskBtn).toBeTruthy();
+    newTaskBtn.click();
+    expect(el._badge).toBe(5);
+    expect(el._active).toBe("tasks");
+  });
+
+  test("<nai-search> filters search queries and clears input", () => {
+    const el = document.createElement("nai-search") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const input = el.shadowRoot.querySelector("#search-input");
+    expect(input).toBeTruthy();
+
+    el.setQuery("summer");
+    const results = el.shadowRoot.querySelectorAll(".result-item");
+    expect(results.length).toBe(1);
+
+    const clearBtn = el.shadowRoot.querySelector("#btn-clear");
+    expect(clearBtn).toBeTruthy();
+    clearBtn.click();
+    expect(el._query).toBe("");
+  });
+
+  test("<nai-fine-tune-card> adjusts segments and dropdown type", () => {
+    const el = document.createElement("nai-fine-tune-card") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._seg).toBe(0);
+
+    const segBtns = el.shadowRoot.querySelectorAll(".seg-btn");
+    expect(segBtns.length).toBe(3);
+    segBtns[1].click();
+    expect(el._seg).toBe(1);
+
+    const dropdownBtn = el.shadowRoot.querySelector("#btn-dropdown");
+    expect(dropdownBtn).toBeTruthy();
+    dropdownBtn.click();
+    expect(el._menuOpen).toBe(true);
+
+    const dropdownItems = el.shadowRoot.querySelectorAll(".dropdown-item");
+    expect(dropdownItems.length).toBe(3);
+    dropdownItems[0].click();
+    expect(el._typeValue).toBe("Seasonal");
+  });
 });
+
+

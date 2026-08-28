@@ -1,14 +1,13 @@
 # AI-Native React & Vanilla Components
 
-> 🌐 **React Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/)  
-> ⚡ **Vanilla ESM / Web Components Showcase**: [https://eanzhao-os.github.io/native-ai-ui/vanilla/](https://eanzhao-os.github.io/native-ai-ui/vanilla/)
+> 🌐 **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/) (Supports instant React / Vanilla Web Components toggling)
 
 44 crafted primitives for AI-native interfaces — loading and thinking states, streaming
 text, attachment queues, approval flows, agent teams, message branches, turn lifecycles,
 dual-queue inboxes, hook pipelines, session telemetry, checkpoints, audio orb, tokenomics,
 cordis plugins, MCP servers, sandbox managers, LSP, artifacts, and Kumo-style primitives.
 
-Available both as **React 19 (`.tsx`)** components (via shadcn CLI) and **Zero-Dependency Vanilla Web Components (ES Modules)** (`<nai-*>` standard W3C Custom Elements).
+Available both as **React 19 (`.tsx`)** components (via shadcn CLI) and **Zero-Dependency Vanilla Web Components (ES Modules)** (`<nai-*>` standard W3C Custom Elements). All 44 primitives can be previewed, tested, and copied in either format directly in the live showcase.
 
 ### React Installation (shadcn CLI)
 

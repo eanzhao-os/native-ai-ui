@@ -17,8 +17,10 @@ import {
   useLangContext,
   type Lang,
 } from "@/lib/lang-context";
+import VanillaDemoWrapper from "./vanilla-demo-wrapper";
 
 type DemoProps = { lang?: Lang };
+type Framework = "react" | "vanilla";
 
 // 1. Core & Composer
 const LoadingState = dynamic<DemoProps>(() => import("@/components/loading-state"));
@@ -259,12 +261,19 @@ function CopyButton({ text, zh, className = "" }: { text: string; zh: boolean; c
 
 function ShowcaseContent() {
   const { globalLang, setGlobalLang, setComponentLang, getLang } = useLangContext();
+  const [globalFramework, setGlobalFramework] = useState<Framework>("react");
+  const [componentFrameworks, setComponentFrameworks] = useState<Record<string, Framework>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const zh = globalLang === "zh";
   const totalCount = ALL_COMPONENTS.length;
+
+  const getFramework = (id: string): Framework => componentFrameworks[id] ?? globalFramework;
+  const setComponentFramework = (id: string, fw: Framework) => {
+    setComponentFrameworks((prev) => ({ ...prev, [id]: fw }));
+  };
 
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return CATEGORIES;
@@ -346,6 +355,30 @@ function ShowcaseContent() {
               </span>
             </div>
           </a>
+
+          {/* Global Framework Toggle */}
+          <div className="flex items-center rounded-control border border-line/60 bg-field p-0.5 text-[10px]">
+            <button
+              type="button"
+              aria-pressed={globalFramework === "react"}
+              onClick={() => setGlobalFramework("react")}
+              className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                globalFramework === "react" ? "bg-surface text-ink shadow-xs" : "text-ink-3 hover:text-ink-2"
+              }`}
+            >
+              React
+            </button>
+            <button
+              type="button"
+              aria-pressed={globalFramework === "vanilla"}
+              onClick={() => setGlobalFramework("vanilla")}
+              className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                globalFramework === "vanilla" ? "bg-surface text-ink shadow-xs" : "text-ink-3 hover:text-ink-2"
+              }`}
+            >
+              Vanilla
+            </button>
+          </div>
 
           {/* Global Language Toggle */}
           <div className="flex items-center rounded-control border border-line/60 bg-field p-0.5 text-[10px]">
@@ -493,6 +526,28 @@ function ShowcaseContent() {
           <span className="text-[13px] font-semibold text-ink tracking-tight">Native AI UI</span>
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-control bg-field p-0.5 text-[10px]">
+              <button
+                type="button"
+                aria-pressed={globalFramework === "react"}
+                onClick={() => setGlobalFramework("react")}
+                className={`rounded-chip px-1.5 py-0.5 font-medium cursor-pointer ${
+                  globalFramework === "react" ? "bg-surface text-ink shadow-xs" : "text-ink-3"
+                }`}
+              >
+                React
+              </button>
+              <button
+                type="button"
+                aria-pressed={globalFramework === "vanilla"}
+                onClick={() => setGlobalFramework("vanilla")}
+                className={`rounded-chip px-1.5 py-0.5 font-medium cursor-pointer ${
+                  globalFramework === "vanilla" ? "bg-surface text-ink shadow-xs" : "text-ink-3"
+                }`}
+              >
+                Vanilla
+              </button>
+            </div>
+            <div className="flex items-center rounded-control bg-field p-0.5 text-[10px]">
               {(["en", "zh"] as const).map((l) => (
                 <button
                   key={l}
@@ -534,7 +589,7 @@ function ShowcaseContent() {
             />
 
             <div className="relative">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-chip border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-2 shadow-xs">
                   <span className="size-1.5 rounded-full bg-green" />
                   v0.3.0
@@ -545,41 +600,79 @@ function ShowcaseContent() {
                 <span className="inline-flex items-center gap-1.5 rounded-chip border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-2 shadow-xs">
                   EN / 中文
                 </span>
+                <span className="inline-flex items-center gap-1.5 rounded-chip border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-2 shadow-xs">
+                  React 19 &amp; Web Components
+                </span>
               </div>
 
               <h1 className="mt-5 max-w-xl text-[34px] font-semibold leading-[1.12] tracking-tight text-ink sm:text-[40px]">
                 {zh ? (
-                  <>为 AI 原生界面打造的 <span className="text-accent-ink">React 组件</span></>
+                  <>为 AI 原生界面打造的 <span className="text-accent-ink">{globalFramework === "react" ? "React 组件" : "Web Components"}</span></>
                 ) : (
                   <>Crafted primitives for <span className="text-accent-ink">AI-native</span> interfaces</>
                 )}
               </h1>
               <p className="mt-3.5 max-w-lg text-[14px] leading-relaxed text-ink-2">
                 {zh
-                  ? `${totalCount} 个自包含、自演示的组件：流式生成、思考追踪、审批流、多智能体、Token 计量，以及 Agent 运行时与 Kumo 风格系统原语。通过 shadcn CLI 一键安装。`
-                  : `${totalCount} self-contained, self-animating primitives — streaming, thinking traces, approvals, agent teams, tokenomics, plus agent-runtime widgets and Kumo-style system cards. Install any of them with the shadcn CLI.`}
+                  ? `${totalCount} 个自包含、自演示的组件：流式生成、思考追踪、审批流、多智能体、Token 计量，以及 Agent 运行时与 Kumo 风格系统原语。支持 React (shadcn CLI) 与零依赖 Vanilla Web Components 两种形态。`
+                  : `${totalCount} self-contained, self-animating primitives — streaming, thinking traces, approvals, agent teams, tokenomics, runtime widgets, and Kumo-style system cards. Available as React (shadcn CLI) and zero-dependency Vanilla Web Components.`}
               </p>
 
-              {/* Install command */}
+              {/* Install command & Global Switcher */}
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="flex max-w-full items-center gap-2 rounded-control border border-line bg-tooltip-bg px-3.5 py-2.5 shadow-card">
-                  <span className="shrink-0 font-mono text-[12px] text-tooltip-muted select-none">$</span>
-                  <code className="min-w-0 overflow-x-auto whitespace-nowrap font-mono text-[12px] text-tooltip-fg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    npx shadcn@latest add {REGISTRY_BASE}/chat.json
-                  </code>
-                  <CopyButton
-                    zh={zh}
-                    text={`npx shadcn@latest add ${REGISTRY_BASE}/chat.json`}
-                    className="!border-tooltip-border !bg-transparent !text-tooltip-muted hover:!text-tooltip-fg ml-1 shrink-0"
-                  />
+                {globalFramework === "react" ? (
+                  <div className="flex max-w-full items-center gap-2 rounded-control border border-line bg-tooltip-bg px-3.5 py-2.5 shadow-card">
+                    <span className="shrink-0 font-mono text-[12px] text-tooltip-muted select-none">$</span>
+                    <code className="min-w-0 overflow-x-auto whitespace-nowrap font-mono text-[12px] text-tooltip-fg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      npx shadcn@latest add {REGISTRY_BASE}/chat.json
+                    </code>
+                    <CopyButton
+                      zh={zh}
+                      text={`npx shadcn@latest add ${REGISTRY_BASE}/chat.json`}
+                      className="!border-tooltip-border !bg-transparent !text-tooltip-muted hover:!text-tooltip-fg ml-1 shrink-0"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex max-w-full items-center gap-2 rounded-control border border-line bg-tooltip-bg px-3.5 py-2.5 shadow-card">
+                    <span className="shrink-0 font-mono text-[12px] text-tooltip-muted select-none">&lt;&gt;</span>
+                    <code className="min-w-0 overflow-x-auto whitespace-nowrap font-mono text-[12px] text-tooltip-fg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      &lt;script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"&gt;&lt;/script&gt;
+                    </code>
+                    <CopyButton
+                      zh={zh}
+                      text={`<script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"></script>`}
+                      className="!border-tooltip-border !bg-transparent !text-tooltip-muted hover:!text-tooltip-fg ml-1 shrink-0"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center rounded-control border border-line bg-surface p-1 shadow-btn">
+                  <button
+                    type="button"
+                    aria-pressed={globalFramework === "react"}
+                    onClick={() => setGlobalFramework("react")}
+                    className={`rounded-control px-3 py-1.5 text-[12px] font-medium transition-all cursor-pointer ${
+                      globalFramework === "react"
+                        ? "bg-accent-tint text-accent-ink shadow-xs font-semibold"
+                        : "text-ink-2 hover:bg-hover hover:text-ink"
+                    }`}
+                  >
+                    ⚛️ React
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={globalFramework === "vanilla"}
+                    onClick={() => setGlobalFramework("vanilla")}
+                    className={`rounded-control px-3 py-1.5 text-[12px] font-medium transition-all cursor-pointer ${
+                      globalFramework === "vanilla"
+                        ? "bg-accent-tint text-accent-ink shadow-xs font-semibold"
+                        : "text-ink-2 hover:bg-hover hover:text-ink"
+                    }`}
+                  >
+                    🍦 Vanilla ESM
+                  </button>
                 </div>
-                <a
-                  href="./vanilla/"
-                  className="flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-[12.5px] font-medium text-ink shadow-btn transition-colors hover:bg-hover cursor-pointer"
-                >
-                  <span className="size-1.5 rounded-full bg-accent" />
-                  <span>Vanilla ESM</span>
-                </a>
+
                 <a
                   href="https://github.com/eanzhao-os/native-ai-ui"
                   target="_blank"
@@ -598,7 +691,7 @@ function ShowcaseContent() {
                 {[
                   { n: String(totalCount), en: "primitives", zh: "个组件" },
                   { n: String(CATEGORIES.length), en: "categories", zh: "个分类" },
-                  { n: "3", en: "optional deps", zh: "个可选依赖" },
+                  { n: "2", en: "framework targets", zh: "种框架形态" },
                   { n: "2", en: "languages", zh: "种语言" },
                 ].map((s) => (
                   <div key={s.en} className="flex items-baseline gap-1.5">
@@ -630,10 +723,14 @@ function ShowcaseContent() {
                 <div className="flex flex-col gap-12">
                   {cat.items.map(({ id, labelEn, labelZh, descEn, descZh, Component }) => {
                     const currentItemLang = getLang(id);
+                    const currentFramework = getFramework(id);
                     const isZh = currentItemLang === "zh";
                     const label = isZh ? labelZh : labelEn;
                     const desc = isZh ? descZh : descEn;
-                    const installCmd = `npx shadcn@latest add ${REGISTRY_BASE}/${id}.json`;
+                    const isReact = currentFramework === "react";
+                    const installCmd = isReact
+                      ? `npx shadcn@latest add ${REGISTRY_BASE}/${id}.json`
+                      : `<nai-${id}></nai-${id}>`;
 
                     return (
                       <section key={id} id={id} className="scroll-mt-20">
@@ -645,6 +742,34 @@ function ShowcaseContent() {
                           </div>
 
                           <div className="flex items-center gap-1.5">
+                            {/* Per-component Framework switcher */}
+                            <div className="flex items-center rounded-control border border-line bg-field p-0.5 text-[10.5px]">
+                              <button
+                                type="button"
+                                aria-pressed={currentFramework === "react"}
+                                onClick={() => setComponentFramework(id, "react")}
+                                className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                                  currentFramework === "react"
+                                    ? "bg-surface text-ink shadow-xs"
+                                    : "text-ink-3 hover:text-ink-2"
+                                }`}
+                              >
+                                React
+                              </button>
+                              <button
+                                type="button"
+                                aria-pressed={currentFramework === "vanilla"}
+                                onClick={() => setComponentFramework(id, "vanilla")}
+                                className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                                  currentFramework === "vanilla"
+                                    ? "bg-surface text-ink shadow-xs"
+                                    : "text-ink-3 hover:text-ink-2"
+                                }`}
+                              >
+                                Vanilla
+                              </button>
+                            </div>
+
                             {/* Per-component language switcher */}
                             <div className="flex items-center rounded-control border border-line bg-field p-0.5 text-[10.5px]">
                               {(["en", "zh"] as const).map((l) => (
@@ -665,7 +790,7 @@ function ShowcaseContent() {
                             </div>
 
                             <code className="hidden sm:inline-block rounded-chip border border-line/60 bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
-                              components/{id}.tsx
+                              {isReact ? `components/${id}.tsx` : `<nai-${id}>`}
                             </code>
                             <CopyButton zh={isZh} text={installCmd} />
                           </div>
@@ -680,7 +805,11 @@ function ShowcaseContent() {
                           }}
                         >
                           <DemoViewport>
-                            <Component lang={currentItemLang} />
+                            {isReact ? (
+                              <Component lang={currentItemLang} />
+                            ) : (
+                              <VanillaDemoWrapper id={id} lang={currentItemLang} />
+                            )}
                           </DemoViewport>
                         </div>
                       </section>
