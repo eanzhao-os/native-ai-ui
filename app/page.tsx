@@ -222,7 +222,7 @@ const CATEGORIES: CategoryGroup[] = [
 const ALL_COMPONENTS = CATEGORIES.flatMap((category) => category.items);
 const REGISTRY_BASE = "https://eanzhao-os.github.io/native-ai-ui/r";
 
-function CopyButton({ text, zh, className = "" }: { text: string; zh: boolean; className?: string }) {
+function CopyButton({ text, zh, className = "", title }: { text: string; zh: boolean; className?: string; title?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -238,11 +238,12 @@ function CopyButton({ text, zh, className = "" }: { text: string; zh: boolean; c
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   };
+  const defaultTitle = zh ? "复制安装命令" : "Copy install command";
   return (
     <button
       type="button"
       onClick={copy}
-      title={zh ? "复制安装命令" : "Copy install command"}
+      title={title || defaultTitle}
       className={`flex size-6 items-center justify-center rounded-chip border border-line/70 bg-surface text-ink-3 transition-all hover:border-line-strong hover:text-ink cursor-pointer ${className}`}
     >
       {copied ? (
@@ -756,14 +757,14 @@ function ShowcaseContent() {
 
                           <div className="flex items-center gap-1.5">
                             {/* Per-component Framework switcher */}
-                            <div className="flex items-center rounded-control border border-line bg-field p-0.5 text-[10.5px]">
+                            <div className="flex items-center rounded-control border border-line bg-field p-0.5 text-[11px]">
                               <button
                                 type="button"
                                 aria-pressed={currentFramework === "react"}
                                 onClick={() => setComponentFramework(id, "react")}
-                                className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                                className={`rounded-chip px-2 py-0.5 font-medium transition-all cursor-pointer ${
                                   currentFramework === "react"
-                                    ? "bg-surface text-ink shadow-xs"
+                                    ? "bg-surface text-ink shadow-xs font-semibold"
                                     : "text-ink-3 hover:text-ink-2"
                                 }`}
                               >
@@ -773,9 +774,9 @@ function ShowcaseContent() {
                                 type="button"
                                 aria-pressed={currentFramework === "vanilla"}
                                 onClick={() => setComponentFramework(id, "vanilla")}
-                                className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                                className={`rounded-chip px-2 py-0.5 font-medium transition-all cursor-pointer ${
                                   currentFramework === "vanilla"
-                                    ? "bg-surface text-ink shadow-xs"
+                                    ? "bg-surface text-ink shadow-xs font-semibold"
                                     : "text-ink-3 hover:text-ink-2"
                                 }`}
                               >
@@ -784,16 +785,16 @@ function ShowcaseContent() {
                             </div>
 
                             {/* Per-component language switcher */}
-                            <div className="flex items-center rounded-control border border-line bg-field p-0.5 text-[10.5px]">
+                            <div className="flex items-center rounded-control border border-line bg-field p-0.5 text-[11px]">
                               {(["en", "zh"] as const).map((l) => (
                                 <button
                                   key={l}
                                   type="button"
                                   aria-pressed={currentItemLang === l}
                                   onClick={() => setComponentLang(id, l)}
-                                  className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
+                                  className={`rounded-chip px-2 py-0.5 font-medium transition-all cursor-pointer ${
                                     currentItemLang === l
-                                      ? "bg-surface text-ink shadow-xs"
+                                      ? "bg-surface text-ink shadow-xs font-semibold"
                                       : "text-ink-3 hover:text-ink-2"
                                   }`}
                                 >
@@ -802,10 +803,19 @@ function ShowcaseContent() {
                               ))}
                             </div>
 
-                            <code className="hidden sm:inline-block rounded-chip border border-line/60 bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
-                              {isReact ? `components/${id}.tsx` : `<nai-${id}>`}
-                            </code>
-                            <CopyButton zh={isZh} text={installCmd} />
+                            <CopyButton
+                              zh={isZh}
+                              text={installCmd}
+                              title={
+                                isZh
+                                  ? isReact
+                                    ? `复制安装命令 (shadcn)`
+                                    : `复制引用代码 (<nai-${id}>)`
+                                  : isReact
+                                  ? `Copy shadcn command`
+                                  : `Copy tag (<nai-${id}>)`
+                              }
+                            />
                           </div>
                         </div>
 
