@@ -33,6 +33,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm test -- --run
+
+      - name: Check registry artifacts
+        run: npm run registry:check
+
       - name: Build static site with Next.js
         run: npm run build
         env:
