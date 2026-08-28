@@ -591,7 +591,7 @@ function ShowcaseContent() {
                 {[
                   { n: String(totalCount), en: "primitives", zh: "个组件" },
                   { n: String(CATEGORIES.length), en: "categories", zh: "个分类" },
-                  { n: "0", en: "runtime deps*", zh: "运行时依赖*" },
+                  { n: "3", en: "optional deps", zh: "个可选依赖" },
                   { n: "2", en: "languages", zh: "种语言" },
                 ].map((s) => (
                   <div key={s.en} className="flex items-baseline gap-1.5">
@@ -725,7 +725,7 @@ function ShowcaseContent() {
             </div>
             <div className="mt-8 flex items-center justify-between border-t border-line/60 pt-4 text-[10.5px] text-ink-3">
               <span>© 2026 Native AI UI · MIT</span>
-              <span className="font-mono">*{zh ? "除个别可选依赖外" : "besides optional per-component deps"}</span>
+              <span className="font-mono">{zh ? "3 个可选依赖：glimm、liveline、iconoir-react" : "3 optional deps: glimm, liveline, iconoir-react"}</span>
             </div>
           </footer>
         </main>

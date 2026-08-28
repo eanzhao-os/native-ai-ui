@@ -2,10 +2,10 @@
 
 > 🌐 **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/)
 
-41 crafted primitives for AI-native interfaces — loading and thinking states, streaming
-text, approval flows, agent teams, turn lifecycles, dual-queue inboxes, hook pipelines,
-session telemetry, audio orb, tokenomics, cordis plugins, MCP servers, sandbox managers,
-LSP, artifacts, and Kumo-style primitives.
+44 crafted primitives for AI-native interfaces — loading and thinking states, streaming
+text, attachment queues, approval flows, agent teams, message branches, turn lifecycles,
+dual-queue inboxes, hook pipelines, session telemetry, checkpoints, audio orb, tokenomics,
+cordis plugins, MCP servers, sandbox managers, LSP, artifacts, and Kumo-style primitives.
 
 Every component is a self-contained `.tsx` file with no shared runtime beyond React and
 a set of design tokens. Install one with the shadcn CLI and it arrives with its tokens,
@@ -29,6 +29,7 @@ Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest 
 | Prompt Bar | `components/prompt-bar.tsx` | `glimm` |
 | Chat | `components/chat.tsx` | — |
 | Code Block | `components/code-block.tsx` | — |
+| Attachment Queue | `components/attachment-queue.tsx` | — |
 
 ### Agentic & Teams
 
@@ -40,6 +41,7 @@ Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest 
 | Tool Chips | `components/tool-chips.tsx` | — |
 | Approval Card | `components/approval-card.tsx` | — |
 | Clarification Card | `components/clarification-card.tsx` | — |
+| Message Branches | `components/message-branches.tsx` | — |
 
 ### Context & Memory
 
@@ -59,6 +61,7 @@ Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest 
 | Hook Pipeline | `components/hook-pipeline.tsx` | — |
 | Session Telemetry | `components/session-telemetry.tsx` | — |
 | Workflow Run | `components/workflow-run.tsx` | — |
+| Checkpoint Timeline | `components/checkpoint-timeline.tsx` | — |
 
 ### Cordis & Infrastructure
 
@@ -102,7 +105,7 @@ Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest 
 
 ## Internationalization & Language Switch (i18n)
 
-All 41 components ship with English and Chinese copies:
+All 44 components ship with English and Chinese copies:
 
 - **Global Toggle**: Header & sidebar switch between `English` and `中文版本` across the showcase.
 - **Per-Component Toggle**: Each component header has an individual `EN | 中文` button, allowing you to test bilingual copies independently.
@@ -115,7 +118,7 @@ npm install
 npm run dev
 ```
 
-`app/page.tsx` renders all 41 components grouped into 8 categories with a responsive
+`app/page.tsx` renders all 44 components grouped into 8 categories with a responsive
 sidebar, scroll-spy navigation, per-component install commands, and light/dark toggle.
 
 ## Copying by hand
@@ -163,10 +166,36 @@ depends on the specific faces beyond tabular figures in the mono stack.
 
 MIT — see [LICENSE](LICENSE).
 
-## Skill: native-ai-ui
+## Install the Native AI UI Skill
 
-This repo also ships a Codex/Claude skill at `skills/native-ai-ui/`: a framework-agnostic
-design system for AI-native interfaces — design principles, complete light/dark tokens,
-per-platform adaptation guides (SwiftUI, Compose, TUI), and a design mockup
+This repo ships a Codex/Claude skill at `skills/native-ai-ui/`: design principles,
+complete light/dark tokens, a 44-item component catalog, per-platform adaptation
+guides (SwiftUI, Compose, TUI), and a design mockup
 (`skills/native-ai-ui/assets/preview/native-chat.html`). The React components in this
-repo serve as its reference implementation.
+repo are the reference implementation.
+
+Project-scoped shared installation from an existing clone:
+
+```bash
+mkdir -p .agents/skills/native-ai-ui
+cp -R skills/native-ai-ui/. .agents/skills/native-ai-ui/
+```
+
+Codex global installation:
+
+```bash
+mkdir -p ~/.codex/skills/native-ai-ui
+cp -R skills/native-ai-ui/. ~/.codex/skills/native-ai-ui/
+```
+
+Claude Code global installation:
+
+```bash
+mkdir -p ~/.claude/skills/native-ai-ui
+cp -R skills/native-ai-ui/. ~/.claude/skills/native-ai-ui/
+```
+
+`~/.agents/skills/native-ai-ui` is the cross-runtime global alias of the same files.
+Start a new session after installing, then:
+
+> Use native-ai-ui to design a checkpointed SwiftUI coding agent.

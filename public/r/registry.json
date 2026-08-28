@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "ai-native",
-  "homepage": "https://www.beautifului.dev/",
+  "homepage": "https://eanzhao-os.github.io/native-ai-ui",
   "items": [
     {
       "name": "loading-state",
