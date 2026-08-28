@@ -64,7 +64,7 @@ export class NaiSensitiveInput extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -92,7 +92,7 @@ export class NaiSensitiveInput extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Sensitive Input Field */}
+        
         <div class="mt-4">
           <label
             for="sensitive-api-token"
@@ -110,7 +110,7 @@ export class NaiSensitiveInput extends NaiBaseElement {
             />
 
             <div class="flex items-center gap-1 text-ink-3 shrink-0">
-              {/* Reveal / Hide Toggle */}
+              
               <button
                 type="button"
                 id="btn-reveal"
@@ -134,7 +134,7 @@ export class NaiSensitiveInput extends NaiBaseElement {
                 }
               </button>
 
-              {/* Copy Button */}
+              
               <button
                 type="button"
                 id="btn-copy"
@@ -167,7 +167,7 @@ export class NaiSensitiveInput extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Security Scope Footer */}
+        
         <div class="mt-3.5 flex items-center justify-between text-[11px] text-ink-3">
           <span class="font-mono">${zh ? "作用域: chat.completions, reasoner" : "Scope: chat.completions, reasoner"}</span>
           <span>${zh ? "有效期剩余 89 天" : "Expires in 89 days"}</span>

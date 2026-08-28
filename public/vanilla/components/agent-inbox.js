@@ -80,7 +80,7 @@ export class NaiAgentInbox extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header — driver state */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span
@@ -100,9 +100,9 @@ export class NaiAgentInbox extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Queue lanes */}
+        
         <div class="grid grid-cols-2 gap-2">
-          {/* NextTurn lane */}
+          
           <div class="lane flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
             <div class="flex items-center justify-between px-1 pb-1.5">
               <span class="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -140,7 +140,7 @@ export class NaiAgentInbox extends NaiBaseElement {
             </div>
           </div>
 
-          {/* NextStep lane */}
+          
           <div class="lane flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
             <div class="flex items-center justify-between px-1 pb-1.5">
               <span class="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -189,7 +189,7 @@ export class NaiAgentInbox extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Step boundary claim indicator */}
+        
         <div
           class="mt-2 flex items-center gap-2 rounded-control border px-2.5 py-2 transition-all duration-500 ${
             phase >= 4 ? "border-green/40 bg-green-tint/40" : "border-line bg-inset/40"
@@ -225,7 +225,7 @@ export class NaiAgentInbox extends NaiBaseElement {
           }
         </div>
 
-        {/* Delivery methods */}
+        
         <div class="mt-3 grid grid-cols-4 gap-1.5">
           ${[
             { name: "Send", descEn: "owns send", descZh: "独占发送", style: "border-line bg-field text-ink-2" },
@@ -251,7 +251,7 @@ export class NaiAgentInbox extends NaiBaseElement {
             .join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${

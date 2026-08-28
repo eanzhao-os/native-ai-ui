@@ -69,7 +69,7 @@ export class NaiCodeBlock extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-95 overflow-hidden rounded-card bg-surface shadow-card">
-        {/* header */}
+        
         <div class="flex items-center justify-between border-b border-line px-3.5 py-2">
           <span class="flex items-baseline gap-2">
             <span class="filename font-mono text-[12px] font-medium text-ink">churn.ts</span>
@@ -92,7 +92,7 @@ export class NaiCodeBlock extends NaiBaseElement {
           </button>
         </div>
 
-        {/* code content */}
+        
         <pre class="overflow-x-auto p-3.5 font-mono text-[12.5px] leading-relaxed text-ink [tab-size:2]"><code>${LINES.slice(
           0,
           this._count

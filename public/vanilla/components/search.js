@@ -39,7 +39,7 @@ export class NaiSearch extends NaiBaseElement {
     this.setHtml(`
       <div class="flex min-h-[248px] w-full max-w-72 flex-col items-stretch">
         <div class="w-full self-start overflow-hidden rounded-card bg-surface shadow-raised">
-          {/* input row */}
+          
           <div class="flex h-10 items-center gap-2 border-b border-line px-3">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
@@ -71,7 +71,7 @@ export class NaiSearch extends NaiBaseElement {
             }
           </div>
 
-          {/* results / empty state */}
+          
           ${
             empty
               ? `

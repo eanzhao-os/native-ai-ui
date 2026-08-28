@@ -75,7 +75,7 @@ export class NaiModelArena extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-2xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Prompt Banner */}
+        
         <div class="flex items-start justify-between border-b border-line pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-5 items-center justify-center rounded-full bg-accent-tint text-accent-ink">
@@ -97,9 +97,9 @@ export class NaiModelArena extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Side-by-Side Model Output Grid */}
+        
         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Model A */}
+          
           <div
             class="flex flex-col rounded-control border p-3 transition-all ${
               voted === "A"
@@ -133,7 +133,7 @@ export class NaiModelArena extends NaiBaseElement {
             </div>
           </div>
 
-          {/* Model B */}
+          
           <div
             class="flex flex-col rounded-control border p-3 transition-all ${
               voted === "B"
@@ -168,7 +168,7 @@ export class NaiModelArena extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Voting Actions & Feedback */}
+        
         <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
           <span class="text-[11.5px] text-ink-3">
             ${

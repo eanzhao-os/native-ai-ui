@@ -82,7 +82,7 @@ export class NaiHookPipeline extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full bg-accent animate-pulse"></span>
@@ -96,7 +96,7 @@ export class NaiHookPipeline extends NaiBaseElement {
           <span class="font-mono text-[10.5px] text-ink-3">Harness.Hooks</span>
         </div>
 
-        {/* Hook points strip */}
+        
         <div class="flex flex-wrap gap-1">
           ${POINTS.map(
             (p) => `
@@ -113,7 +113,7 @@ export class NaiHookPipeline extends NaiBaseElement {
           ).join("")}
         </div>
 
-        {/* The tool call being inspected */}
+        
         <div class="mt-3 flex items-center gap-2 rounded-control border border-line bg-inset px-2.5 py-2">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
             <path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3 3.7-3.7z" />
@@ -125,7 +125,7 @@ export class NaiHookPipeline extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Pipeline: hooks evaluating in sequence */}
+        
         <div class="mt-3 flex min-h-[132px] flex-col gap-1.5">
           ${TOOLPRE_HOOKS.map((hook, i) => {
             const active = i < evaluated;
@@ -137,7 +137,7 @@ export class NaiHookPipeline extends NaiBaseElement {
                 }"
                 ${active ? 'style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;"' : ""}
               >
-                {/* connector */}
+                
                 <span class="flex size-1.5 shrink-0 rounded-full ${active ? style.dot : "bg-line-strong"}"></span>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5">
@@ -175,7 +175,7 @@ export class NaiHookPipeline extends NaiBaseElement {
           }).join("")}
         </div>
 
-        {/* Merge bar */}
+        
         <div
           class="merge-bar mt-1 flex items-center justify-between gap-2 rounded-control border px-3 py-2.5 transition-all duration-500 ${
             merged === "allow"
@@ -223,7 +223,7 @@ export class NaiHookPipeline extends NaiBaseElement {
           }
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${

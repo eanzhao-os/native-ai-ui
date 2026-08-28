@@ -80,7 +80,7 @@ export class NaiRecommendationCard extends NaiBaseElement {
             </p>
           </div>
 
-          {/* Drawer for alternatives */}
+          
           ${
             this._openDrawer
               ? `
@@ -110,7 +110,7 @@ export class NaiRecommendationCard extends NaiBaseElement {
           }
         </div>
 
-        {/* Footer */}
+        
         <div class="flex items-center justify-between border-t border-line bg-inset px-4 py-2.5">
           <div class="flex items-center gap-2">
             <span class="flex items-end gap-0.5">

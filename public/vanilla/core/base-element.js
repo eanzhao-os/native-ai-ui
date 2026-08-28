@@ -21,12 +21,13 @@ export class NaiBaseElement extends HTMLElement {
    * Helper to set innerHTML with shared utility stylesheet
    */
   setHtml(html, extraCss = "") {
+    const cleanHtml = typeof html === "string" ? html.replace(/\{\/\*[\s\S]*?\*\/\}/g, "") : html;
     this.shadowRoot.innerHTML = `
       <style>
         ${UTILITY_CSS}
         ${extraCss}
       </style>
-      ${html}
+      ${cleanHtml}
     `;
   }
 

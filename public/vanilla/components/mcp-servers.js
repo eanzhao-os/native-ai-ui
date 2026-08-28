@@ -90,7 +90,7 @@ export class NaiMcpServers extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full bg-green"></span>
@@ -106,7 +106,7 @@ export class NaiMcpServers extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Server rows */}
+        
         <div class="flex flex-col gap-1.5">
           ${SERVERS.map((server) => {
             const status = server.id === "web" ? webStatus : server.status;
@@ -216,7 +216,7 @@ export class NaiMcpServers extends NaiBaseElement {
           }).join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${zh ? "工具以 server__tool 限定名注册" : "Tools register as server__tool"}</span>
           <span class="font-mono">Harness.Mcp</span>

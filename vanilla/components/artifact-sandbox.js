@@ -100,7 +100,7 @@ export class NaiArtifactSandbox extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-xl overflow-hidden rounded-card border border-line bg-surface shadow-card">
-        {/* Top Header Bar */}
+        
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-inset px-3.5 py-2.5">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -120,9 +120,9 @@ export class NaiArtifactSandbox extends NaiBaseElement {
             </div>
           </div>
 
-          {/* Tab & Viewport Switchers */}
+          
           <div class="flex items-center gap-2">
-            {/* Tab Switcher */}
+            
             <div class="flex rounded-control bg-field p-0.5 text-[11px]">
               <button
                 type="button"
@@ -144,7 +144,7 @@ export class NaiArtifactSandbox extends NaiBaseElement {
               </button>
             </div>
 
-            {/* Viewport controls */}
+            
             ${
               tab === "preview"
                 ? `
@@ -194,7 +194,7 @@ export class NaiArtifactSandbox extends NaiBaseElement {
                 : ""
             }
 
-            {/* Copy Button */}
+            
             <button
               type="button"
               id="btn-copy"
@@ -229,13 +229,13 @@ export class NaiArtifactSandbox extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Main Canvas Body */}
+        
         <div class="flex min-h-[220px] items-center justify-center bg-canvas p-6 transition-all">
           ${
             tab === "preview"
               ? `
             <div class="transition-all duration-300 w-full ${viewportMaxWidth}">
-              {/* Live Rendered Component Inside Sandbox */}
+              
               <div class="grid grid-cols-2 gap-3 rounded-control border border-line bg-surface p-4 shadow-sm">
                 <div class="flex flex-col">
                   <span class="text-[11px] text-ink-3">${zh ? "日活跃用户 (DAU)" : "Daily Active Users"}</span>
@@ -264,7 +264,7 @@ export class NaiArtifactSandbox extends NaiBaseElement {
           }
         </div>
 
-        {/* Sandbox Footer */}
+        
         <div class="flex items-center justify-between border-t border-line bg-surface px-4 py-2 text-[11px] text-ink-3">
           <span>${zh ? "技术栈: React 19 + Tailwind CSS" : "Framework: React 19 + Tailwind CSS"}</span>
           <span class="font-mono">${zh ? "编译耗时: 12ms" : "Compiled in 12ms"}</span>

@@ -57,7 +57,7 @@ export class NaiSandboxManager extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-green-tint text-green">
@@ -100,7 +100,7 @@ export class NaiSandboxManager extends NaiBaseElement {
           </button>
         </div>
 
-        {/* Resource Metrics Gauges */}
+        
         <div class="mt-3.5 grid grid-cols-2 gap-2.5">
           <div class="rounded-control border border-line bg-inset/40 p-3">
             <div class="flex items-baseline justify-between">
@@ -135,7 +135,7 @@ export class NaiSandboxManager extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Process Table */}
+        
         <div class="mt-3.5 rounded-control border border-line bg-inset/30 p-3">
           <span class="text-[11px] font-semibold text-ink">
             ${zh ? "活动隔离进程树" : "Active Isolated Processes"}

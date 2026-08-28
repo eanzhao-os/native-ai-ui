@@ -105,7 +105,7 @@ export class NaiTurnLifecycle extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full ${done ? "bg-green" : "bg-accent animate-pulse"}"></span>
@@ -119,7 +119,7 @@ export class NaiTurnLifecycle extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Timeline */}
+        
         <div class="timeline relative flex min-h-[304px] flex-col gap-[3px] rounded-control border border-line bg-inset/50 p-3">
           ${rows
             .map((e, i) => {
@@ -188,7 +188,7 @@ export class NaiTurnLifecycle extends NaiBaseElement {
           }
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${zh ? "括号结构: turn ⊃ step ⊃ tool/call" : "Brackets: turn ⊃ step ⊃ tool/call"}

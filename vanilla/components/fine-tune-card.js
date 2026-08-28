@@ -92,7 +92,7 @@ export class NaiFineTuneCard extends NaiBaseElement {
         data-min="${min}"
         data-max="${max}"
       >
-        {/* scrub handle */}
+        
         <span
           role="slider"
           aria-label="${label}"
@@ -129,7 +129,7 @@ export class NaiFineTuneCard extends NaiBaseElement {
 
     this.setHtml(`
       <div class="relative w-full max-w-60 rounded-card bg-surface shadow-raised">
-        {/* header */}
+        
         <div class="primitive-card-bar flex items-center justify-between border-b border-line">
           <span class="text-[13px] font-medium text-ink">${zh ? "风味卡片" : "Flavor card"}</span>
           ${
@@ -167,10 +167,10 @@ export class NaiFineTuneCard extends NaiBaseElement {
           }
         </div>
 
-        {/* layout section */}
+        
         <div class="primitive-card-pad flex flex-col gap-2 border-b border-line">
           <p class="text-[12.5px] font-medium text-ink">${zh ? "布局" : "Layout"}</p>
-          {/* segmented control: gray track, raised white thumb */}
+          
           <div class="relative grid grid-cols-3 rounded-control bg-field p-0.5">
             <span
               aria-hidden="true"
@@ -209,7 +209,7 @@ export class NaiFineTuneCard extends NaiBaseElement {
           </div>
         </div>
 
-        {/* interaction section */}
+        
         <div class="primitive-card-footer flex items-center justify-between">
           <span class="text-[12px] text-ink-3">${zh ? "类型" : "Type"}</span>
           <div class="relative -mr-0.5 w-30">

@@ -79,7 +79,7 @@ export class NaiChat extends NaiBaseElement {
 
     this.setHtml(`
       <div class="flex h-[288px] w-full max-w-95 flex-col self-start overflow-hidden rounded-[14px] bg-surface shadow-card">
-        {/* header — tabs + actions */}
+        
         <div class="flex shrink-0 items-center justify-between border-b border-line p-1.5">
           <div class="flex items-center">
             ${TABS.map(
@@ -128,7 +128,7 @@ export class NaiChat extends NaiBaseElement {
           </div>
         </div>
 
-        {/* conversation — fixed region */}
+        
         <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2.5 pb-1">
           <div class="flex justify-end pl-14">
             <div
@@ -168,7 +168,7 @@ export class NaiChat extends NaiBaseElement {
           }
         </div>
 
-        {/* composer */}
+        
         <div class="mt-auto shrink-0 p-1.5">
           <div class="composer-box flex cursor-text flex-col gap-2 rounded-control border border-line bg-field p-2.5 transition-colors duration-150">
             <input
