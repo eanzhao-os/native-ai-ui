@@ -63,7 +63,7 @@ export class NaiWorkflowRun extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full ${running ? "bg-accent animate-pulse" : "bg-green"}"></span>
@@ -77,7 +77,7 @@ export class NaiWorkflowRun extends NaiBaseElement {
           <span class="font-mono text-[10.5px] tabular-nums text-ink-3">${pct}%</span>
         </div>
 
-        {/* Run meta */}
+        
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-inset px-2.5 py-2 font-mono text-[10px] text-ink-3">
           <span class="truncate">
             digest <span class="text-ink-2">sha256:9b7c…e4f1</span>
@@ -93,7 +93,7 @@ export class NaiWorkflowRun extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Concurrency slots */}
+        
         <div class="mt-3 flex flex-col gap-1.5">
           ${SLOT_MEMBERS.map((member, i) => {
             const slotActive = i < inFlight;
@@ -146,7 +146,7 @@ export class NaiWorkflowRun extends NaiBaseElement {
           }).join("")}
         </div>
 
-        {/* Item grid */}
+        
         <div class="mt-4">
           <div class="mb-1.5 flex items-center justify-between">
             <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -176,7 +176,7 @@ export class NaiWorkflowRun extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${

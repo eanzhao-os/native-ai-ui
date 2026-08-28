@@ -115,7 +115,7 @@ export class NaiStreamingText extends NaiBaseElement {
           }
         </p>
 
-        {/* Action icons row */}
+        
         <div
           class="mt-2 flex items-center gap-0.5 transition-opacity duration-400"
           style="opacity: ${done ? 1 : 0}; pointer-events: ${done ? "auto" : "none"};"
@@ -160,7 +160,7 @@ export class NaiStreamingText extends NaiBaseElement {
           </button>
         </div>
 
-        {/* Follow ups */}
+        
         <div
           class="mt-3 flex flex-col gap-1.5 transition-opacity duration-500"
           style="opacity: ${done ? 1 : 0}; pointer-events: ${done ? "auto" : "none"};"

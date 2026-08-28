@@ -137,7 +137,7 @@ export class NaiPromptBar extends NaiBaseElement {
 
     this.setHtml(`
       <div class="relative w-full max-w-lg select-none">
-        {/* Dropdown Menu */}
+        
         ${
           this._menu && rows.length > 0
             ? `
@@ -178,7 +178,7 @@ export class NaiPromptBar extends NaiBaseElement {
             : ""
         }
 
-        {/* Model Menu */}
+        
         ${
           this._modelOpen
             ? `
@@ -208,7 +208,7 @@ export class NaiPromptBar extends NaiBaseElement {
             : ""
         }
 
-        {/* Main Composer Box */}
+        
         <div
           class="relative isolate flex flex-col gap-1.5 overflow-hidden border border-line bg-surface p-1.5 shadow-card transition-all duration-150 ${
             pill ? (this._attachments.length > 0 || expanded ? "rounded-[24px]" : "rounded-full") : "rounded-[14px]"
@@ -247,7 +247,7 @@ export class NaiPromptBar extends NaiBaseElement {
               expanded ? "grid-cols-[minmax(0,1fr)_auto_28px_28px]" : "grid-cols-[28px_minmax(0,1fr)_auto_28px_28px]"
             }"
           >
-            {/* Plus button */}
+            
             <button
               type="button"
               aria-label="${zh ? "添加附件与数据源" : "Add attachments and sources"}"
@@ -261,7 +261,7 @@ export class NaiPromptBar extends NaiBaseElement {
               </svg>
             </button>
 
-            {/* Input textarea */}
+            
             <textarea
               rows="1"
               placeholder="${zh ? "输入消息…" : "Write a message…"}"
@@ -273,7 +273,7 @@ export class NaiPromptBar extends NaiBaseElement {
               "
             >${this._draft}</textarea>
 
-            {/* Model Picker button */}
+            
             <button
               type="button"
               aria-label="${zh ? "选择模型" : "Choose model"}"
@@ -290,7 +290,7 @@ export class NaiPromptBar extends NaiBaseElement {
               </span>
             </button>
 
-            {/* Dictation button */}
+            
             <button
               type="button"
               aria-label="${zh ? "听写" : "Dictation"}"
@@ -304,7 +304,7 @@ export class NaiPromptBar extends NaiBaseElement {
               </svg>
             </button>
 
-            {/* Send button */}
+            
             <button
               type="button"
               aria-label="${zh ? "发送" : "Send"}"

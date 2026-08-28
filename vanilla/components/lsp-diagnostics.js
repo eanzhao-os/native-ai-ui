@@ -85,7 +85,7 @@ export class NaiLspDiagnostics extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -109,7 +109,7 @@ export class NaiLspDiagnostics extends NaiBaseElement {
             </div>
           </div>
 
-          {/* Filter Pills */}
+          
           <div class="flex rounded-control bg-field p-0.5 text-[11px]">
             ${(["all", "error", "warning"])
               .map((tab) => {
@@ -130,7 +130,7 @@ export class NaiLspDiagnostics extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Diagnostics List */}
+        
         <div class="mt-3.5 flex flex-col gap-2">
           ${
             filtered.length === 0
@@ -187,7 +187,7 @@ export class NaiLspDiagnostics extends NaiBaseElement {
           }
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3.5 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${zh ? "目标框架: .NET 10.0" : "Target framework: .NET 10.0"}</span>
           <span class="font-mono">

@@ -86,7 +86,7 @@ export class NaiSidebarNav extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-60 rounded-card bg-surface p-2 shadow-raised">
-        {/* workspace row */}
+        
         <button
           type="button"
           class="mb-2 flex w-full items-center gap-2.5 rounded-control p-1.5 text-left transition-[background-color,transform] duration-100 hover:bg-hover active:scale-[0.96] cursor-pointer"
@@ -103,7 +103,7 @@ export class NaiSidebarNav extends NaiBaseElement {
           </svg>
         </button>
 
-        {/* quick search */}
+        
         <label class="mb-1 flex h-8 items-center gap-2 rounded-control bg-inset px-2.5 shadow-hairline">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
@@ -120,7 +120,7 @@ export class NaiSidebarNav extends NaiBaseElement {
           </kbd>
         </label>
 
-        {/* accent action */}
+        
         <button
           type="button"
           id="btn-new-task"
@@ -134,7 +134,7 @@ export class NaiSidebarNav extends NaiBaseElement {
           </span>
         </button>
 
-        {/* items */}
+        
         <div
           id="nav-list-container"
           class="relative flex flex-col gap-2"

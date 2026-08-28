@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,74312,e=>{"use strict";let t="en",n=new Set;try{let e=window.localStorage.getItem("nai-lang");"en"===e||"zh"===e?t=e:("zh"===document.documentElement.lang||document.documentElement.lang?.startsWith("zh-"))&&(t="zh")}catch{}function i(){return t}function s(e){if(("en"===e||"zh"===e)&&t!==e){t=e;try{window.localStorage.setItem("nai-lang",e)}catch{}for(let t of(document.documentElement.lang=e,window.dispatchEvent(new CustomEvent("nai-lang-change",{detail:{lang:e}})),n))try{t(e)}catch(e){console.error("[nai-lang] listener error:",e)}}}function r(e){return n.add(e),()=>{n.delete(e)}}function o(e){return"en"===e||"zh"===e?e:t}e.s(["getGlobalLang",0,i,"onLangChange",0,r,"resolveLang",0,o,"setGlobalLang",0,s],29218);let a=`
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,74312,e=>{"use strict";let t="en",n=new Set;try{let e=window.localStorage.getItem("nai-lang");"en"===e||"zh"===e?t=e:("zh"===document.documentElement.lang||document.documentElement.lang?.startsWith("zh-"))&&(t="zh")}catch{}function s(){return t}function i(e){if(("en"===e||"zh"===e)&&t!==e){t=e;try{window.localStorage.setItem("nai-lang",e)}catch{}for(let t of(document.documentElement.lang=e,window.dispatchEvent(new CustomEvent("nai-lang-change",{detail:{lang:e}})),n))try{t(e)}catch(e){console.error("[nai-lang] listener error:",e)}}}function r(e){return n.add(e),()=>{n.delete(e)}}function o(e){return"en"===e||"zh"===e?e:t}e.s(["getGlobalLang",0,s,"onLangChange",0,r,"resolveLang",0,o,"setGlobalLang",0,i],29218);let a=`
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -734,21 +734,21 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 .insight-chart-tooltip-label { color: var(--tooltip-fg); align-items: center; gap: 7px; display: inline-flex; }
 .insight-chart-tooltip-row strong { color: var(--tooltip-muted); font-variant-numeric: tabular-nums; font-weight: 500; }
 .insight-chart-tooltip-dot { border-radius: 50%; flex: 0 0 8px; width: 8px; height: 8px; }
-`;e.s(["UTILITY_CSS",0,a],32083);class l extends HTMLElement{static get observedAttributes(){return["lang"]}constructor(){super(),this.attachShadow({mode:"open"}),this._cleanups=[],this._mounted=!1}setHtml(e,t=""){this.shadowRoot.innerHTML=`
+`;e.s(["UTILITY_CSS",0,a],32083);class l extends HTMLElement{static get observedAttributes(){return["lang"]}constructor(){super(),this.attachShadow({mode:"open"}),this._cleanups=[],this._mounted=!1}setHtml(e,t=""){let n="string"==typeof e?e.replace(/\{\/\*[\s\S]*?\*\/\}/g,""):e;this.shadowRoot.innerHTML=`
       <style>
         ${a}
         ${t}
       </style>
-      ${e}
-    `}get currentLang(){return o(this.getAttribute("lang"))}get isZh(){return"zh"===this.currentLang}connectedCallback(){this._mounted=!0,this._unsubLang=r(()=>{this.hasAttribute("lang")||this.requestUpdate()}),this.onMount(),this.requestUpdate()}disconnectedCallback(){this._mounted=!1,this._unsubLang&&(this._unsubLang(),this._unsubLang=null),this.cleanup(),this.onUnmount()}attributeChangedCallback(e,t,n){t!==n&&this._mounted&&(this.onAttributeChange(e,t,n),this.requestUpdate())}onMount(){}onUnmount(){}onAttributeChange(e,t,n){}registerTimeout(e,t){let n=window.setTimeout(e,t);return this._cleanups.push(()=>clearTimeout(n)),n}registerInterval(e,t){let n=window.setInterval(e,t);return this._cleanups.push(()=>clearInterval(n)),n}registerRaf(e){let t,n=i=>{e(i),t=requestAnimationFrame(n)};t=requestAnimationFrame(n);let i=()=>cancelAnimationFrame(t);return this._cleanups.push(i),i}registerListener(e,t,n,i){e.addEventListener(t,n,i),this._cleanups.push(()=>e.removeEventListener(t,n,i))}cleanup(){for(;this._cleanups.length>0;){let e=this._cleanups.pop();try{e()}catch(e){console.error("[nai-base-element] cleanup error:",e)}}}requestUpdate(){this._mounted&&this.render()}render(){}}e.s(["NaiBaseElement",0,l],43516);let d=Array.from({length:9},(e,t)=>{let n=Math.floor(t/3);return(t%3+Math.abs(n-1))*90}),c=[0,1,2,5,8,7,6,3],p={Drive:{delays:d,dur:650,round:!1},Dots:{delays:d,dur:650,round:!0},Orbit:{delays:Array.from({length:9},(e,t)=>{let n=c.indexOf(t);return -1===n?null:110*n}),dur:950,round:!1}};class h extends l{static get observedAttributes(){return["variant","label","lang"]}constructor(){super(),this._ds=0}get variant(){return this.getAttribute("variant")||"Drive"}get label(){return this.getAttribute("label")||"Churning"}onMount(){this._ds=0,this.registerInterval(()=>{this._ds++,this._updateTimerDisplay()},100)}_formatElapsed(){let e=this._ds/10;return e<60?`${e.toFixed(1)}s`:`${Math.floor(e/60)}m ${(e%60).toFixed(1)}s`}_updateTimerDisplay(){let e=this.shadowRoot?.querySelector(".elapsed-timer");e&&(e.textContent=this._formatElapsed())}render(){let e=this.isZh,t=this.label,{delays:n,dur:i,round:s}=p[this.variant]??p.Drive;this.setHtml(`
+      ${n}
+    `}get currentLang(){return o(this.getAttribute("lang"))}get isZh(){return"zh"===this.currentLang}connectedCallback(){this._mounted=!0,this._unsubLang=r(()=>{this.hasAttribute("lang")||this.requestUpdate()}),this.onMount(),this.requestUpdate()}disconnectedCallback(){this._mounted=!1,this._unsubLang&&(this._unsubLang(),this._unsubLang=null),this.cleanup(),this.onUnmount()}attributeChangedCallback(e,t,n){t!==n&&this._mounted&&(this.onAttributeChange(e,t,n),this.requestUpdate())}onMount(){}onUnmount(){}onAttributeChange(e,t,n){}registerTimeout(e,t){let n=window.setTimeout(e,t);return this._cleanups.push(()=>clearTimeout(n)),n}registerInterval(e,t){let n=window.setInterval(e,t);return this._cleanups.push(()=>clearInterval(n)),n}registerRaf(e){let t,n=s=>{e(s),t=requestAnimationFrame(n)};t=requestAnimationFrame(n);let s=()=>cancelAnimationFrame(t);return this._cleanups.push(s),s}registerListener(e,t,n,s){e.addEventListener(t,n,s),this._cleanups.push(()=>e.removeEventListener(t,n,s))}cleanup(){for(;this._cleanups.length>0;){let e=this._cleanups.pop();try{e()}catch(e){console.error("[nai-base-element] cleanup error:",e)}}}requestUpdate(){this._mounted&&this.render()}render(){}}e.s(["NaiBaseElement",0,l],43516);let d=Array.from({length:9},(e,t)=>{let n=Math.floor(t/3);return(t%3+Math.abs(n-1))*90}),c=[0,1,2,5,8,7,6,3],p={Drive:{delays:d,dur:650,round:!1},Dots:{delays:d,dur:650,round:!0},Orbit:{delays:Array.from({length:9},(e,t)=>{let n=c.indexOf(t);return -1===n?null:110*n}),dur:950,round:!1}};class h extends l{static get observedAttributes(){return["variant","label","lang"]}constructor(){super(),this._ds=0}get variant(){return this.getAttribute("variant")||"Drive"}get label(){return this.getAttribute("label")||"Churning"}onMount(){this._ds=0,this.registerInterval(()=>{this._ds++,this._updateTimerDisplay()},100)}_formatElapsed(){let e=this._ds/10;return e<60?`${e.toFixed(1)}s`:`${Math.floor(e/60)}m ${(e%60).toFixed(1)}s`}_updateTimerDisplay(){let e=this.shadowRoot?.querySelector(".elapsed-timer");e&&(e.textContent=this._formatElapsed())}render(){let e=this.isZh,t=this.label,{delays:n,dur:s,round:i}=p[this.variant]??p.Drive;this.setHtml(`
       <div class="flex w-fit items-center gap-2.5">
         <span aria-hidden="true" class="pixel-grid grid" style="grid-template-columns: repeat(3, 4px); gap: 1.5px;">
           ${n.map(e=>`
             <span
-              class="pixel size-1 bg-ink ${s?"rounded-full":"rounded-[1px]"}"
+              class="pixel size-1 bg-ink ${i?"rounded-full":"rounded-[1px]"}"
               style="
                 opacity: ${null===e?"0.07":"0.15"};
-                animation: ${null===e?"none":`pixel-on ${i}ms ease-in-out ${e}ms infinite`};
+                animation: ${null===e?"none":`pixel-on ${s}ms ease-in-out ${e}ms infinite`};
               "
             ></span>
           `).join("")}
@@ -765,9 +765,9 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
         >${e&&"Churning"===t?"搅拌中":t}</span>
         <span class="elapsed-timer font-mono text-[12px] text-ink-3 tabular-nums">${this._formatElapsed()}</span>
       </div>
-    `)}}"u">typeof customElements&&!customElements.get("nai-loading-state")&&customElements.define("nai-loading-state",h);let u=[800,600,1800,2600,1600],x={Steps:{active:"Thinking",done:"Thought for 4 seconds",rows:[{primary:"Reading flavor briefs"},{primary:"Scanning supplier lists"},{primary:"Comparing tasting notes",secondary:"6 flavors"},{primary:"Writing the scoop report"}]},Reasoning:{active:"Thinking",done:"Thought for 4 seconds",rows:[{primary:"Summer demand spikes for stone-fruit flavors — peach and apricot lead."},{primary:"I should check cone inventory before promoting a waffle-bowl special."}]},Search:{active:"Searching the web",done:"Searched the web",query:"best waffle cone supplier",rows:[{primary:"Joy Cone",secondary:"joycone.com",href:"https://joycone.com"},{primary:"WebstaurantStore",secondary:"webstaurantstore.com",href:"https://webstaurantstore.com"},{primary:"The Konery",secondary:"thekonery.com",href:"https://thekonery.com"}]},Coding:{active:"Running tools",done:"Ran 3 tools",rows:[{primary:"Read",secondary:"flavors.ts",mono:!0},{primary:"Edit",secondary:"ChurnSchedule.tsx",mono:!0,add:74,del:41},{primary:"Run",secondary:"npm run freeze",mono:!0}]}},g={Steps:{active:"深度思考中",done:"已深度思考 4 秒",rows:[{primary:"解析风味研发简报"},{primary:"扫描合规原料供应商名录"},{primary:"比对盲测品鉴笔记",secondary:"6 款配方"},{primary:"生成冰淇淋上架评估报告"}]},Reasoning:{active:"深度推理中",done:"已完成推理 (4秒)",rows:[{primary:"夏季水果口味需求激增 — 蜜桃与黄杏风味处于领跑地位。"},{primary:"在推广华夫脆筒套餐前，应先校验当前脆筒库存水位。"}]},Search:{active:"正在检索全网资料",done:"全网检索完成",query:"顶级华夫甜筒供应商",rows:[{primary:"Joy Cone 官方供应链",secondary:"joycone.com",href:"https://joycone.com"},{primary:"WebstaurantStore 餐饮商城",secondary:"webstaurantstore.com",href:"https://webstaurantstore.com"},{primary:"The Konery 手工脆筒",secondary:"thekonery.com",href:"https://thekonery.com"}]},Coding:{active:"正在执行工具调用",done:"已调用 3 项工具",rows:[{primary:"读取",secondary:"flavors.ts",mono:!0},{primary:"修改",secondary:"ChurnSchedule.tsx",mono:!0,add:74,del:41},{primary:"执行",secondary:"npm run freeze",mono:!0}]}},m=["bg-accent","bg-orange","bg-green"];class b extends l{static get observedAttributes(){return["variant","lang","auto"]}constructor(){super(),this._stage=0,this._manualExpanded=null,this._selectedTool=null}get variant(){return this.getAttribute("variant")||"Steps"}onMount(){this._stage=0;let e=t=>{t>=u.length-1||this.registerTimeout(()=>{this._stage=t+1,this.render(),e(this._stage)},u[t])};e(0)}render(){let e=this.isZh,t=this.variant,n=e?g:x,i=n[t]??n.Steps,s=this._stage>=1&&this._stage<4,r=this._manualExpanded??s,o=this._stage<3,a=this._stage<2?0:2===this._stage?Math.min(2,i.rows.length):i.rows.length;this.setHtml(`
+    `)}}"u">typeof customElements&&!customElements.get("nai-loading-state")&&customElements.define("nai-loading-state",h);let u=[800,600,1800,2600,1600],x={Steps:{active:"Thinking",done:"Thought for 4 seconds",rows:[{primary:"Reading flavor briefs"},{primary:"Scanning supplier lists"},{primary:"Comparing tasting notes",secondary:"6 flavors"},{primary:"Writing the scoop report"}]},Reasoning:{active:"Thinking",done:"Thought for 4 seconds",rows:[{primary:"Summer demand spikes for stone-fruit flavors — peach and apricot lead."},{primary:"I should check cone inventory before promoting a waffle-bowl special."}]},Search:{active:"Searching the web",done:"Searched the web",query:"best waffle cone supplier",rows:[{primary:"Joy Cone",secondary:"joycone.com",href:"https://joycone.com"},{primary:"WebstaurantStore",secondary:"webstaurantstore.com",href:"https://webstaurantstore.com"},{primary:"The Konery",secondary:"thekonery.com",href:"https://thekonery.com"}]},Coding:{active:"Running tools",done:"Ran 3 tools",rows:[{primary:"Read",secondary:"flavors.ts",mono:!0},{primary:"Edit",secondary:"ChurnSchedule.tsx",mono:!0,add:74,del:41},{primary:"Run",secondary:"npm run freeze",mono:!0}]}},g={Steps:{active:"深度思考中",done:"已深度思考 4 秒",rows:[{primary:"解析风味研发简报"},{primary:"扫描合规原料供应商名录"},{primary:"比对盲测品鉴笔记",secondary:"6 款配方"},{primary:"生成冰淇淋上架评估报告"}]},Reasoning:{active:"深度推理中",done:"已完成推理 (4秒)",rows:[{primary:"夏季水果口味需求激增 — 蜜桃与黄杏风味处于领跑地位。"},{primary:"在推广华夫脆筒套餐前，应先校验当前脆筒库存水位。"}]},Search:{active:"正在检索全网资料",done:"全网检索完成",query:"顶级华夫甜筒供应商",rows:[{primary:"Joy Cone 官方供应链",secondary:"joycone.com",href:"https://joycone.com"},{primary:"WebstaurantStore 餐饮商城",secondary:"webstaurantstore.com",href:"https://webstaurantstore.com"},{primary:"The Konery 手工脆筒",secondary:"thekonery.com",href:"https://thekonery.com"}]},Coding:{active:"正在执行工具调用",done:"已调用 3 项工具",rows:[{primary:"读取",secondary:"flavors.ts",mono:!0},{primary:"修改",secondary:"ChurnSchedule.tsx",mono:!0,add:74,del:41},{primary:"执行",secondary:"npm run freeze",mono:!0}]}},m=["bg-accent","bg-orange","bg-green"];class b extends l{static get observedAttributes(){return["variant","lang","auto"]}constructor(){super(),this._stage=0,this._manualExpanded=null,this._selectedTool=null}get variant(){return this.getAttribute("variant")||"Steps"}onMount(){this._stage=0;let e=t=>{t>=u.length-1||this.registerTimeout(()=>{this._stage=t+1,this.render(),e(this._stage)},u[t])};e(0)}render(){let e=this.isZh,t=this.variant,n=e?g:x,s=n[t]??n.Steps,i=this._stage>=1&&this._stage<4,r=this._manualExpanded??i,o=this._stage<3,a=this._stage<2?0:2===this._stage?Math.min(2,s.rows.length):s.rows.length;this.setHtml(`
       <div class="flex min-h-[176px] w-full max-w-95 flex-col">
-        {/* Header */}
+        
         <button
           type="button"
           aria-expanded="${r}"
@@ -787,11 +787,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                 animation: shimmer-text 1.4s linear infinite;
               "
             >
-              ${i.active}
+              ${s.active}
             </span>
           `:`
             <span class="text-[13px] font-medium whitespace-nowrap text-ink-2">
-              ${i.done}
+              ${s.done}
             </span>
           `}
           <svg
@@ -810,7 +810,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </svg>
         </button>
 
-        {/* Expandable Trace */}
+        
         <div
           class="trace-container grid transition-all duration-400"
           style="
@@ -821,22 +821,22 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <div class="overflow-hidden">
             <div class="relative mt-1 ml-[5px] pl-4 border-l border-line">
               <div class="flex flex-col gap-1 py-1">
-                ${i.query?`
+                ${s.query?`
                   <div class="flex h-6 items-center gap-2 px-1.5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0">
                       <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
                     </svg>
-                    <span class="text-[12.5px] text-ink-2">${i.query}</span>
+                    <span class="text-[12.5px] text-ink-2">${s.query}</span>
                   </div>
                 `:""}
-                ${i.rows.slice(0,a).map((e,n)=>{let i=n===a-1&&o;return`
+                ${s.rows.slice(0,a).map((e,n)=>{let s=n===a-1&&o;return`
                     <div
                       class="flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-0.5 text-left transition-colors duration-150 ${"Search"===t?"hover:bg-hover cursor-pointer":""}"
                       style="animation: fade-up 320ms cubic-bezier(0.23,1,0.32,1) ${120*n}ms both;"
                     >
                       ${"Search"===t?`<span class="flex size-3.5 shrink-0 items-center justify-center rounded-full text-white ${m[n%3]}">
                               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" /><path d="M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
-                            </span>`:"Steps"===t?i?'<span class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 animate-spin"></span>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M20 6L9 17l-5-5" /></svg>':""}
+                            </span>`:"Steps"===t?s?'<span class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 animate-spin"></span>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M20 6L9 17l-5-5" /></svg>':""}
                       <span class="min-w-0 truncate text-[12.5px] ${"Reasoning"===t?"whitespace-normal leading-relaxed text-ink-2":"font-medium text-ink"}">
                         ${e.primary}
                       </span>
@@ -849,7 +849,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `);let l=this.shadowRoot?.querySelector(".toggle-btn");l&&l.addEventListener("click",()=>{this._manualExpanded=!(this._manualExpanded??s),this.render()})}}"u">typeof customElements&&!customElements.get("nai-thinking")&&customElements.define("nai-thinking",b);let f=[..."Pistachio is your fastest-growing flavor — sales are up 23% this month and margins beat vanilla by 8 points.".split(" ").map(e=>({text:e})),{text:"",cite:!0},..."Stone-fruit flavors are trending in the same range.".split(" ").map(e=>({text:e}))],v=[..."开心果口味是当前增长最快的产品 — 本月销量环比上涨 23%，毛利率相比传统香草高出 8 个百分点。".split("").map(e=>({text:e})),{text:"",cite:!0},..."同品类中，以蜜桃与黄杏为代表的水果风味也呈现出强劲的同步增长势头。".split("").map(e=>({text:e}))],k=["Which flavors sell best in winter","Compare gelato and soft serve margins"],w=["冬季哪些冰淇淋风味销量最高？","对比意式硬冰与软冰淇淋的利润率"],y=[{name:"Scoop Data",domain:"scoopdata.io",href:"https://scoopdata.io/",image:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231f7a5f'/%3E%3Cpath d='M20 36c0 7 5.4 12 12 12s12-5 12-12H20Z' fill='%23fff'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23bff3dd'/%3E%3Cpath d='M24 24c4-7 13-7 17 0' fill='none' stroke='%231f7a5f' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"},{name:"Trends Index",domain:"trends.google.com",href:"https://trends.google.com/trends/",image:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f6fec'/%3E%3Cpath d='M15 43 27 31l8 7 14-18' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='20' r='5' fill='%23bfe0ff'/%3E%3C/svg%3E"},{name:"Market Basket",domain:"marketbasket.io",href:"https://marketbasket.io/",image:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e56d24'/%3E%3Cpath d='M17 45V25h8v20h-8Zm11 0V16h8v29h-8Zm11 0V30h8v15h-8Z' fill='%23fff'/%3E%3Cpath d='M16 49h32' stroke='%23ffd6b8' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"}];class $ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._count=0,this._sourcesOpen=!1,this._copied=!1}onMount(){this._count=0,this._tick()}_tick(){let e=this.isZh?v:f,t=this._count>=e.length;this.registerTimeout(()=>{this._count=this._count>=e.length?0:this._count+1,this.render(),this._tick()},t?3400:55)}render(){let e=this.isZh,t=e?v:f,n=this._count>=t.length;this.setHtml(`
+    `);let l=this.shadowRoot?.querySelector(".toggle-btn");l&&l.addEventListener("click",()=>{this._manualExpanded=!(this._manualExpanded??i),this.render()})}}"u">typeof customElements&&!customElements.get("nai-thinking")&&customElements.define("nai-thinking",b);let f=[..."Pistachio is your fastest-growing flavor — sales are up 23% this month and margins beat vanilla by 8 points.".split(" ").map(e=>({text:e})),{text:"",cite:!0},..."Stone-fruit flavors are trending in the same range.".split(" ").map(e=>({text:e}))],v=[..."开心果口味是当前增长最快的产品 — 本月销量环比上涨 23%，毛利率相比传统香草高出 8 个百分点。".split("").map(e=>({text:e})),{text:"",cite:!0},..."同品类中，以蜜桃与黄杏为代表的水果风味也呈现出强劲的同步增长势头。".split("").map(e=>({text:e}))],k=["Which flavors sell best in winter","Compare gelato and soft serve margins"],w=["冬季哪些冰淇淋风味销量最高？","对比意式硬冰与软冰淇淋的利润率"],y=[{name:"Scoop Data",domain:"scoopdata.io",href:"https://scoopdata.io/",image:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231f7a5f'/%3E%3Cpath d='M20 36c0 7 5.4 12 12 12s12-5 12-12H20Z' fill='%23fff'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23bff3dd'/%3E%3Cpath d='M24 24c4-7 13-7 17 0' fill='none' stroke='%231f7a5f' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"},{name:"Trends Index",domain:"trends.google.com",href:"https://trends.google.com/trends/",image:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f6fec'/%3E%3Cpath d='M15 43 27 31l8 7 14-18' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='49' cy='20' r='5' fill='%23bfe0ff'/%3E%3C/svg%3E"},{name:"Market Basket",domain:"marketbasket.io",href:"https://marketbasket.io/",image:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e56d24'/%3E%3Cpath d='M17 45V25h8v20h-8Zm11 0V16h8v29h-8Zm11 0V30h8v15h-8Z' fill='%23fff'/%3E%3Cpath d='M16 49h32' stroke='%23ffd6b8' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"}];class $ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._count=0,this._sourcesOpen=!1,this._copied=!1}onMount(){this._count=0,this._tick()}_tick(){let e=this.isZh?v:f,t=this._count>=e.length;this.registerTimeout(()=>{this._count=this._count>=e.length?0:this._count+1,this.render(),this._tick()},t?3400:55)}render(){let e=this.isZh,t=e?v:f,n=this._count>=t.length;this.setHtml(`
       <div class="min-h-[15.5rem] w-full max-w-95">
         <p class="content text-[13px] leading-relaxed text-ink">
           ${t.slice(0,this._count).map(t=>t.cite?`
@@ -871,7 +871,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           ${!n?'<span class="ml-0.5 inline-block h-3 w-0.5 translate-y-0.5 rounded-full bg-ink" style="animation: fade-in 150ms ease-out both;"></span>':""}
         </p>
 
-        {/* Action icons row */}
+        
         <div
           class="mt-2 flex items-center gap-0.5 transition-opacity duration-400"
           style="opacity: ${+!!n}; pointer-events: ${n?"auto":"none"};"
@@ -912,7 +912,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </button>
         </div>
 
-        {/* Follow ups */}
+        
         <div
           class="mt-3 flex flex-col gap-1.5 transition-opacity duration-500"
           style="opacity: ${+!!n}; pointer-events: ${n?"auto":"none"};"
@@ -932,14 +932,14 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `),this.shadowRoot?.querySelector(".copy-btn")?.addEventListener("click",()=>{this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1600)}),this.shadowRoot?.querySelector(".retry-btn")?.addEventListener("click",()=>{this._count=0,this.render()})}}"u">typeof customElements&&!customElements.get("nai-streaming-text")&&customElements.define("nai-streaming-text",$);let _=[{q:"How many flavors should we launch?",type:"radio",options:["Three (core line)","Five (full case)","Just one hero"]},{q:"Which mix-ins should we stock?",type:"check",options:["Chocolate chips","Waffle bits","Sprinkles"]},{q:"Which market do we enter first?",type:"radio",options:["Food trucks","Grocery freezers","Scoop shops"]}],E=[{q:"首批上线推出几款新口味？",type:"radio",options:["3 款 (核心经典线)","5 款 (完整全品类)","仅推 1 款爆品"]},{q:"首批需要进货哪些混合配料？",type:"check",options:["黑巧碎粒","华夫脆角碎片","彩色糖针"]},{q:"优先切入哪个试点销售渠道？",type:"radio",options:["流动餐车","精品超市冷柜","线下直营体验店"]}];class S extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._qi=0,this._answers={},this._custom={},this._sent=!1,this._open=!0}toggle(e){let t=this.isZh?E:_,n=t[this._qi],i=this._answers[this._qi]??[],s="radio"===n.type?[e]:i.includes(e)?i.filter(t=>t!==e):[...i,e];this._answers[this._qi]=s,"radio"===n.type?(this._custom[this._qi]="",this.render(),this.registerTimeout(()=>{this._qi===t.length-1?this._sent=!0:this._qi=Math.min(t.length-1,this._qi+1),this.render()},480)):this.render()}submitNext(){let e=this.isZh?E:_;this._qi===e.length-1?this._sent=!0:this._qi=Math.min(e.length-1,this._qi+1),this.render()}reset(){this._qi=0,this._answers={},this._custom={},this._sent=!1,this._open=!0,this.render()}render(){let e=this.isZh,t=e?E:_;if(!this._open){this.setHtml(`
+    `),this.shadowRoot?.querySelector(".copy-btn")?.addEventListener("click",()=>{this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1600)}),this.shadowRoot?.querySelector(".retry-btn")?.addEventListener("click",()=>{this._count=0,this.render()})}}"u">typeof customElements&&!customElements.get("nai-streaming-text")&&customElements.define("nai-streaming-text",$);let _=[{q:"How many flavors should we launch?",type:"radio",options:["Three (core line)","Five (full case)","Just one hero"]},{q:"Which mix-ins should we stock?",type:"check",options:["Chocolate chips","Waffle bits","Sprinkles"]},{q:"Which market do we enter first?",type:"radio",options:["Food trucks","Grocery freezers","Scoop shops"]}],E=[{q:"首批上线推出几款新口味？",type:"radio",options:["3 款 (核心经典线)","5 款 (完整全品类)","仅推 1 款爆品"]},{q:"首批需要进货哪些混合配料？",type:"check",options:["黑巧碎粒","华夫脆角碎片","彩色糖针"]},{q:"优先切入哪个试点销售渠道？",type:"radio",options:["流动餐车","精品超市冷柜","线下直营体验店"]}];class S extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._qi=0,this._answers={},this._custom={},this._sent=!1,this._open=!0}toggle(e){let t=this.isZh?E:_,n=t[this._qi],s=this._answers[this._qi]??[],i="radio"===n.type?[e]:s.includes(e)?s.filter(t=>t!==e):[...s,e];this._answers[this._qi]=i,"radio"===n.type?(this._custom[this._qi]="",this.render(),this.registerTimeout(()=>{this._qi===t.length-1?this._sent=!0:this._qi=Math.min(t.length-1,this._qi+1),this.render()},480)):this.render()}submitNext(){let e=this.isZh?E:_;this._qi===e.length-1?this._sent=!0:this._qi=Math.min(e.length-1,this._qi+1),this.render()}reset(){this._qi=0,this._answers={},this._custom={},this._sent=!1,this._open=!0,this.render()}render(){let e=this.isZh,t=e?E:_;if(!this._open){this.setHtml(`
         <button
           type="button"
           class="reopen-btn rounded-control bg-surface px-3 py-2 text-[12.5px] font-medium text-ink shadow-btn transition-colors duration-150 hover:bg-hover cursor-pointer"
         >
           ${e?"打开审批流卡片":"Open approval"}
         </button>
-      `),this.shadowRoot?.querySelector(".reopen-btn")?.addEventListener("click",()=>{this._open=!0,this.render()});return}let n=t[this._qi],i=this._qi===t.length-1,s=this._answers[this._qi]??[],r=s.length>0||!!this._custom[this._qi]?.trim();this.setHtml(`
+      `),this.shadowRoot?.querySelector(".reopen-btn")?.addEventListener("click",()=>{this._open=!0,this.render()});return}let n=t[this._qi],s=this._qi===t.length-1,i=this._answers[this._qi]??[],r=i.length>0||!!this._custom[this._qi]?.trim();this.setHtml(`
       <div class="flex min-h-[196px] w-full max-w-80 flex-col items-stretch">
         <div class="w-full self-start overflow-hidden rounded-card bg-surface shadow-card p-3">
           ${this._sent?`
@@ -974,14 +974,14 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                 </button>
               </div>
               <div class="mt-2 flex flex-col gap-0.5">
-                ${n.options.map((e,t)=>{let i=s.includes(t);return`
+                ${n.options.map((e,t)=>{let s=i.includes(t);return`
                     <button
                       type="button"
                       data-option="${t}"
-                      class="option-item ${i?"selected":""} flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-1 text-left transition-colors duration-100 cursor-pointer ${i?"bg-accent-tint text-accent-ink font-medium":"text-ink hover:bg-hover"}"
+                      class="option-item ${s?"selected":""} flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-1 text-left transition-colors duration-100 cursor-pointer ${s?"bg-accent-tint text-accent-ink font-medium":"text-ink hover:bg-hover"}"
                     >
-                      <span class="flex size-3.5 shrink-0 items-center justify-center rounded-${"radio"===n.type?"full":"[3px]"} border border-line-strong ${i?"border-accent bg-accent text-white":"bg-surface"}">
-                        ${i?'<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':""}
+                      <span class="flex size-3.5 shrink-0 items-center justify-center rounded-${"radio"===n.type?"full":"[3px]"} border border-line-strong ${s?"border-accent bg-accent text-white":"bg-surface"}">
+                        ${s?'<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':""}
                       </span>
                       <span class="text-[12.5px]">${e}</span>
                     </button>
@@ -996,7 +996,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                     ${!r?"disabled":""}
                     class="next-btn rounded-control px-2.5 py-1 text-[11.5px] font-medium transition-all duration-150 ${r?"bg-accent text-white shadow-btn hover:opacity-90 cursor-pointer":"bg-field text-ink-3 cursor-not-allowed opacity-60"}"
                   >
-                    ${i?e?"提交":"Submit":e?"下一题":"Next"}
+                    ${s?e?"提交":"Submit":e?"下一题":"Next"}
                   </button>
                 </div>
               `:""}
@@ -1004,16 +1004,16 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           `}
         </div>
       </div>
-    `),this.shadowRoot?.querySelector(".dismiss-btn")?.addEventListener("click",()=>{this._open=!1,this.render()}),this.shadowRoot?.querySelector(".reset-btn")?.addEventListener("click",()=>{this.reset()}),this.shadowRoot?.querySelectorAll("[data-option]").forEach(e=>{e.addEventListener("click",()=>{let t=Number(e.getAttribute("data-option"));this.toggle(t)})}),this.shadowRoot?.querySelector(".next-btn")?.addEventListener("click",()=>{r&&this.submitNext()})}}"u">typeof customElements&&!customElements.get("nai-approval-card")&&customElements.define("nai-approval-card",S);let C=[{key:"attach",nameEn:"Add photos & files",nameZh:"添加图片和文件",descEn:"Upload from your computer",descZh:"从本地上传",glyph:"clip",attach:!0},{key:"scoop",nameEn:"Scoop Data",nameZh:"Scoop 数据",descEn:"Sales & churn metrics",descZh:"销售与产量指标",glyph:"chart"},{key:"flavors",nameEn:"Flavor records",nameZh:"风味档案",descEn:"26 makers, tags, links",descZh:"26 家厂商、标签与链接",glyph:"layers"},{key:"web",nameEn:"Web search",nameZh:"联网搜索",descEn:"Real-time news and info",descZh:"实时新闻与资讯",glyph:"globe"}],j=[{key:"compare",name:"/compare",descEn:"Flavor vs. last summer",descZh:"对比风味与去年同期销量"},{key:"churn-plan",name:"/churn-plan",descEn:"Draft a churn schedule",descZh:"起草搅拌生产排期"},{key:"restock",name:"/restock",descEn:"Build a reorder list",descZh:"生成补货清单"},{key:"draft-email",name:"/draft-email",descEn:"Write a supplier email",descZh:"撰写供应商邮件"},{key:"summarize",name:"/summarize",descEn:"Digest the thread so far",descZh:"总结当前对话要点"}],M=[{key:"sprinkles-5",name:"Sprinkles 5",tagEn:"Flagship",tagZh:"旗舰"},{key:"vanilla-1",name:"Vanilla 1",tagEn:"Basic",tagZh:"基础"},{key:"freezer-burn",name:"Freezer Burn 0.4",tagEn:"Stale",tagZh:"过时"}],z={clip:'<path d="m21.4 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />',layers:'<g><path d="M12 2 2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" /></g>',globe:'<g><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z" /></g>'};class Z extends l{static get observedAttributes(){return["variant","lang"]}constructor(){super(),this._draft="",this._menu=null,this._modelOpen=!1,this._model=M[0],this._listening=!1,this._attachments=[]}get variant(){return this.getAttribute("variant")||"Rounded"}get isPill(){return"pill"===this.variant.toLowerCase()}onMount(){this.registerListener(document,"click",e=>{!this.contains(e.target)&&!this.shadowRoot?.contains(e.target)&&(this._menu||this._modelOpen)&&(this._menu=null,this._modelOpen=!1,this.render())})}_parseToken(e){let t=/(^|\s)([@/])([\w-]*)$/.exec(e);return t?{kind:"@"===t[2]?"at":"slash",query:t[3].toLowerCase(),start:t.index+t[1].length}:null}_handleInput(e){this._draft=e;let t=this._parseToken(e);t?this._menu=t.kind:("at"===this._menu||"slash"===this._menu)&&(this._menu=null),this.render()}_selectItem(e){"at"===this._menu||"plus"===this._menu?e.attach?this._attachments.push("uploaded-file.pdf"):this._draft=this._draft.replace(/@[\w-]*$/,`@${e.nameEn} `):"slash"===this._menu&&(this._draft=e.name+" "),this._menu=null,this.render();let t=this.shadowRoot?.querySelector("textarea");t&&(t.focus(),t.value=this._draft)}_selectModel(e){this._model=e,this._modelOpen=!1,this.render()}send(){if(!this._draft.trim()&&0===this._attachments.length)return;let e={text:this._draft.trim(),model:this._model.key};this.dispatchEvent(new CustomEvent("submit",{detail:e})),this._draft="",this._attachments=[],this._menu=null,this.render()}render(){let e=this.isZh,t=this.isPill,n=this._draft.trim().length>0||this._attachments.length>0,i=this._draft.length>40||this._draft.includes("\n"),s="at"===this._menu||"plus"===this._menu?C.map(t=>({...t,name:e?t.nameZh:t.nameEn,desc:e?t.descZh:t.descEn})):"slash"===this._menu?j.map(t=>({...t,name:t.name,desc:e?t.descZh:t.descEn})):[];this.setHtml(`
+    `),this.shadowRoot?.querySelector(".dismiss-btn")?.addEventListener("click",()=>{this._open=!1,this.render()}),this.shadowRoot?.querySelector(".reset-btn")?.addEventListener("click",()=>{this.reset()}),this.shadowRoot?.querySelectorAll("[data-option]").forEach(e=>{e.addEventListener("click",()=>{let t=Number(e.getAttribute("data-option"));this.toggle(t)})}),this.shadowRoot?.querySelector(".next-btn")?.addEventListener("click",()=>{r&&this.submitNext()})}}"u">typeof customElements&&!customElements.get("nai-approval-card")&&customElements.define("nai-approval-card",S);let C=[{key:"attach",nameEn:"Add photos & files",nameZh:"添加图片和文件",descEn:"Upload from your computer",descZh:"从本地上传",glyph:"clip",attach:!0},{key:"scoop",nameEn:"Scoop Data",nameZh:"Scoop 数据",descEn:"Sales & churn metrics",descZh:"销售与产量指标",glyph:"chart"},{key:"flavors",nameEn:"Flavor records",nameZh:"风味档案",descEn:"26 makers, tags, links",descZh:"26 家厂商、标签与链接",glyph:"layers"},{key:"web",nameEn:"Web search",nameZh:"联网搜索",descEn:"Real-time news and info",descZh:"实时新闻与资讯",glyph:"globe"}],j=[{key:"compare",name:"/compare",descEn:"Flavor vs. last summer",descZh:"对比风味与去年同期销量"},{key:"churn-plan",name:"/churn-plan",descEn:"Draft a churn schedule",descZh:"起草搅拌生产排期"},{key:"restock",name:"/restock",descEn:"Build a reorder list",descZh:"生成补货清单"},{key:"draft-email",name:"/draft-email",descEn:"Write a supplier email",descZh:"撰写供应商邮件"},{key:"summarize",name:"/summarize",descEn:"Digest the thread so far",descZh:"总结当前对话要点"}],M=[{key:"sprinkles-5",name:"Sprinkles 5",tagEn:"Flagship",tagZh:"旗舰"},{key:"vanilla-1",name:"Vanilla 1",tagEn:"Basic",tagZh:"基础"},{key:"freezer-burn",name:"Freezer Burn 0.4",tagEn:"Stale",tagZh:"过时"}],z={clip:'<path d="m21.4 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />',layers:'<g><path d="M12 2 2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" /></g>',globe:'<g><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z" /></g>'};class Z extends l{static get observedAttributes(){return["variant","lang"]}constructor(){super(),this._draft="",this._menu=null,this._modelOpen=!1,this._model=M[0],this._listening=!1,this._attachments=[]}get variant(){return this.getAttribute("variant")||"Rounded"}get isPill(){return"pill"===this.variant.toLowerCase()}onMount(){this.registerListener(document,"click",e=>{!this.contains(e.target)&&!this.shadowRoot?.contains(e.target)&&(this._menu||this._modelOpen)&&(this._menu=null,this._modelOpen=!1,this.render())})}_parseToken(e){let t=/(^|\s)([@/])([\w-]*)$/.exec(e);return t?{kind:"@"===t[2]?"at":"slash",query:t[3].toLowerCase(),start:t.index+t[1].length}:null}_handleInput(e){this._draft=e;let t=this._parseToken(e);t?this._menu=t.kind:("at"===this._menu||"slash"===this._menu)&&(this._menu=null),this.render()}_selectItem(e){"at"===this._menu||"plus"===this._menu?e.attach?this._attachments.push("uploaded-file.pdf"):this._draft=this._draft.replace(/@[\w-]*$/,`@${e.nameEn} `):"slash"===this._menu&&(this._draft=e.name+" "),this._menu=null,this.render();let t=this.shadowRoot?.querySelector("textarea");t&&(t.focus(),t.value=this._draft)}_selectModel(e){this._model=e,this._modelOpen=!1,this.render()}send(){if(!this._draft.trim()&&0===this._attachments.length)return;let e={text:this._draft.trim(),model:this._model.key};this.dispatchEvent(new CustomEvent("submit",{detail:e})),this._draft="",this._attachments=[],this._menu=null,this.render()}render(){let e=this.isZh,t=this.isPill,n=this._draft.trim().length>0||this._attachments.length>0,s=this._draft.length>40||this._draft.includes("\n"),i="at"===this._menu||"plus"===this._menu?C.map(t=>({...t,name:e?t.nameZh:t.nameEn,desc:e?t.descZh:t.descEn})):"slash"===this._menu?j.map(t=>({...t,name:t.name,desc:e?t.descZh:t.descEn})):[];this.setHtml(`
       <div class="relative w-full max-w-lg select-none">
-        {/* Dropdown Menu */}
-        ${this._menu&&s.length>0?`
+        
+        ${this._menu&&i.length>0?`
           <div
             class="absolute left-0 bottom-full z-20 mb-2 w-72 rounded-card border border-line bg-surface p-1 shadow-raised overflow-hidden"
             style="animation: pop-in 180ms cubic-bezier(0.23,1,0.32,1) both;"
           >
             <div class="flex flex-col gap-0.5 max-h-56 overflow-y-auto">
-              ${s.map((e,t)=>`
+              ${i.map((e,t)=>`
                 <button
                   type="button"
                   data-idx="${t}"
@@ -1035,7 +1035,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         `:""}
 
-        {/* Model Menu */}
+        
         ${this._modelOpen?`
           <div
             class="absolute right-0 bottom-full z-20 mb-2 w-44 rounded-card border border-line bg-surface p-1 shadow-raised overflow-hidden"
@@ -1059,9 +1059,9 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         `:""}
 
-        {/* Main Composer Box */}
+        
         <div
-          class="relative isolate flex flex-col gap-1.5 overflow-hidden border border-line bg-surface p-1.5 shadow-card transition-all duration-150 ${t?this._attachments.length>0||i?"rounded-[24px]":"rounded-full":"rounded-[14px]"}"
+          class="relative isolate flex flex-col gap-1.5 overflow-hidden border border-line bg-surface p-1.5 shadow-card transition-all duration-150 ${t?this._attachments.length>0||s?"rounded-[24px]":"rounded-full":"rounded-[14px]"}"
         >
           ${this._attachments.length>0?`
             <div class="flex flex-wrap gap-1.5 pt-0.5 ${t?"px-1":"px-0.5"}">
@@ -1082,38 +1082,38 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           `:""}
 
           <div
-            class="grid items-end gap-x-1 gap-y-1.5 ${i?"grid-cols-[minmax(0,1fr)_auto_28px_28px]":"grid-cols-[28px_minmax(0,1fr)_auto_28px_28px]"}"
+            class="grid items-end gap-x-1 gap-y-1.5 ${s?"grid-cols-[minmax(0,1fr)_auto_28px_28px]":"grid-cols-[28px_minmax(0,1fr)_auto_28px_28px]"}"
           >
-            {/* Plus button */}
+            
             <button
               type="button"
               aria-label="${e?"添加附件与数据源":"Add attachments and sources"}"
               class="plus-btn flex size-7 shrink-0 items-center justify-center justify-self-start text-ink-3 transition-colors duration-150 hover:bg-hover hover:text-ink cursor-pointer ${t?"rounded-full":"rounded-[8px]"} ${"plus"===this._menu?"bg-hover text-ink":""}"
-              style="grid-column-start: 1; grid-row-start: ${i?"2":"1"};"
+              style="grid-column-start: 1; grid-row-start: ${s?"2":"1"};"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
 
-            {/* Input textarea */}
+            
             <textarea
               rows="1"
               placeholder="${e?"输入消息…":"Write a message…"}"
               aria-label="${e?"提示词输入框":"Prompt"}"
               class="min-h-7 min-w-0 w-full resize-none bg-transparent px-1 py-[5px] text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-3"
               style="
-                grid-column: ${i?"1 / -1":"2"};
+                grid-column: ${s?"1 / -1":"2"};
                 grid-row-start: 1;
               "
             >${this._draft}</textarea>
 
-            {/* Model Picker button */}
+            
             <button
               type="button"
               aria-label="${e?"选择模型":"Choose model"}"
               class="model-picker-btn flex h-7 shrink-0 items-center gap-1 px-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink cursor-pointer ${t?"rounded-full":"rounded-[8px]"}"
-              style="grid-column-start: ${i?"2":"3"}; grid-row-start: ${i?"2":"1"};"
+              style="grid-column-start: ${s?"2":"3"}; grid-row-start: ${s?"2":"1"};"
             >
               <span>${this._model.name}</span>
               <span class="text-ink-3">
@@ -1123,27 +1123,27 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               </span>
             </button>
 
-            {/* Dictation button */}
+            
             <button
               type="button"
               aria-label="${e?"听写":"Dictation"}"
               class="mic-btn flex size-7 shrink-0 items-center justify-center transition-colors duration-150 cursor-pointer ${t?"rounded-full":"rounded-[8px]"} ${this._listening?"bg-accent-tint text-accent-ink":"text-ink-3 hover:bg-hover hover:text-ink"}"
-              style="grid-column-start: ${i?"3":"4"}; grid-row-start: ${i?"2":"1"};"
+              style="grid-column-start: ${s?"3":"4"}; grid-row-start: ${s?"2":"1"};"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3" />
               </svg>
             </button>
 
-            {/* Send button */}
+            
             <button
               type="button"
               aria-label="${e?"发送":"Send"}"
               ${!n?"disabled":""}
               class="send-btn flex size-7 shrink-0 items-center justify-center transition-all duration-200 ${t?"rounded-full":"rounded-[8px]"}"
               style="
-                grid-column-start: ${i?"4":"5"};
-                grid-row-start: ${i?"2":"1"};
+                grid-column-start: ${s?"4":"5"};
+                grid-row-start: ${s?"2":"1"};
                 background: ${n?"var(--ink)":"var(--line-strong)"};
                 color: ${n?"var(--surface)":"var(--ink-2)"};
                 cursor: ${n?"pointer":"default"};
@@ -1156,7 +1156,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `);let r=this.shadowRoot?.querySelector("textarea"),o=this.shadowRoot?.querySelector(".plus-btn"),a=this.shadowRoot?.querySelector(".model-picker-btn"),l=this.shadowRoot?.querySelector(".mic-btn"),d=this.shadowRoot?.querySelector(".send-btn");r&&(r.addEventListener("input",e=>this._handleInput(e.target.value)),r.addEventListener("keydown",e=>{"Enter"!==e.key||e.shiftKey||(e.preventDefault(),this.send())})),o&&o.addEventListener("click",()=>{this._modelOpen=!1,this._menu="plus"===this._menu?null:"plus",this.render()}),a&&a.addEventListener("click",()=>{this._menu=null,this._modelOpen=!this._modelOpen,this.render()}),l&&l.addEventListener("click",()=>{this._listening=!this._listening,this._listening&&(this._draft=e?"对比开心果口味周末销量与去年同期":"Compare pistachio weekends to last summer"),this.render()}),d&&d.addEventListener("click",()=>this.send()),this.shadowRoot?.querySelectorAll(".menu-item").forEach(e=>{e.addEventListener("click",()=>{let t=Number(e.getAttribute("data-idx"));this._selectItem(s[t])})}),this.shadowRoot?.querySelectorAll(".model-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-model"),n=M.find(e=>e.key===t);n&&this._selectModel(n)})}),this.shadowRoot?.querySelectorAll("[data-remove]").forEach(e=>{e.addEventListener("click",t=>{t.stopPropagation();let n=Number(e.getAttribute("data-remove"));this._attachments.splice(n,1),this.render()})})}}"u">typeof customElements&&!customElements.get("nai-prompt-bar")&&customElements.define("nai-prompt-bar",Z);let A=[{key:"flavors",labelEn:"Flavors",labelZh:"风味"},{key:"suppliers",labelEn:"Suppliers",labelZh:"供应商"}];class R extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._phase="done",this._draft="",this._tab="flavors",this._submitted=""}onMount(){this._submitted=this.isZh?"对比薄荷巧克力与去年同期销量":"Compare mint chip to last summer"}setTab(e){this._tab=e,this.render()}send(){this._draft.trim()&&(this._submitted=this._draft.trim(),this._draft="",this._phase="sent",this.render(),this.registerTimeout(()=>{this._phase="reply1",this.render()},500),this.registerTimeout(()=>{this._phase="reply2",this.render()},1900),this.registerTimeout(()=>{this._phase="done",this.render()},3100))}render(){let e=this.isZh,t="idle"!==this._phase,n=this._draft.trim().length>0,i=(e,t,n,i,s,r=!1)=>`
+    `);let r=this.shadowRoot?.querySelector("textarea"),o=this.shadowRoot?.querySelector(".plus-btn"),a=this.shadowRoot?.querySelector(".model-picker-btn"),l=this.shadowRoot?.querySelector(".mic-btn"),d=this.shadowRoot?.querySelector(".send-btn");r&&(r.addEventListener("input",e=>this._handleInput(e.target.value)),r.addEventListener("keydown",e=>{"Enter"!==e.key||e.shiftKey||(e.preventDefault(),this.send())})),o&&o.addEventListener("click",()=>{this._modelOpen=!1,this._menu="plus"===this._menu?null:"plus",this.render()}),a&&a.addEventListener("click",()=>{this._menu=null,this._modelOpen=!this._modelOpen,this.render()}),l&&l.addEventListener("click",()=>{this._listening=!this._listening,this._listening&&(this._draft=e?"对比开心果口味周末销量与去年同期":"Compare pistachio weekends to last summer"),this.render()}),d&&d.addEventListener("click",()=>this.send()),this.shadowRoot?.querySelectorAll(".menu-item").forEach(e=>{e.addEventListener("click",()=>{let t=Number(e.getAttribute("data-idx"));this._selectItem(i[t])})}),this.shadowRoot?.querySelectorAll(".model-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-model"),n=M.find(e=>e.key===t);n&&this._selectModel(n)})}),this.shadowRoot?.querySelectorAll("[data-remove]").forEach(e=>{e.addEventListener("click",t=>{t.stopPropagation();let n=Number(e.getAttribute("data-remove"));this._attachments.splice(n,1),this.render()})})}}"u">typeof customElements&&!customElements.get("nai-prompt-bar")&&customElements.define("nai-prompt-bar",Z);let A=[{key:"flavors",labelEn:"Flavors",labelZh:"风味"},{key:"suppliers",labelEn:"Suppliers",labelZh:"供应商"}];class R extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._phase="done",this._draft="",this._tab="flavors",this._submitted=""}onMount(){this._submitted=this.isZh?"对比薄荷巧克力与去年同期销量":"Compare mint chip to last summer"}setTab(e){this._tab=e,this.render()}send(){this._draft.trim()&&(this._submitted=this._draft.trim(),this._draft="",this._phase="sent",this.render(),this.registerTimeout(()=>{this._phase="reply1",this.render()},500),this.registerTimeout(()=>{this._phase="reply2",this.render()},1900),this.registerTimeout(()=>{this._phase="done",this.render()},3100))}render(){let e=this.isZh,t="idle"!==this._phase,n=this._draft.trim().length>0,s=(e,t,n,s,i,r=!1)=>`
       <div
         class="flex w-full flex-col gap-1.5 transition-all duration-400"
         style="
@@ -1170,13 +1170,13 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
         <div class="flex items-center gap-1 text-[12px] leading-[1.3]">
           <span class="font-medium text-ink">${e}</span>
           <span class="text-ink-2">${t}</span>
-          <span class="text-ink">${i} ${n}</span>
+          <span class="text-ink">${s} ${n}</span>
         </div>
-        <p class="text-[13px] leading-normal text-ink">${s}</p>
+        <p class="text-[13px] leading-normal text-ink">${i}</p>
       </div>
     `;this.setHtml(`
       <div class="flex h-[288px] w-full max-w-95 flex-col self-start overflow-hidden rounded-[14px] bg-surface shadow-card">
-        {/* header — tabs + actions */}
+        
         <div class="flex shrink-0 items-center justify-between border-b border-line p-1.5">
           <div class="flex items-center">
             ${A.map(t=>`
@@ -1221,7 +1221,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
 
-        {/* conversation — fixed region */}
+        
         <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pt-2.5 pb-1">
           <div class="flex justify-end pl-14">
             <div
@@ -1235,12 +1235,12 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </div>
           </div>
 
-          ${"reply1"===this._phase||"reply2"===this._phase||"done"===this._phase?i(e?"销售历史":"Sales History",e?"风味数据":"Flavor Data","4s",e?"用时":"for",e?"已调取近三年夏季薄荷巧克力的销售数据用于对比。":"Pulled 3 summers of mint chip sales for comparison."):""}
+          ${"reply1"===this._phase||"reply2"===this._phase||"done"===this._phase?s(e?"销售历史":"Sales History",e?"风味数据":"Flavor Data","4s",e?"用时":"for",e?"已调取近三年夏季薄荷巧克力的销售数据用于对比。":"Pulled 3 summers of mint chip sales for comparison."):""}
 
-          ${"reply2"===this._phase||"done"===this._phase?i(e?"对比分析":"Comparison",e?"趋势识别":"Trend Detection","2s",e?"用时":"for",e?"薄荷巧克力销量上涨 12%，周末峰值更加明显。":"Mint chip is up 12% with stronger weekend peaks.","reply2"===this._phase):""}
+          ${"reply2"===this._phase||"done"===this._phase?s(e?"对比分析":"Comparison",e?"趋势识别":"Trend Detection","2s",e?"用时":"for",e?"薄荷巧克力销量上涨 12%，周末峰值更加明显。":"Mint chip is up 12% with stronger weekend peaks.","reply2"===this._phase):""}
         </div>
 
-        {/* composer */}
+        
         <div class="mt-auto shrink-0 p-1.5">
           <div class="composer-box flex cursor-text flex-col gap-2 rounded-control border border-line bg-field p-2.5 transition-colors duration-150">
             <input
@@ -1270,14 +1270,14 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `),this.shadowRoot?.querySelectorAll("[data-tab]").forEach(e=>{e.addEventListener("click",()=>this.setTab(e.getAttribute("data-tab")))});let s=this.shadowRoot?.querySelector("input"),r=this.shadowRoot?.querySelector(".send-btn"),o=this.shadowRoot?.querySelector(".composer-box");s&&(s.addEventListener("input",e=>{this._draft=e.target.value;let t=this._draft.trim().length>0;r&&(r.style.background=t?"var(--ink)":"var(--line-strong)",r.style.color=t?"var(--surface)":"var(--ink-2)",r.style.cursor=t?"pointer":"default",t?r.removeAttribute("disabled"):r.setAttribute("disabled","true"))}),s.addEventListener("keydown",e=>{"Enter"===e.key&&this.send()})),r&&r.addEventListener("click",()=>this.send()),o&&s&&o.addEventListener("click",()=>s.focus())}}customElements.get("nai-chat")||customElements.define("nai-chat",R);let L=[[{t:"export async function ",c:"kw"},{t:"churnBatch",c:"fn"},{t:"() {",c:"dim"}],[{t:"  const ",c:"kw"},{t:"flavor = "},{t:"await ",c:"kw"},{t:"getFlavor",c:"fn"},{t:"(",c:"dim"},{t:'"pistachio"',c:"str"},{t:");",c:"dim"}],[{t:"  const ",c:"kw"},{t:"base = "},{t:"await ",c:"kw"},{t:"dairy."},{t:"fetch",c:"fn"},{t:"({ flavor });",c:"dim"}],[{t:"  await ",c:"kw"},{t:"freezer."},{t:"store",c:"fn"},{t:"(base, { temp: ",c:"dim"},{t:'"-14C"',c:"str"},{t:" });",c:"dim"}],[{t:"  return ",c:"kw"},{t:"base.gallons;"}],[{t:"}",c:"dim"}]],T={kw:"var(--accent-ink)",str:"var(--green)",num:"var(--orange)",fn:"var(--ink)",dim:"var(--ink-3)"},B=`export async function churnBatch() {
+    `),this.shadowRoot?.querySelectorAll("[data-tab]").forEach(e=>{e.addEventListener("click",()=>this.setTab(e.getAttribute("data-tab")))});let i=this.shadowRoot?.querySelector("input"),r=this.shadowRoot?.querySelector(".send-btn"),o=this.shadowRoot?.querySelector(".composer-box");i&&(i.addEventListener("input",e=>{this._draft=e.target.value;let t=this._draft.trim().length>0;r&&(r.style.background=t?"var(--ink)":"var(--line-strong)",r.style.color=t?"var(--surface)":"var(--ink-2)",r.style.cursor=t?"pointer":"default",t?r.removeAttribute("disabled"):r.setAttribute("disabled","true"))}),i.addEventListener("keydown",e=>{"Enter"===e.key&&this.send()})),r&&r.addEventListener("click",()=>this.send()),o&&i&&o.addEventListener("click",()=>i.focus())}}customElements.get("nai-chat")||customElements.define("nai-chat",R);let L=[[{t:"export async function ",c:"kw"},{t:"churnBatch",c:"fn"},{t:"() {",c:"dim"}],[{t:"  const ",c:"kw"},{t:"flavor = "},{t:"await ",c:"kw"},{t:"getFlavor",c:"fn"},{t:"(",c:"dim"},{t:'"pistachio"',c:"str"},{t:");",c:"dim"}],[{t:"  const ",c:"kw"},{t:"base = "},{t:"await ",c:"kw"},{t:"dairy."},{t:"fetch",c:"fn"},{t:"({ flavor });",c:"dim"}],[{t:"  await ",c:"kw"},{t:"freezer."},{t:"store",c:"fn"},{t:"(base, { temp: ",c:"dim"},{t:'"-14C"',c:"str"},{t:" });",c:"dim"}],[{t:"  return ",c:"kw"},{t:"base.gallons;"}],[{t:"}",c:"dim"}]],T={kw:"var(--accent-ink)",str:"var(--green)",num:"var(--orange)",fn:"var(--ink)",dim:"var(--ink-3)"},B=`export async function churnBatch() {
   const flavor = await getFlavor("pistachio");
   const base = await dairy.fetch({ flavor });
   await freezer.store(base, { temp: "-14C" });
   return base.gallons;
 }`;class q extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._count=0,this._copied=!1}onMount(){this._count=0,this._tick()}_tick(){let e=this._count>=L.length;this.registerTimeout(()=>{this._count=this._count>=L.length?0:this._count+1,this.render(),this._tick()},0===this._count?400:e?3200:240)}copy(){navigator.clipboard?.writeText(B).then(()=>{this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1500)})}render(){let e=this.isZh,t=this._count>=L.length;this.setHtml(`
       <div class="w-full max-w-95 overflow-hidden rounded-card bg-surface shadow-card">
-        {/* header */}
+        
         <div class="flex items-center justify-between border-b border-line px-3.5 py-2">
           <span class="flex items-baseline gap-2">
             <span class="filename font-mono text-[12px] font-medium text-ink">churn.ts</span>
@@ -1294,7 +1294,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </button>
         </div>
 
-        {/* code content */}
+        
         <pre class="overflow-x-auto p-3.5 font-mono text-[12.5px] leading-relaxed text-ink [tab-size:2]"><code>${L.slice(0,this._count).map((e,t)=>`
             <div class="flex items-baseline" style="animation: stream-in 300ms ease-out both;">
               <span class="mr-3 w-4 shrink-0 select-none text-right text-[11px] text-ink-3 opacity-50">${t+1}</span>
@@ -1319,10 +1319,10 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
         </div>
 
         <div class="divide-y divide-line">
-          ${this._attachments.map(t=>{let n=I[t.state],i="uploading"===t.state||"parsing"===t.state||"indexing"===t.state,s="pdf"===t.kind?"PDF":"image"===t.kind?"IMG":"WAV";return`
+          ${this._attachments.map(t=>{let n=I[t.state],s="uploading"===t.state||"parsing"===t.state||"indexing"===t.state,i="pdf"===t.kind?"PDF":"image"===t.kind?"IMG":"WAV";return`
               <div class="item flex gap-3 px-4 py-3 ${"failed"===t.state?"bg-red-tint/35":"bg-surface"}">
                 <span class="flex h-8 w-9 shrink-0 items-center justify-center rounded-control border border-line bg-inset font-mono text-[9px] font-semibold text-ink-2">
-                  ${s}
+                  ${i}
                 </span>
                 <div class="min-w-0 flex-1">
                   <div class="flex min-w-0 items-start justify-between gap-3">
@@ -1335,7 +1335,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                     </span>
                   </div>
 
-                  ${i?`
+                  ${s?`
                     <div class="mt-2 flex items-center gap-2.5">
                       <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-field">
                         <span
@@ -1378,7 +1378,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `}).join("")}
         </div>
       </section>
-    `),this.shadowRoot?.querySelectorAll("[data-retry]").forEach(e=>{e.addEventListener("click",()=>this.retry(e.getAttribute("data-retry")))}),this.shadowRoot?.querySelectorAll("[data-remove]").forEach(e=>{e.addEventListener("click",()=>this.remove(e.getAttribute("data-remove")))})}}"u">typeof customElements&&!customElements.get("nai-attachment-queue")&&customElements.define("nai-attachment-queue",P);let N=[{id:"sub-1",nameEn:"Web Researcher",nameZh:"网络检索子 Agent",roleEn:"Information Retrieval",roleZh:"资料检索",model:"gemini-2.5-flash",status:"completed",duration:"1.8s",tokens:"1,420",actionEn:"Indexed 4 documentation pages & RFC specs",actionZh:"已解析 4 篇技术文档与 RFC 规范",logsEn:["query: 'Next.js 16 server action streaming rfc'","fetched: https://nextjs.org/docs/app/building-your-application","extracted: 4 key code samples & contract definitions","returned payload to coordinator"],logsZh:["查询: 'Next.js 16 server action streaming rfc'","抓取: https://nextjs.org/docs/app/building-your-application","提取: 4 段核心代码示例与契约定义","已将检索工件返回至主协调器"]},{id:"sub-2",nameEn:"Schema Architect",nameZh:"架构代码子 Agent",roleEn:"Code Generation",roleZh:"代码生成",model:"claude-3-7-sonnet",status:"running",duration:"3.4s",tokens:"3,890",actionEn:"Synthesizing Prisma schema with relational indexes...",actionZh:"正在合成带有关系索引的 Prisma 数据模型...",logsEn:["analyzed entities: User, Workspace, SubagentSession","drafted models & enum definitions","invoking tool: write_file('prisma/schema.prisma')"],logsZh:["分析实体关系: User, Workspace, SubagentSession","起草数据表与枚举类型定义","调用工具: write_file('prisma/schema.prisma')"]},{id:"sub-3",nameEn:"Security Linter",nameZh:"安全审计子 Agent",roleEn:"Vulnerability Audit",roleZh:"漏洞审计",model:"claude-3-5-haiku",status:"waiting",duration:"—",tokens:"0",actionEn:"Waiting for schema file generation...",actionZh:"等待数据架构文件生成完成...",logsEn:["queued: will scan for SQL injection & unindexed foreign keys"],logsZh:["已入队: 将扫描 SQL 注入风险与未索引的外键"]}];class F extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._expandedId="sub-2"}toggleExpand(e){this._expandedId=this._expandedId===e?null:e,this.render()}render(){let e=this.isZh,t=`
+    `),this.shadowRoot?.querySelectorAll("[data-retry]").forEach(e=>{e.addEventListener("click",()=>this.retry(e.getAttribute("data-retry")))}),this.shadowRoot?.querySelectorAll("[data-remove]").forEach(e=>{e.addEventListener("click",()=>this.remove(e.getAttribute("data-remove")))})}}"u">typeof customElements&&!customElements.get("nai-attachment-queue")&&customElements.define("nai-attachment-queue",P);let N=[{id:"sub-1",nameEn:"Web Researcher",nameZh:"网络检索子 Agent",roleEn:"Information Retrieval",roleZh:"资料检索",model:"gemini-2.5-flash",status:"completed",duration:"1.8s",tokens:"1,420",actionEn:"Indexed 4 documentation pages & RFC specs",actionZh:"已解析 4 篇技术文档与 RFC 规范",logsEn:["query: 'Next.js 16 server action streaming rfc'","fetched: https://nextjs.org/docs/app/building-your-application","extracted: 4 key code samples & contract definitions","returned payload to coordinator"],logsZh:["查询: 'Next.js 16 server action streaming rfc'","抓取: https://nextjs.org/docs/app/building-your-application","提取: 4 段核心代码示例与契约定义","已将检索工件返回至主协调器"]},{id:"sub-2",nameEn:"Schema Architect",nameZh:"架构代码子 Agent",roleEn:"Code Generation",roleZh:"代码生成",model:"claude-3-7-sonnet",status:"running",duration:"3.4s",tokens:"3,890",actionEn:"Synthesizing Prisma schema with relational indexes...",actionZh:"正在合成带有关系索引的 Prisma 数据模型...",logsEn:["analyzed entities: User, Workspace, SubagentSession","drafted models & enum definitions","invoking tool: write_file('prisma/schema.prisma')"],logsZh:["分析实体关系: User, Workspace, SubagentSession","起草数据表与枚举类型定义","调用工具: write_file('prisma/schema.prisma')"]},{id:"sub-3",nameEn:"Security Linter",nameZh:"安全审计子 Agent",roleEn:"Vulnerability Audit",roleZh:"漏洞审计",model:"claude-3-5-haiku",status:"waiting",duration:"—",tokens:"0",actionEn:"Waiting for schema file generation...",actionZh:"等待数据架构文件生成完成...",logsEn:["queued: will scan for SQL injection & unindexed foreign keys"],logsZh:["已入队: 将扫描 SQL 注入风险与未索引的外键"]}];class O extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._expandedId="sub-2"}toggleExpand(e){this._expandedId=this._expandedId===e?null:e,this.render()}render(){let e=this.isZh,t=`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Root Coordinator -->
         <div class="coordinator flex items-center justify-between rounded-control border border-line bg-inset p-3">
@@ -1519,7 +1519,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `;this.setHtml(t),this.shadowRoot.querySelectorAll(".agent-card").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-id");t&&this.toggleExpand(t)})})}}"u">typeof customElements&&!customElements.get("nai-subagent-tree")&&customElements.define("nai-subagent-tree",F);let D=[{id:"lead",name:"lead",roleEn:"Coordinator",roleZh:"协调者",provider:"deepseek",model:"reasoner"},{id:"scout",name:"scout",roleEn:"Research",roleZh:"调研",provider:"deepseek",model:"chat"},{id:"forge",name:"forge",roleEn:"Implementer",roleZh:"实现",provider:"anthropic",model:"sonnet"},{id:"audit",name:"audit",roleEn:"Reviewer",roleZh:"评审",provider:"openai",model:"gpt-5"}],O=[{id:"t1",titleEn:"Map provider rate limits",titleZh:"梳理提供方速率限制",assignee:"scout",dependsOn:[],scopes:["docs/limits.md"]},{id:"t2",titleEn:"Implement retry backoff",titleZh:"实现指数退避重试",assignee:"forge",dependsOn:["t1"],scopes:["src/llm/retry.cs"]},{id:"t3",titleEn:"Add backoff unit tests",titleZh:"补退避策略单元测试",assignee:"forge",dependsOn:["t2"],scopes:["tests/retry.cs"]},{id:"t4",titleEn:"Review & sign off",titleZh:"评审并签收",assignee:"audit",dependsOn:["t2","t3"],scopes:[]}],V={lead:["active","active","active","active","active"],scout:["active","active","active","active","active"],forge:["provisioning","active","active","active","active"],audit:["provisioning","provisioning","active","active","active"]},W=[["in_progress","pending","pending","pending"],["completed","in_progress","pending","pending"],["completed","completed","in_progress","pending"],["completed","completed","completed","in_progress"],["completed","completed","completed","completed"]];class U extends l{static get observedAttributes(){return["lang","auto"]}constructor(){super(),this._tick=0}get autoPlay(){return"false"!==this.getAttribute("auto")}onMount(){this.autoPlay&&this._scheduleNext()}_scheduleNext(){if(!this.autoPlay)return;let e=this._tick>=V.lead.length-1;this.registerTimeout(()=>{this._tick=e?0:this._tick+1,this.render(),this._scheduleNext()},e?4200:2100)}render(){let e=this.isZh,t=this._tick,n=D.filter(e=>"active"===V[e.id][t]).length,i=W[t].filter(e=>"completed"===e).length,s=`
+    `;this.setHtml(t),this.shadowRoot.querySelectorAll(".agent-card").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-id");t&&this.toggleExpand(t)})})}}"u">typeof customElements&&!customElements.get("nai-subagent-tree")&&customElements.define("nai-subagent-tree",O);let D=[{id:"lead",name:"lead",roleEn:"Coordinator",roleZh:"协调者",provider:"deepseek",model:"reasoner"},{id:"scout",name:"scout",roleEn:"Research",roleZh:"调研",provider:"deepseek",model:"chat"},{id:"forge",name:"forge",roleEn:"Implementer",roleZh:"实现",provider:"anthropic",model:"sonnet"},{id:"audit",name:"audit",roleEn:"Reviewer",roleZh:"评审",provider:"openai",model:"gpt-5"}],F=[{id:"t1",titleEn:"Map provider rate limits",titleZh:"梳理提供方速率限制",assignee:"scout",dependsOn:[],scopes:["docs/limits.md"]},{id:"t2",titleEn:"Implement retry backoff",titleZh:"实现指数退避重试",assignee:"forge",dependsOn:["t1"],scopes:["src/llm/retry.cs"]},{id:"t3",titleEn:"Add backoff unit tests",titleZh:"补退避策略单元测试",assignee:"forge",dependsOn:["t2"],scopes:["tests/retry.cs"]},{id:"t4",titleEn:"Review & sign off",titleZh:"评审并签收",assignee:"audit",dependsOn:["t2","t3"],scopes:[]}],V={lead:["active","active","active","active","active"],scout:["active","active","active","active","active"],forge:["provisioning","active","active","active","active"],audit:["provisioning","provisioning","active","active","active"]},W=[["in_progress","pending","pending","pending"],["completed","in_progress","pending","pending"],["completed","completed","in_progress","pending"],["completed","completed","completed","in_progress"],["completed","completed","completed","completed"]];class U extends l{static get observedAttributes(){return["lang","auto"]}constructor(){super(),this._tick=0}get autoPlay(){return"false"!==this.getAttribute("auto")}onMount(){this.autoPlay&&this._scheduleNext()}_scheduleNext(){if(!this.autoPlay)return;let e=this._tick>=V.lead.length-1;this.registerTimeout(()=>{this._tick=e?0:this._tick+1,this.render(),this._scheduleNext()},e?4200:2100)}render(){let e=this.isZh,t=this._tick,n=D.filter(e=>"active"===V[e.id][t]).length,s=W[t].filter(e=>"completed"===e).length,i=`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
         <div class="flex items-center justify-between pb-3">
@@ -1533,19 +1533,19 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </span>
           </div>
           <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
-            ${i}/${O.length} ${e?"任务":"tasks"}
+            ${s}/${F.length} ${e?"任务":"tasks"}
           </span>
         </div>
 
         <!-- Roster -->
         <div class="grid grid-cols-2 gap-1.5">
-          ${D.map(n=>{let i=V[n.id][t],s="lead"===n.id;return`
+          ${D.map(n=>{let s=V[n.id][t],i="lead"===n.id;return`
               <div
-                class="member-card flex items-center justify-between gap-2 rounded-control border px-2.5 py-2 transition-colors duration-300 ${s?"border-line-strong bg-inset":"border-line bg-surface"}"
+                class="member-card flex items-center justify-between gap-2 rounded-control border px-2.5 py-2 transition-colors duration-300 ${i?"border-line-strong bg-inset":"border-line bg-surface"}"
               >
                 <div class="flex items-center gap-2 min-w-0">
                   <span
-                    class="flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold ${s?"bg-ink text-canvas":"bg-field text-ink-2"}"
+                    class="flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold ${i?"bg-ink text-canvas":"bg-field text-ink-2"}"
                   >
                     ${n.name.slice(0,2)}
                   </span>
@@ -1559,12 +1559,12 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                     </span>
                   </div>
                 </div>
-                ${"active"===i?`
+                ${"active"===s?`
           <span class="flex items-center gap-1 rounded-chip bg-green-tint px-1.5 py-px text-[10px] font-medium text-green">
             <span class="size-1 rounded-full bg-green"></span>
             ${e?"已激活":"active"}
           </span>
-        `:"provisioning"===i?`
+        `:"provisioning"===s?`
           <span class="flex items-center gap-1 rounded-chip bg-orange-tint px-1.5 py-px text-[10px] font-medium text-orange">
             <span class="size-1 rounded-full bg-orange animate-pulse"></span>
             ${e?"供给中":"provisioning"}
@@ -1588,7 +1588,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             <span class="font-mono text-[9.5px] text-ink-3">CAS revisions</span>
           </div>
           <div class="flex flex-col gap-1.5">
-            ${O.map((n,i)=>{let s,r=W[t][i],o=n.dependsOn.some(e=>{let n=O.findIndex(t=>t.id===e);return"completed"!==W[t][n]}),a=(s=n.assignee,D.find(e=>e.id===s)),l=1+W.slice(0,t+1).filter(e=>e[i]!==W[0][i]).length;return`
+            ${F.map((n,s)=>{let i,r=W[t][s],o=n.dependsOn.some(e=>{let n=F.findIndex(t=>t.id===e);return"completed"!==W[t][n]}),a=(i=n.assignee,D.find(e=>e.id===i)),l=1+W.slice(0,t+1).filter(e=>e[s]!==W[0][s]).length;return`
                 <div
                   class="task-item flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${"in_progress"===r?"border-accent/40 bg-accent-tint/30":"completed"===r?"border-line bg-surface opacity-75":"border-line bg-surface"}"
                   style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;"
@@ -1641,7 +1641,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <span class="font-mono">Harness.AgentTeams</span>
         </div>
       </div>
-    `;this.setHtml(s)}}"u">typeof customElements&&!customElements.get("nai-agent-teams")&&customElements.define("nai-agent-teams",U);let K=[600,900,2400,1400,2400,600],G='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>';class J extends l{static get observedAttributes(){return["variant","lang","auto"]}constructor(){super(),this._tick=0,this._manualOpen={}}get variant(){return this.getAttribute("variant")||"Capsules"}get autoPlay(){return"false"!==this.getAttribute("auto")}onMount(){this.autoPlay&&this._scheduleNext()}_scheduleNext(){!this.autoPlay||this._tick>=K.length-1||this.registerTimeout(()=>{this._tick=this._tick+1,this.render(),this._scheduleNext()},K[this._tick])}toggleRow(e){let t="index"===e&&2===this._tick,n=this._manualOpen[e]??t;this._manualOpen[e]=!n,this.render()}render(){let e=this.isZh,t=this._tick,n="List"===this.variant,i=t<3?"pending":3===t?"failed":"done",s=(e,t)=>{let n=2*Math.PI*11;return`
+    `;this.setHtml(i)}}"u">typeof customElements&&!customElements.get("nai-agent-teams")&&customElements.define("nai-agent-teams",U);let K=[600,900,2400,1400,2400,600],G='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>';class J extends l{static get observedAttributes(){return["variant","lang","auto"]}constructor(){super(),this._tick=0,this._manualOpen={}}get variant(){return this.getAttribute("variant")||"Capsules"}get autoPlay(){return"false"!==this.getAttribute("auto")}onMount(){this.autoPlay&&this._scheduleNext()}_scheduleNext(){!this.autoPlay||this._tick>=K.length-1||this.registerTimeout(()=>{this._tick=this._tick+1,this.render(),this._scheduleNext()},K[this._tick])}toggleRow(e){let t="index"===e&&2===this._tick,n=this._manualOpen[e]??t;this._manualOpen[e]=!n,this.render()}render(){let e=this.isZh,t=this._tick,n="List"===this.variant,s=t<3?"pending":3===t?"failed":"done",i=(e,t)=>{let n=2*Math.PI*11;return`
         <span class="relative inline-flex shrink-0 items-center justify-center" style="width: 24px; height: 24px;">
           <svg
             width="24" height="24" class="absolute inset-0"
@@ -1663,11 +1663,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <span class="inline-flex h-5.5 items-center rounded-full bg-green-tint px-2 text-[11.5px] font-medium text-green">
             ${e?"已完成":"Completed"}
           </span>
-        `,details:[{label:e?"核对税务与联系人 ID":"Matched tax and contact IDs",meta:"12/12"},{label:e?"标记过期记录":"Flagged stale records",meta:"0"}]},{key:"index",badgeHtml:s(!0,"2"),label:e?"生成自动补货计划清单":"Build reorder task list",amount:e?"7 款 SKU":"7 SKUs",pillHtml:null,details:[{label:e?"读取 POS 导出数据":"Reading POS export",meta:e?"3 个文件":"3 files"},{label:e?"评估缺货断货风险":"Scoring stockout risk",meta:"68%"}]},{key:"draft",badgeHtml:"pending"===i?s(!1,"3"):"failed"===i?r("red",'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>'):r("green",G),label:e?"起草供应商跟进邮件":"Draft supplier emails",amount:e?"2 封草稿":"2 messages",pillHtml:"failed"===i?`
+        `,details:[{label:e?"核对税务与联系人 ID":"Matched tax and contact IDs",meta:"12/12"},{label:e?"标记过期记录":"Flagged stale records",meta:"0"}]},{key:"index",badgeHtml:i(!0,"2"),label:e?"生成自动补货计划清单":"Build reorder task list",amount:e?"7 款 SKU":"7 SKUs",pillHtml:null,details:[{label:e?"读取 POS 导出数据":"Reading POS export",meta:e?"3 个文件":"3 files"},{label:e?"评估缺货断货风险":"Scoring stockout risk",meta:"68%"}]},{key:"draft",badgeHtml:"pending"===s?i(!1,"3"):"failed"===s?r("red",'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>'):r("green",G),label:e?"起草供应商跟进邮件":"Draft supplier emails",amount:e?"2 封草稿":"2 messages",pillHtml:"failed"===s?`
           <span class="inline-flex h-5.5 items-center gap-1.5 rounded-full bg-red-tint px-2 text-[11.5px] font-medium text-red" style="animation: fade-in 200ms ease-out both">
             ${e?"失败重试中":"Failed"} <span style="animation: spin 1.2s linear infinite" class="flex"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg></span>
           </span>
-        `:"done"===i?`
+        `:"done"===s?`
           <span class="inline-flex h-5.5 items-center gap-1.5 rounded-full bg-green-tint px-2 text-[11.5px] font-medium text-green" style="animation: fade-in 200ms ease-out both">
             ${e?"已完成":"Completed"}
           </span>
@@ -1675,14 +1675,14 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       <div
         class="flex w-full max-w-110 flex-col ${n?"gap-0 self-start overflow-hidden rounded-card bg-surface shadow-card":"min-h-[196px] gap-2"}"
       >
-        ${o.map((e,i)=>{let s=this._manualOpen[e.key]??("index"===e.key&&2===t);return`
+        ${o.map((e,s)=>{let i=this._manualOpen[e.key]??("index"===e.key&&2===t);return`
               <div
                 class="self-stretch overflow-hidden transition-[border-radius] duration-300 ${n?"border-b border-line last:border-0":"bg-surface shadow-card"}"
-                style="border-radius: ${n?0:s?14:22}px; animation: fade-up 450ms cubic-bezier(0.23,1,0.32,1) ${80*i}ms both;"
+                style="border-radius: ${n?0:i?14:22}px; animation: fade-up 450ms cubic-bezier(0.23,1,0.32,1) ${80*s}ms both;"
               >
                 <button
                   type="button"
-                  aria-expanded="${s}"
+                  aria-expanded="${i}"
                   data-key="${e.key}"
                   class="row-btn flex h-11 w-full items-center gap-2.5 px-2.5 text-left transition-colors duration-100 hover:bg-hover cursor-pointer"
                 >
@@ -1697,7 +1697,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                 </button>
 
                 <!-- details dropdown -->
-                ${s?`
+                ${i?`
                   <div class="details-box border-t border-line/60 bg-inset/50 px-3 py-2 text-[11.5px] space-y-1">
                     ${e.details.map(e=>`
                       <div class="flex items-center justify-between text-ink-2">
@@ -1710,7 +1710,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               </div>
             `}).join("")}
       </div>
-    `;this.setHtml(a),this.shadowRoot.querySelectorAll(".row-btn").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.toggleRow(t)})})}}"u">typeof customElements&&!customElements.get("nai-task-rows")&&customElements.define("nai-task-rows",J);let Q={think:'<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />',write:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" /></g>',run:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5M12 19h8" /></g>',read:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></g>'},Y=[{icon:"think",labelEn:"Thinking",labelZh:"深度思考",chipEn:"Planning the churn schedule…",chipZh:"正在规划搅拌排期…",mono:!1,detailMono:!1,detail:[{textEn:"Weekend demand carries pistachio, so it churns first.",textZh:"周末需求以开心果口味为主，优先安排搅拌。"},{textEn:"Batch capacity leaves two evening freezer windows.",textZh:"批次产能还留出两个晚间冷冻空档。"}]},{icon:"write",labelEn:"Write 204 lines",labelZh:"写入 204 行",chipEn:"ChurnSchedule.tsx",mono:!0,detailMono:!0,detail:[{textEn:"+ const windows = slots.filter((s) => s.temp <= -12)",tone:"add"},{textEn:'+ return schedule(windows, { hero: "pistachio" })',tone:"add"}]},{icon:"run",labelEn:"Rebuild and verify",labelZh:"重新构建并验证",chipEn:"npm run freeze",mono:!0,detailMono:!0,detail:[{textEn:"✓ built in 1.2s",textZh:"✓ 构建完成，耗时 1.2s"},{textEn:"✓ 34 checks passed",textZh:"✓ 34 项检查通过"}]},{icon:"read",labelEn:"Read image",labelZh:"读取图片",chipEn:"flavor-chart.png",mono:!0,detailMono:!1,detail:[{textEn:"1280 × 720 · line chart, three summers.",textZh:"1280 × 720 · 折线图，横跨三个夏季。"},{textEn:"Mint chip trends up 12% through July.",textZh:"薄荷巧克力口味到 7 月上涨 12%。"}]}],X=[{file:"flavors.css",add:13,del:0},{file:"ChurnSchedule.tsx",add:74,del:41},{file:"menu.ts",add:8,del:2}];class ee extends l{static get observedAttributes(){return["lang","auto"]}constructor(){super(),this._step=0,this._open=!0,this._openRows=new Set}get autoPlay(){return"false"!==this.getAttribute("auto")}onMount(){if(!this.autoPlay){this._step=Y.length+1;return}this._scheduleNext()}_scheduleNext(){if(!this.autoPlay)return;let e=Y.length+1;this._step>=e||this.registerTimeout(()=>{this._step=this._step+1,this.render(),this._scheduleNext()},700)}toggleRun(){this._open=!this._open,this.render()}toggleRow(e){this._openRows.has(e)?this._openRows.delete(e):this._openRows.add(e),this.render()}render(){let e=this.isZh,t=this._step,n=this._open,i=Y.length+1,s=`
+    `;this.setHtml(a),this.shadowRoot.querySelectorAll(".row-btn").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.toggleRow(t)})})}}"u">typeof customElements&&!customElements.get("nai-task-rows")&&customElements.define("nai-task-rows",J);let Q={think:'<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />',write:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" /></g>',run:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5M12 19h8" /></g>',read:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></g>'},Y=[{icon:"think",labelEn:"Thinking",labelZh:"深度思考",chipEn:"Planning the churn schedule…",chipZh:"正在规划搅拌排期…",mono:!1,detailMono:!1,detail:[{textEn:"Weekend demand carries pistachio, so it churns first.",textZh:"周末需求以开心果口味为主，优先安排搅拌。"},{textEn:"Batch capacity leaves two evening freezer windows.",textZh:"批次产能还留出两个晚间冷冻空档。"}]},{icon:"write",labelEn:"Write 204 lines",labelZh:"写入 204 行",chipEn:"ChurnSchedule.tsx",mono:!0,detailMono:!0,detail:[{textEn:"+ const windows = slots.filter((s) => s.temp <= -12)",tone:"add"},{textEn:'+ return schedule(windows, { hero: "pistachio" })',tone:"add"}]},{icon:"run",labelEn:"Rebuild and verify",labelZh:"重新构建并验证",chipEn:"npm run freeze",mono:!0,detailMono:!0,detail:[{textEn:"✓ built in 1.2s",textZh:"✓ 构建完成，耗时 1.2s"},{textEn:"✓ 34 checks passed",textZh:"✓ 34 项检查通过"}]},{icon:"read",labelEn:"Read image",labelZh:"读取图片",chipEn:"flavor-chart.png",mono:!0,detailMono:!1,detail:[{textEn:"1280 × 720 · line chart, three summers.",textZh:"1280 × 720 · 折线图，横跨三个夏季。"},{textEn:"Mint chip trends up 12% through July.",textZh:"薄荷巧克力口味到 7 月上涨 12%。"}]}],X=[{file:"flavors.css",add:13,del:0},{file:"ChurnSchedule.tsx",add:74,del:41},{file:"menu.ts",add:8,del:2}];class ee extends l{static get observedAttributes(){return["lang","auto"]}constructor(){super(),this._step=0,this._open=!0,this._openRows=new Set}get autoPlay(){return"false"!==this.getAttribute("auto")}onMount(){if(!this.autoPlay){this._step=Y.length+1;return}this._scheduleNext()}_scheduleNext(){if(!this.autoPlay)return;let e=Y.length+1;this._step>=e||this.registerTimeout(()=>{this._step=this._step+1,this.render(),this._scheduleNext()},700)}toggleRun(){this._open=!this._open,this.render()}toggleRow(e){this._openRows.has(e)?this._openRows.delete(e):this._openRows.add(e),this.render()}render(){let e=this.isZh,t=this._step,n=this._open,s=Y.length+1,i=`
       <div class="min-h-[220px] w-full max-w-80 pb-1">
         <!-- collapsed run header -->
         <button
@@ -1809,7 +1809,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </div>
 
             <!-- file-diff chips -->
-            ${t>=i?`
+            ${t>=s?`
               <div class="mt-2.5 flex max-w-full flex-wrap gap-1.5 border-t border-line pt-2.5">
                 ${X.map((e,t)=>`
                   <span
@@ -1837,7 +1837,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `;this.setHtml(s),this.shadowRoot.querySelector(".header-btn")?.addEventListener("click",()=>this.toggleRun()),this.shadowRoot.querySelectorAll(".row-btn").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-label");t&&this.toggleRow(t)})})}}"u">typeof customElements&&!customElements.get("nai-tool-chips")&&customElements.define("nai-tool-chips",ee);let et=[{id:"soft",titleEn:"Soft Token Migration",titleZh:"平滑双轨迁移 (推荐)",descEn:"Maintain backward compatibility for v1 JWTs until expiration (7 days).",descZh:"在旧版 JWT 过期（7天）前保持向后兼容，用户无感知过渡。",recommended:!0,tagEn:"Recommended",tagZh:"推荐"},{id:"dual",titleEn:"Dual-Format Verification",titleZh:"双签名格式校验",descEn:"Verify both RSA256 and EdDSA key signatures concurrently at the gateway.",descZh:"在 API 网关同时验证 RSA256 与 EdDSA 密钥签名，保障零停机。",tagEn:"Zero Downtime",tagZh:"零停机"},{id:"revoke",titleEn:"Immediate Session Revocation",titleZh:"立即重置所有会话",descEn:"Flush Redis token store and force all active users to re-authenticate.",descZh:"立即清空 Redis 缓存并强制所有在线用户重新登录认证。",tagEn:"High Security",tagZh:"最高安全性"}];class en extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selectedId="soft",this._customText="",this._isSubmitted=!1}selectOption(e){this._selectedId=e,this.render()}submit(){this._isSubmitted=!0,this.render()}reset(){this._isSubmitted=!1,this._selectedId="soft",this._customText="",this.render()}render(){let e=this.isZh,t=this._isSubmitted,n=this._selectedId,i=this._customText,s="";if("custom"===n)s=i||(e?"自定义指令":"Custom Instruction");else{let t=et.find(e=>e.id===n);s=t?e?t.titleZh:t.titleEn:""}let r=`
+    `;this.setHtml(i),this.shadowRoot.querySelector(".header-btn")?.addEventListener("click",()=>this.toggleRun()),this.shadowRoot.querySelectorAll(".row-btn").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-label");t&&this.toggleRow(t)})})}}"u">typeof customElements&&!customElements.get("nai-tool-chips")&&customElements.define("nai-tool-chips",ee);let et=[{id:"soft",titleEn:"Soft Token Migration",titleZh:"平滑双轨迁移 (推荐)",descEn:"Maintain backward compatibility for v1 JWTs until expiration (7 days).",descZh:"在旧版 JWT 过期（7天）前保持向后兼容，用户无感知过渡。",recommended:!0,tagEn:"Recommended",tagZh:"推荐"},{id:"dual",titleEn:"Dual-Format Verification",titleZh:"双签名格式校验",descEn:"Verify both RSA256 and EdDSA key signatures concurrently at the gateway.",descZh:"在 API 网关同时验证 RSA256 与 EdDSA 密钥签名，保障零停机。",tagEn:"Zero Downtime",tagZh:"零停机"},{id:"revoke",titleEn:"Immediate Session Revocation",titleZh:"立即重置所有会话",descEn:"Flush Redis token store and force all active users to re-authenticate.",descZh:"立即清空 Redis 缓存并强制所有在线用户重新登录认证。",tagEn:"High Security",tagZh:"最高安全性"}];class en extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selectedId="soft",this._customText="",this._isSubmitted=!1}selectOption(e){this._selectedId=e,this.render()}submit(){this._isSubmitted=!0,this.render()}reset(){this._isSubmitted=!1,this._selectedId="soft",this._customText="",this.render()}render(){let e=this.isZh,t=this._isSubmitted,n=this._selectedId,s=this._customText,i="";if("custom"===n)i=s||(e?"自定义指令":"Custom Instruction");else{let t=et.find(e=>e.id===n);i=t?e?t.titleZh:t.titleEn:""}let r=`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card transition-all">
         <!-- Header -->
         <div class="flex items-start justify-between">
@@ -1879,7 +1879,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </div>
             <span class="text-[12.5px] font-medium text-green">
               ${e?"决策已确认：":"Decision Recorded: "}
-              ${s}
+              ${i}
             </span>
             <p class="mt-1 text-[11px] text-ink-2">
               ${e?"智能体已根据所选策略恢复自动执行。":"Agent execution resumed with selected migration policy."}
@@ -1895,15 +1895,15 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
         `:`
           <!-- Selectable Options -->
           <div class="mt-3.5 flex flex-col gap-2">
-            ${et.map(t=>{let i=n===t.id;return`
+            ${et.map(t=>{let s=n===t.id;return`
                 <label
                   data-id="${t.id}"
-                  class="option-label option-item flex items-start gap-3 rounded-control border p-3 transition-all cursor-pointer ${i?"border-accent bg-accent-tint/30 shadow-sm":"border-line bg-surface hover:border-line-strong hover:bg-hover/40"}"
+                  class="option-label option-item flex items-start gap-3 rounded-control border p-3 transition-all cursor-pointer ${s?"border-accent bg-accent-tint/30 shadow-sm":"border-line bg-surface hover:border-line-strong hover:bg-hover/40"}"
                 >
                   <input
                     type="radio"
                     name="clarification-choice"
-                    ${i?"checked":""}
+                    ${s?"checked":""}
                     class="mt-0.5 size-3.5 accent-accent"
                   />
                   <div class="flex flex-col min-w-0 flex-1">
@@ -1932,7 +1932,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             <input
               type="text"
               placeholder="${e?"或直接输入自定义迁移要求...":"Or provide custom migration rules..."}"
-              value="${i}"
+              value="${s}"
               class="custom-input w-full rounded-control border border-line bg-field px-3 py-2 text-[12px] text-ink placeholder:text-ink-3 focus:border-accent focus:bg-surface focus:outline-none transition-colors"
             />
           </div>
@@ -1959,7 +1959,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         `}
       </div>
-    `;if(this.setHtml(r),t)this.shadowRoot.querySelector("#reset-btn")?.addEventListener("click",()=>this.reset());else{this.shadowRoot.querySelectorAll(".option-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-id");t&&this.selectOption(t)})});let e=this.shadowRoot.querySelector(".custom-input");e?.addEventListener("input",e=>{this._customText=e.target.value,e.target.value&&(this._selectedId="custom")}),this.shadowRoot.querySelector("#skip-btn")?.addEventListener("click",()=>{this._selectedId="soft",this.submit()}),this.shadowRoot.querySelector("#submit-btn")?.addEventListener("click",()=>{this.submit()})}}}"u">typeof customElements&&!customElements.get("nai-clarification-card")&&customElements.define("nai-clarification-card",en);let ei=[{model:"GPT-5.2",time:"10:41",answerEn:"Start with retrieval failures: 38% of missed answers share the same stale index.",answerZh:"先排查检索失败：38% 的漏答都指向同一个过期索引。"},{model:"Claude Sonnet 4.6",time:"10:42",answerEn:"The strongest signal is latency. Re-index before changing prompts.",answerZh:"最强信号是延迟。先重建索引，再考虑调整提示词。"},{model:"Gemini 3.1 Pro",time:"10:43",answerEn:"Compare a fresh-index cohort while keeping the prompt unchanged.",answerZh:"对比新索引样本，并保持提示词不变。"}];class es extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._branchIndex=1,this._continuingFrom=null}navigate(e){e<0||e>=ei.length||(this._branchIndex=e,this._continuingFrom=null,this.render())}continueFromCurrent(){this._continuingFrom=this._branchIndex,this.render()}render(){let e=this.isZh,t=this._branchIndex,n=ei[t],i=this._continuingFrom,s=`
+    `;if(this.setHtml(r),t)this.shadowRoot.querySelector("#reset-btn")?.addEventListener("click",()=>this.reset());else{this.shadowRoot.querySelectorAll(".option-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-id");t&&this.selectOption(t)})});let e=this.shadowRoot.querySelector(".custom-input");e?.addEventListener("input",e=>{this._customText=e.target.value,e.target.value&&(this._selectedId="custom")}),this.shadowRoot.querySelector("#skip-btn")?.addEventListener("click",()=>{this._selectedId="soft",this.submit()}),this.shadowRoot.querySelector("#submit-btn")?.addEventListener("click",()=>{this.submit()})}}}"u">typeof customElements&&!customElements.get("nai-clarification-card")&&customElements.define("nai-clarification-card",en);let es=[{model:"GPT-5.2",time:"10:41",answerEn:"Start with retrieval failures: 38% of missed answers share the same stale index.",answerZh:"先排查检索失败：38% 的漏答都指向同一个过期索引。"},{model:"Claude Sonnet 4.6",time:"10:42",answerEn:"The strongest signal is latency. Re-index before changing prompts.",answerZh:"最强信号是延迟。先重建索引，再考虑调整提示词。"},{model:"Gemini 3.1 Pro",time:"10:43",answerEn:"Compare a fresh-index cohort while keeping the prompt unchanged.",answerZh:"对比新索引样本，并保持提示词不变。"}];class ei extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._branchIndex=1,this._continuingFrom=null}navigate(e){e<0||e>=es.length||(this._branchIndex=e,this._continuingFrom=null,this.render())}continueFromCurrent(){this._continuingFrom=this._branchIndex,this.render()}render(){let e=this.isZh,t=this._branchIndex,n=es[t],s=this._continuingFrom,i=`
       <section
         aria-labelledby="message-branches-title"
         class="w-full max-w-lg overflow-hidden rounded-card border border-line bg-surface shadow-card"
@@ -1977,7 +1977,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </p>
           </div>
           <span class="rounded-chip border border-line bg-surface px-2 py-1 font-mono text-[10px] tabular-nums text-ink-2">
-            ${t+1} / ${ei.length}
+            ${t+1} / ${es.length}
           </span>
         </header>
 
@@ -2011,7 +2011,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                 type="button"
                 id="btn-next"
                 aria-label="${e?"下一个分支":"Next branch"}"
-                ${t===ei.length-1?"disabled":""}
+                ${t===es.length-1?"disabled":""}
                 class="flex h-7 w-8 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none cursor-pointer"
               >
                 <span aria-hidden="true">→</span>
@@ -2033,11 +2033,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             aria-live="polite"
             class="mt-2 min-h-4 text-right text-[10.5px] font-medium text-accent-ink"
           >
-            ${null===i?"":e?`正从分支 ${i+1} 继续`:`Continuing from branch ${i+1}`}
+            ${null===s?"":e?`正从分支 ${s+1} 继续`:`Continuing from branch ${s+1}`}
           </p>
         </div>
       </section>
-    `;this.setHtml(s),this.shadowRoot.querySelector("#btn-prev")?.addEventListener("click",()=>this.navigate(this._branchIndex-1)),this.shadowRoot.querySelector("#btn-next")?.addEventListener("click",()=>this.navigate(this._branchIndex+1)),this.shadowRoot.querySelector("#btn-continue")?.addEventListener("click",()=>this.continueFromCurrent())}}"u">typeof customElements&&!customElements.get("nai-message-branches")&&customElements.define("nai-message-branches",es);let er=[{id:"system",labelEn:"System & Directives",labelZh:"系统指令与安全约束",tokens:4200,color:"var(--accent)",badgeColor:"bg-accent-tint text-accent-ink",descEn:"Base system instructions, developer constraints, and safety guidelines.",descZh:"基础系统提示词、开发者约束与安全合规守则。"},{id:"rag",labelEn:"RAG & Retrieved Docs",labelZh:"RAG 检索增强知识",tokens:28400,color:"var(--green)",badgeColor:"bg-green-tint text-green",descEn:"12 code chunks and 3 architectural design docs injected via semantic search.",descZh:"语义搜索注入的 12 个代码切片与 3 份架构设计文档。"},{id:"history",labelEn:"Conversation History",labelZh:"会话上下文历史",tokens:16850,color:"var(--orange)",badgeColor:"bg-orange-tint text-orange",descEn:"14 previous conversation turns including user prompts and code diffs.",descZh:"前 14 轮对话交互，包含用户指令与代码差异记录。"},{id:"tools",labelEn:"Tool Outputs & Traces",labelZh:"工具调用输出与追踪",tokens:9350,color:"var(--ink-2)",badgeColor:"bg-hover-2 text-ink-2",descEn:"Terminal stdout, ripgrep search results, and linter diagnostics.",descZh:"终端标准输出、ripgrep 搜索结果与 linter 诊断信息。"}];class eo extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._segments=JSON.parse(JSON.stringify(er)),this._activeSegmentId=null,this._isPruned=!1}handlePruneHistory(){this._isPruned?(this._segments=JSON.parse(JSON.stringify(er)),this._isPruned=!1):(this._segments=this._segments.map(e=>"history"===e.id?{...e,tokens:Math.round(.45*e.tokens)}:"tools"===e.id?{...e,tokens:Math.round(.3*e.tokens)}:e),this._isPruned=!0),this.render()}setActiveSegment(e){this._activeSegmentId=e,this.render()}render(){let e=this.isZh,t=this._segments,n=this._activeSegmentId,i=this._isPruned,s=t.reduce((e,t)=>e+t.tokens,0),r=(s/128e3*100).toFixed(1),o=(s/1e6*3).toFixed(4),a=`
+    `;this.setHtml(i),this.shadowRoot.querySelector("#btn-prev")?.addEventListener("click",()=>this.navigate(this._branchIndex-1)),this.shadowRoot.querySelector("#btn-next")?.addEventListener("click",()=>this.navigate(this._branchIndex+1)),this.shadowRoot.querySelector("#btn-continue")?.addEventListener("click",()=>this.continueFromCurrent())}}"u">typeof customElements&&!customElements.get("nai-message-branches")&&customElements.define("nai-message-branches",ei);let er=[{id:"system",labelEn:"System & Directives",labelZh:"系统指令与安全约束",tokens:4200,color:"var(--accent)",badgeColor:"bg-accent-tint text-accent-ink",descEn:"Base system instructions, developer constraints, and safety guidelines.",descZh:"基础系统提示词、开发者约束与安全合规守则。"},{id:"rag",labelEn:"RAG & Retrieved Docs",labelZh:"RAG 检索增强知识",tokens:28400,color:"var(--green)",badgeColor:"bg-green-tint text-green",descEn:"12 code chunks and 3 architectural design docs injected via semantic search.",descZh:"语义搜索注入的 12 个代码切片与 3 份架构设计文档。"},{id:"history",labelEn:"Conversation History",labelZh:"会话上下文历史",tokens:16850,color:"var(--orange)",badgeColor:"bg-orange-tint text-orange",descEn:"14 previous conversation turns including user prompts and code diffs.",descZh:"前 14 轮对话交互，包含用户指令与代码差异记录。"},{id:"tools",labelEn:"Tool Outputs & Traces",labelZh:"工具调用输出与追踪",tokens:9350,color:"var(--ink-2)",badgeColor:"bg-hover-2 text-ink-2",descEn:"Terminal stdout, ripgrep search results, and linter diagnostics.",descZh:"终端标准输出、ripgrep 搜索结果与 linter 诊断信息。"}];class eo extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._segments=JSON.parse(JSON.stringify(er)),this._activeSegmentId=null,this._isPruned=!1}handlePruneHistory(){this._isPruned?(this._segments=JSON.parse(JSON.stringify(er)),this._isPruned=!1):(this._segments=this._segments.map(e=>"history"===e.id?{...e,tokens:Math.round(.45*e.tokens)}:"tools"===e.id?{...e,tokens:Math.round(.3*e.tokens)}:e),this._isPruned=!0),this.render()}setActiveSegment(e){this._activeSegmentId=e,this.render()}render(){let e=this.isZh,t=this._segments,n=this._activeSegmentId,s=this._isPruned,i=t.reduce((e,t)=>e+t.tokens,0),r=(i/128e3*100).toFixed(1),o=(i/1e6*3).toFixed(4),a=`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
         <div class="flex items-center justify-between pb-3">
@@ -2062,7 +2062,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
-              ${i?e?"恢复完整上下文":"Restore Context":e?"精简历史":"Prune History"}
+              ${s?e?"恢复完整上下文":"Restore Context":e?"精简历史":"Prune History"}
             </button>
           </div>
         </div>
@@ -2071,7 +2071,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
         <div class="mt-1">
           <div class="flex items-baseline justify-between text-[11.5px]">
             <span class="font-mono tabular-nums text-ink">
-              ${s.toLocaleString()}{" "}
+              ${i.toLocaleString()}{" "}
               <span class="text-ink-3">/ ${128e3.toLocaleString()} tokens</span>
             </span>
             <span class="font-mono font-medium tabular-nums text-ink-2">
@@ -2081,15 +2081,15 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
           <!-- Segmented Bar -->
           <div class="mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full bg-field p-0.5">
-            ${t.map(e=>{let t=e.tokens/128e3*100,i=n===e.id;return`
+            ${t.map(e=>{let t=e.tokens/128e3*100,s=n===e.id;return`
                   <div
                     data-id="${e.id}"
                     class="segment-bar h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 cursor-pointer"
                     style="
                       width: ${t}%;
                       background-color: ${e.color};
-                      opacity: ${n&&!i?.45:1};
-                      transform: ${i?"scaleY(1.2)":"scaleY(1)"};
+                      opacity: ${n&&!s?.45:1};
+                      transform: ${s?"scaleY(1.2)":"scaleY(1)"};
                     "
                   ></div>
                 `}).join("")}
@@ -2098,10 +2098,10 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
         <!-- Segment Breakdown Rows -->
         <div class="mt-4 flex flex-col divide-y divide-line/60">
-          ${t.map(t=>{let i=n===t.id,r=(t.tokens/s*100).toFixed(0);return`
+          ${t.map(t=>{let s=n===t.id,r=(t.tokens/i*100).toFixed(0);return`
                 <div
                   data-id="${t.id}"
-                  class="segment-row flex items-center justify-between py-2.5 px-2 -mx-2 rounded-control transition-colors cursor-pointer ${i?"bg-hover":"hover:bg-hover/60"}"
+                  class="segment-row flex items-center justify-between py-2.5 px-2 -mx-2 rounded-control transition-colors cursor-pointer ${s?"bg-hover":"hover:bg-hover/60"}"
                 >
                   <div class="flex items-center gap-2.5 min-w-0">
                     <span
@@ -2138,7 +2138,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <span class="font-mono">Claude 3.7 Sonnet</span>
         </div>
       </div>
-    `;this.setHtml(a),this.shadowRoot.querySelector("#btn-prune")?.addEventListener("click",()=>this.handlePruneHistory()),this.shadowRoot.querySelectorAll(".segment-bar, .segment-row").forEach(e=>{e.addEventListener("mouseenter",()=>{let t=e.getAttribute("data-id");t&&this.setActiveSegment(t)}),e.addEventListener("mouseleave",()=>{this.setActiveSegment(null)})})}}"u">typeof customElements&&!customElements.get("nai-context-window")&&customElements.define("nai-context-window",eo);let ea=[{id:"mem-1",category:"preference",textEn:"Prefers functional React 19 components with Tailwind v4 and CSS variables.",textZh:"偏好使用 React 19 函数式组件、Tailwind v4 及原生 CSS 变量设计系统。",confidence:98,updatedAtEn:"2h ago",updatedAtZh:"2小时前",pinned:!0},{id:"mem-2",category:"rule",textEn:"Never print raw database connection strings or JWT secret keys to logs.",textZh:"严禁在控制台或日志中打印未经脱敏的数据库连接串或 JWT 密钥。",confidence:99,updatedAtEn:"Yesterday",updatedAtZh:"昨天",pinned:!0},{id:"mem-3",category:"preference",textEn:"Favors hairline elevation borders (1px) over saturated drop shadows.",textZh:"倾向使用 1px 发丝边框质感替代浓重饱和的投影阴影（Kumo 极简风）。",confidence:94,updatedAtEn:"3d ago",updatedAtZh:"3天前"},{id:"mem-4",category:"fact",textEn:"Project uses Turborepo monorepo structure with apps/web and packages/ui.",textZh:"项目采用 Turborepo Monorepo 架构，核心源码位于 apps/web 与 packages/ui。",confidence:88,updatedAtEn:"5d ago",updatedAtZh:"5天前"}];class el extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._memories=JSON.parse(JSON.stringify(ea)),this._filter="all",this._query=""}setFilter(e){this._filter=e,this.render()}setQuery(e){this._query=e,this.render()}handleDelete(e){this._memories=this._memories.filter(t=>t.id!==e),this.render()}handleTogglePin(e){this._memories=this._memories.map(t=>t.id===e?{...t,pinned:!t.pinned}:t),this.render()}handleAddFact(){this._memories=[{id:`mem-${Date.now()}`,category:"preference",textEn:"Always provide TypeScript types for tool parameters.",textZh:"始终为 Tool 参数提供完整的 TypeScript 类型注解与 Zod 校验。",confidence:100,updatedAtEn:"Just now",updatedAtZh:"刚刚"},...this._memories],this.render()}render(){let e=this.isZh,t=this._filter,n=this._query,i=this._memories,s=i.filter(i=>{if("all"!==t&&i.category!==t)return!1;let s=e?i.textZh:i.textEn;return!n||!!s.toLowerCase().includes(n.toLowerCase())}),r=`
+    `;this.setHtml(a),this.shadowRoot.querySelector("#btn-prune")?.addEventListener("click",()=>this.handlePruneHistory()),this.shadowRoot.querySelectorAll(".segment-bar, .segment-row").forEach(e=>{e.addEventListener("mouseenter",()=>{let t=e.getAttribute("data-id");t&&this.setActiveSegment(t)}),e.addEventListener("mouseleave",()=>{this.setActiveSegment(null)})})}}"u">typeof customElements&&!customElements.get("nai-context-window")&&customElements.define("nai-context-window",eo);let ea=[{id:"mem-1",category:"preference",textEn:"Prefers functional React 19 components with Tailwind v4 and CSS variables.",textZh:"偏好使用 React 19 函数式组件、Tailwind v4 及原生 CSS 变量设计系统。",confidence:98,updatedAtEn:"2h ago",updatedAtZh:"2小时前",pinned:!0},{id:"mem-2",category:"rule",textEn:"Never print raw database connection strings or JWT secret keys to logs.",textZh:"严禁在控制台或日志中打印未经脱敏的数据库连接串或 JWT 密钥。",confidence:99,updatedAtEn:"Yesterday",updatedAtZh:"昨天",pinned:!0},{id:"mem-3",category:"preference",textEn:"Favors hairline elevation borders (1px) over saturated drop shadows.",textZh:"倾向使用 1px 发丝边框质感替代浓重饱和的投影阴影（Kumo 极简风）。",confidence:94,updatedAtEn:"3d ago",updatedAtZh:"3天前"},{id:"mem-4",category:"fact",textEn:"Project uses Turborepo monorepo structure with apps/web and packages/ui.",textZh:"项目采用 Turborepo Monorepo 架构，核心源码位于 apps/web 与 packages/ui。",confidence:88,updatedAtEn:"5d ago",updatedAtZh:"5天前"}];class el extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._memories=JSON.parse(JSON.stringify(ea)),this._filter="all",this._query=""}setFilter(e){this._filter=e,this.render()}setQuery(e){this._query=e,this.render()}handleDelete(e){this._memories=this._memories.filter(t=>t.id!==e),this.render()}handleTogglePin(e){this._memories=this._memories.map(t=>t.id===e?{...t,pinned:!t.pinned}:t),this.render()}handleAddFact(){this._memories=[{id:`mem-${Date.now()}`,category:"preference",textEn:"Always provide TypeScript types for tool parameters.",textZh:"始终为 Tool 参数提供完整的 TypeScript 类型注解与 Zod 校验。",confidence:100,updatedAtEn:"Just now",updatedAtZh:"刚刚"},...this._memories],this.render()}render(){let e=this.isZh,t=this._filter,n=this._query,s=this._memories,i=s.filter(s=>{if("all"!==t&&s.category!==t)return!1;let i=e?s.textZh:s.textEn;return!n||!!i.toLowerCase().includes(n.toLowerCase())}),r=`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
         <div class="flex items-center justify-between pb-3">
@@ -2155,7 +2155,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
 
           <span class="font-mono text-[11px] text-ink-3">
-            ${i.length} ${e?"条已存记忆":1===i.length?"stored fact":"stored facts"}
+            ${s.length} ${e?"条已存记忆":1===s.length?"stored fact":"stored facts"}
           </span>
         </div>
 
@@ -2185,11 +2185,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
         <!-- Memory Cards List -->
         <div class="mt-3 flex flex-col gap-2">
-          ${0===s.length?`
+          ${0===i.length?`
             <div class="rounded-control border border-dashed border-line p-6 text-center text-[12px] text-ink-3">
               ${e?"当前筛选条件下无记忆项。":"No memories match the current filter."}
             </div>
-          `:s.map(t=>`
+          `:i.map(t=>`
             <div
               class="group relative flex items-start justify-between gap-2.5 rounded-control border border-line bg-inset/40 p-3 hover:border-line-strong hover:bg-hover/30 transition-all"
             >
@@ -2311,7 +2311,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         `).join("")}
       </div>
-    `;this.setHtml(n)}}"u">typeof customElements&&!customElements.get("nai-context-cards")&&customElements.define("nai-context-cards",ed);let ec=[{id:"spill-1",sourceTool:"fs.search_ripgrep",originalTokens:48500,compactedTokens:820,diskPath:"spill/ripgrep_ast_results.json",sizeBytes:"1.4 MB",spilledAtEn:"4m ago",spilledAtZh:"4分钟前"},{id:"spill-2",sourceTool:"shell.git_diff_full",originalTokens:86200,compactedTokens:1450,diskPath:"spill/git_diff_refactor_v2.patch",sizeBytes:"2.8 MB",spilledAtEn:"12m ago",spilledAtZh:"12分钟前"}];class ep extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._hydratedId=null}handleHydrate(e){this._hydratedId=this._hydratedId===e?null:e,this.render()}render(){let e=this.isZh,t=this._hydratedId,n=ec.reduce((e,t)=>e+(t.originalTokens-t.compactedTokens),0),i=`
+    `;this.setHtml(n)}}"u">typeof customElements&&!customElements.get("nai-context-cards")&&customElements.define("nai-context-cards",ed);let ec=[{id:"spill-1",sourceTool:"fs.search_ripgrep",originalTokens:48500,compactedTokens:820,diskPath:"spill/ripgrep_ast_results.json",sizeBytes:"1.4 MB",spilledAtEn:"4m ago",spilledAtZh:"4分钟前"},{id:"spill-2",sourceTool:"shell.git_diff_full",originalTokens:86200,compactedTokens:1450,diskPath:"spill/git_diff_refactor_v2.patch",sizeBytes:"2.8 MB",spilledAtEn:"12m ago",spilledAtZh:"12分钟前"}];class ep extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._hydratedId=null}handleHydrate(e){this._hydratedId=this._hydratedId===e?null:e,this.render()}render(){let e=this.isZh,t=this._hydratedId,n=ec.reduce((e,t)=>e+(t.originalTokens-t.compactedTokens),0),s=`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
         <div class="flex items-center justify-between pb-3 border-b border-line">
@@ -2362,7 +2362,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
         <!-- Spilled Files List -->
         <div class="mt-3.5 flex flex-col gap-2">
-          ${ec.map(n=>{let i=t===n.id;return`
+          ${ec.map(n=>{let s=t===n.id;return`
               <div
                 class="rounded-control border border-line bg-surface p-3 hover:border-line-strong transition-all"
               >
@@ -2394,11 +2394,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                     data-id="${n.id}"
                     class="btn-hydrate rounded-control border border-line bg-field px-2 py-1 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer shrink-0"
                   >
-                    ${i?e?"收起原文":"Hide Raw":e?"按需水合":"Hydrate"}
+                    ${s?e?"收起原文":"Hide Raw":e?"按需水合":"Hydrate"}
                   </button>
                 </div>
 
-                ${i?`
+                ${s?`
                   <div class="hydrate-preview mt-2.5 border-t border-line/60 pt-2 font-mono text-[10.5px] text-ink-2">
                     <div class="rounded bg-page p-2 leading-relaxed text-ink-3">
                       ${e?"[水合片段预览: 48,500 token 原始输出已从 Harness.Spill.Local 磁盘缓存加载。原始 SHA256: 4d89a0b12...]":"[Hydrated snippet: 48,500 tokens offloaded to Harness.Spill.Local storage. Original hash: sha256:4d89a0b12...]"}
@@ -2409,7 +2409,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `}).join("")}
         </div>
       </div>
-    `;this.setHtml(i),this.shadowRoot.querySelectorAll(".btn-hydrate").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-id");t&&this.handleHydrate(t)})})}}"u">typeof customElements&&!customElements.get("nai-context-spillover")&&customElements.define("nai-context-spillover",ep);let eh=[{type:"turn/start",depth:0,tone:"accent",opens:"turn",summaryEn:"Turn 3 begins",summaryZh:"第 3 轮开始",meta:"user prompt"},{type:"request/header",depth:1,tone:"dim",summaryEn:"deepseek-reasoner · 128k",summaryZh:"deepseek-reasoner · 128k",meta:"41,208 tok"},{type:"step/start",depth:1,tone:"muted",opens:"step",summaryEn:"Step 1",summaryZh:"步骤 1"},{type:"assistant/message",depth:2,tone:"green",summaryEn:"Let me check the job registry…",summaryZh:"先检查作业注册表…",meta:"stream"},{type:"tool/call",depth:2,tone:"orange",summaryEn:"job.list",summaryZh:"job.list",meta:"call_9f2a"},{type:"tool/result",depth:2,tone:"orange",summaryEn:"3 running · 1 killed",summaryZh:"3 个运行中 · 1 个已终止",meta:"82ms"},{type:"step/end",depth:1,tone:"muted",closes:"step",summaryEn:"Step 1 closed",summaryZh:"步骤 1 闭合",meta:"1.2s"},{type:"step/start",depth:1,tone:"muted",opens:"step",summaryEn:"Step 2",summaryZh:"步骤 2"},{type:"assistant/message",depth:2,tone:"green",summaryEn:"Restarting the telemetry export…",summaryZh:"正在重启遥测导出任务…",meta:"stream"},{type:"tool/call",depth:2,tone:"orange",summaryEn:"job.start",summaryZh:"job.start",meta:"call_b771"},{type:"tool/result",depth:2,tone:"orange",summaryEn:"job-4f8c · Running",summaryZh:"job-4f8c · 运行中",meta:"134ms"},{type:"step/end",depth:1,tone:"muted",closes:"step",summaryEn:"Step 2 closed",summaryZh:"步骤 2 闭合",meta:"0.9s"},{type:"assistant/message",depth:1,tone:"green",summaryEn:"Done — the export job is back up.",summaryZh:"完成 — 导出任务已恢复。"},{type:"turn/end",depth:0,tone:"accent",closes:"turn",summaryEn:"Turn 3 · completed",summaryZh:"第 3 轮 · 已完成",meta:"2 steps · 2 calls"}],eu={accent:"bg-accent",green:"bg-green",orange:"bg-orange",muted:"bg-ink-3",dim:"bg-line-strong"},ex={accent:"bg-accent-tint text-accent-ink",green:"bg-green-tint text-green",orange:"bg-orange-tint text-orange",muted:"bg-hover-2/60 text-ink-2",dim:"bg-field text-ink-3"};class eg extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._visible=0}onMount(){this._visible=0,this._scheduleNext()}onUnmount(){this._visible=0}_scheduleNext(){if(this._visible<eh.length){let e=0===this._visible?500:620;this.registerTimeout(()=>{this._visible++,this.render(),this._scheduleNext()},e)}else this.registerTimeout(()=>{this._visible=0,this.render(),this._scheduleNext()},3600)}render(){let e=this.isZh,t=this._visible>=eh.length,n=eh.slice(0,this._visible),i=!1,s=!1,r=n.map(e=>{"turn"===e.opens&&(i=!0),"step"===e.opens&&(s=!0);let t={turn:i,step:s};return"step"===e.closes&&(s=!1),"turn"===e.closes&&(i=!1,s=!1),t}),o=`
+    `;this.setHtml(s),this.shadowRoot.querySelectorAll(".btn-hydrate").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-id");t&&this.handleHydrate(t)})})}}"u">typeof customElements&&!customElements.get("nai-context-spillover")&&customElements.define("nai-context-spillover",ep);let eh=[{type:"turn/start",depth:0,tone:"accent",opens:"turn",summaryEn:"Turn 3 begins",summaryZh:"第 3 轮开始",meta:"user prompt"},{type:"request/header",depth:1,tone:"dim",summaryEn:"deepseek-reasoner · 128k",summaryZh:"deepseek-reasoner · 128k",meta:"41,208 tok"},{type:"step/start",depth:1,tone:"muted",opens:"step",summaryEn:"Step 1",summaryZh:"步骤 1"},{type:"assistant/message",depth:2,tone:"green",summaryEn:"Let me check the job registry…",summaryZh:"先检查作业注册表…",meta:"stream"},{type:"tool/call",depth:2,tone:"orange",summaryEn:"job.list",summaryZh:"job.list",meta:"call_9f2a"},{type:"tool/result",depth:2,tone:"orange",summaryEn:"3 running · 1 killed",summaryZh:"3 个运行中 · 1 个已终止",meta:"82ms"},{type:"step/end",depth:1,tone:"muted",closes:"step",summaryEn:"Step 1 closed",summaryZh:"步骤 1 闭合",meta:"1.2s"},{type:"step/start",depth:1,tone:"muted",opens:"step",summaryEn:"Step 2",summaryZh:"步骤 2"},{type:"assistant/message",depth:2,tone:"green",summaryEn:"Restarting the telemetry export…",summaryZh:"正在重启遥测导出任务…",meta:"stream"},{type:"tool/call",depth:2,tone:"orange",summaryEn:"job.start",summaryZh:"job.start",meta:"call_b771"},{type:"tool/result",depth:2,tone:"orange",summaryEn:"job-4f8c · Running",summaryZh:"job-4f8c · 运行中",meta:"134ms"},{type:"step/end",depth:1,tone:"muted",closes:"step",summaryEn:"Step 2 closed",summaryZh:"步骤 2 闭合",meta:"0.9s"},{type:"assistant/message",depth:1,tone:"green",summaryEn:"Done — the export job is back up.",summaryZh:"完成 — 导出任务已恢复。"},{type:"turn/end",depth:0,tone:"accent",closes:"turn",summaryEn:"Turn 3 · completed",summaryZh:"第 3 轮 · 已完成",meta:"2 steps · 2 calls"}],eu={accent:"bg-accent",green:"bg-green",orange:"bg-orange",muted:"bg-ink-3",dim:"bg-line-strong"},ex={accent:"bg-accent-tint text-accent-ink",green:"bg-green-tint text-green",orange:"bg-orange-tint text-orange",muted:"bg-hover-2/60 text-ink-2",dim:"bg-field text-ink-3"};class eg extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._visible=0}onMount(){this._visible=0,this._scheduleNext()}onUnmount(){this._visible=0}_scheduleNext(){if(this._visible<eh.length){let e=0===this._visible?500:620;this.registerTimeout(()=>{this._visible++,this.render(),this._scheduleNext()},e)}else this.registerTimeout(()=>{this._visible=0,this.render(),this._scheduleNext()},3600)}render(){let e=this.isZh,t=this._visible>=eh.length,n=eh.slice(0,this._visible),s=!1,i=!1,r=n.map(e=>{"turn"===e.opens&&(s=!0),"step"===e.opens&&(i=!0);let t={turn:s,step:i};return"step"===e.closes&&(i=!1),"turn"===e.closes&&(s=!1,i=!1),t}),o=`
       .bg-accent\\/35 { background-color: color-mix(in srgb, var(--accent, #0285ff) 35%, transparent); }
       .bg-hover-2\\/60 { background-color: color-mix(in srgb, var(--hover-2, #e7e9eb) 60%, transparent); }
       .bg-inset\\/50 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 50%, transparent); }
@@ -2421,7 +2421,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .border-\\[1\\.5px\\] { border-width: 1.5px; }
     `;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full ${t?"bg-green":"bg-accent animate-pulse"}"></span>
@@ -2435,25 +2435,25 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
 
-        {/* Timeline */}
+        
         <div class="timeline relative flex min-h-[304px] flex-col gap-[3px] rounded-control border border-line bg-inset/50 p-3">
-          ${n.map((i,s)=>{let o=r[s],a=s===n.length-1;return`
+          ${n.map((s,i)=>{let o=r[i],a=i===n.length-1;return`
                 <div
                   class="relative flex items-center gap-2.5 rounded-chip px-1.5 py-[5px]"
-                  style="padding-left: ${6+22*i.depth}px; animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both; ${a&&!t?"background: var(--hover);":""}"
+                  style="padding-left: ${6+22*s.depth}px; animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both; ${a&&!t?"background: var(--hover);":""}"
                 >
                   ${o.turn?'<span aria-hidden="true" class="absolute top-0 bottom-0 w-px bg-accent/35" style="left: 12px;"></span>':""}
-                  ${i.depth>=1&&o.step?'<span aria-hidden="true" class="absolute top-0 bottom-0 w-px bg-line-strong" style="left: 34px;"></span>':""}
-                  ${i.closes?`<span aria-hidden="true" class="absolute size-[7px] rounded-full border-[1.5px] ${"turn"===i.closes?"border-accent bg-accent-tint":"border-line-strong bg-surface"}" style="left: ${12+22*("turn"!==i.closes)-3}px;"></span>`:""}
+                  ${s.depth>=1&&o.step?'<span aria-hidden="true" class="absolute top-0 bottom-0 w-px bg-line-strong" style="left: 34px;"></span>':""}
+                  ${s.closes?`<span aria-hidden="true" class="absolute size-[7px] rounded-full border-[1.5px] ${"turn"===s.closes?"border-accent bg-accent-tint":"border-line-strong bg-surface"}" style="left: ${12+22*("turn"!==s.closes)-3}px;"></span>`:""}
 
-                  <span class="size-1.5 shrink-0 rounded-full ${eu[i.tone]}"></span>
-                  <code class="shrink-0 rounded-chip px-1.5 py-px font-mono text-[10px] ${ex[i.tone]}">
-                    ${i.type}
+                  <span class="size-1.5 shrink-0 rounded-full ${eu[s.tone]}"></span>
+                  <code class="shrink-0 rounded-chip px-1.5 py-px font-mono text-[10px] ${ex[s.tone]}">
+                    ${s.type}
                   </code>
                   <span class="min-w-0 flex-1 truncate text-[11.5px] text-ink-2">
-                    ${e?i.summaryZh:i.summaryEn}
+                    ${e?s.summaryZh:s.summaryEn}
                   </span>
-                  ${i.meta?`<span class="shrink-0 font-mono text-[9.5px] tabular-nums text-ink-3">${i.meta}</span>`:""}
+                  ${s.meta?`<span class="shrink-0 font-mono text-[9.5px] tabular-nums text-ink-3">${s.meta}</span>`:""}
                 </div>
               `}).join("")}
 
@@ -2470,7 +2470,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           `:""}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${e?"括号结构: turn ⊃ step ⊃ tool/call":"Brackets: turn ⊃ step ⊃ tool/call"}
@@ -2478,7 +2478,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <span class="font-mono">agent/loop \xb7 durable</span>
         </div>
       </div>
-    `,o)}}"u">typeof customElements&&!customElements.get("nai-turn-lifecycle")&&customElements.define("nai-turn-lifecycle",eg);let em={id:"m1",kind:"followup",textEn:"also verify the rollout gate",textZh:"顺便验证一下灰度发布门禁"},eb={id:"m2",kind:"steer",textEn:"use the staging endpoint",textZh:"改用 staging 环境的端点"},ef={id:"m3",kind:"inject",textEn:"fyi: trace dump at /tmp/trace.log",textZh:"备注：trace 已转储到 /tmp/trace.log"},ev=[900,1500,1500,1500,1700,2100,4600];class ek extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._phase=0}onMount(){this._phase=0,this._schedulePhase()}onUnmount(){this._phase=0}_schedulePhase(){let e=ev[this._phase];this.registerTimeout(()=>{this._phase=(this._phase+1)%ev.length,this.render(),this._schedulePhase()},e)}render(){let e=this.isZh,t=this._phase,n=t>=1&&t<5?[em]:[],i=2===t?[eb]:3===t?[eb,ef]:[],s=5===t,r=`
+    `,o)}}"u">typeof customElements&&!customElements.get("nai-turn-lifecycle")&&customElements.define("nai-turn-lifecycle",eg);let em={id:"m1",kind:"followup",textEn:"also verify the rollout gate",textZh:"顺便验证一下灰度发布门禁"},eb={id:"m2",kind:"steer",textEn:"use the staging endpoint",textZh:"改用 staging 环境的端点"},ef={id:"m3",kind:"inject",textEn:"fyi: trace dump at /tmp/trace.log",textZh:"备注：trace 已转储到 /tmp/trace.log"},ev=[900,1500,1500,1500,1700,2100,4600];class ek extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._phase=0}onMount(){this._phase=0,this._schedulePhase()}onUnmount(){this._phase=0}_schedulePhase(){let e=ev[this._phase];this.registerTimeout(()=>{this._phase=(this._phase+1)%ev.length,this.render(),this._schedulePhase()},e)}render(){let e=this.isZh,t=this._phase,n=t>=1&&t<5?[em]:[],s=2===t?[eb]:3===t?[eb,ef]:[],i=5===t,r=`
       .border-accent\\/40 { border-color: color-mix(in srgb, var(--accent, #0285ff) 40%, transparent); }
       .bg-accent-tint\\/40 { background-color: color-mix(in srgb, var(--accent-tint, #e9f3ff) 40%, transparent); }
       .border-orange\\/40 { border-color: color-mix(in srgb, var(--orange, #ef720c) 40%, transparent); }
@@ -2494,17 +2494,17 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .tracking-wider { letter-spacing: 0.05em; }
     `;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header — driver state */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span
-              class="flex size-2 rounded-full transition-colors duration-300 ${s?"bg-ink-3":"bg-accent animate-pulse"}"
+              class="flex size-2 rounded-full transition-colors duration-300 ${i?"bg-ink-3":"bg-accent animate-pulse"}"
             ></span>
             <h3 class="text-[13px] font-semibold text-ink">
               ${e?"双队列收件箱":"Agent Inbox"}
             </h3>
             <span class="rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
-              ${s?e?"空闲":"idle":e?"运行中":"running"}
+              ${i?e?"空闲":"idle":e?"运行中":"running"}
             </span>
           </div>
           <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
@@ -2512,9 +2512,9 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
 
-        {/* Queue lanes */}
+        
         <div class="grid grid-cols-2 gap-2">
-          {/* NextTurn lane */}
+          
           <div class="lane flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
             <div class="flex items-center justify-between px-1 pb-1.5">
               <span class="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -2542,7 +2542,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </div>
           </div>
 
-          {/* NextStep lane */}
+          
           <div class="lane flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
             <div class="flex items-center justify-between px-1 pb-1.5">
               <span class="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -2553,7 +2553,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               </span>
             </div>
             <div class="flex flex-1 flex-col gap-1">
-              ${0===i.length?`<span class="flex flex-1 items-center justify-center rounded-chip border border-dashed border-line text-[10px] text-ink-3">${e?"空":"empty"}</span>`:i.map(t=>`
+              ${0===s.length?`<span class="flex flex-1 items-center justify-center rounded-chip border border-dashed border-line text-[10px] text-ink-3">${e?"空":"empty"}</span>`:s.map(t=>`
                     <div
                       class="rounded-chip px-2 py-1.5 ${"inject"===t.kind?"border border-dashed border-line-strong bg-surface":"border border-orange/40 bg-orange-tint/40"}"
                       style="animation: pop-in 260ms cubic-bezier(0.23,1,0.32,1) both;"
@@ -2573,7 +2573,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
 
-        {/* Step boundary claim indicator */}
+        
         <div
           class="mt-2 flex items-center gap-2 rounded-control border px-2.5 py-2 transition-all duration-500 ${t>=4?"border-green/40 bg-green-tint/40":"border-line bg-inset/40"}"
         >
@@ -2593,11 +2593,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           `:""}
         </div>
 
-        {/* Delivery methods */}
+        
         <div class="mt-3 grid grid-cols-4 gap-1.5">
-          ${[{name:"Send",descEn:"owns send",descZh:"独占发送",style:"border-line bg-field text-ink-2"},{name:"Followup",descEn:"→ turn+wake",descZh:"→ 下轮+唤醒",style:"border-accent/40 bg-accent-tint/40 text-accent-ink"},{name:"Steer",descEn:"→ step+wake",descZh:"→ 边界+唤醒",style:"border-orange/40 bg-orange-tint/40 text-orange"},{name:"Inject",descEn:"→ step, silent",descZh:"→ 边界,静默",style:"border-dashed border-line-strong bg-surface text-ink-3"}].map((n,i)=>`
+          ${[{name:"Send",descEn:"owns send",descZh:"独占发送",style:"border-line bg-field text-ink-2"},{name:"Followup",descEn:"→ turn+wake",descZh:"→ 下轮+唤醒",style:"border-accent/40 bg-accent-tint/40 text-accent-ink"},{name:"Steer",descEn:"→ step+wake",descZh:"→ 边界+唤醒",style:"border-orange/40 bg-orange-tint/40 text-orange"},{name:"Inject",descEn:"→ step, silent",descZh:"→ 边界,静默",style:"border-dashed border-line-strong bg-surface text-ink-3"}].map((n,s)=>`
               <div
-                class="method-card flex flex-col items-center gap-0.5 rounded-chip border px-1 py-1.5 transition-all duration-300 ${n.style} ${1===i&&1===t||2===i&&2===t||3===i&&3===t?"ring-2 ring-accent/40 scale-105":""}"
+                class="method-card flex flex-col items-center gap-0.5 rounded-chip border px-1 py-1.5 transition-all duration-300 ${n.style} ${1===s&&1===t||2===s&&2===t||3===s&&3===t?"ring-2 ring-accent/40 scale-105":""}"
                 ${"Inject"===n.name?'style="border-style: dashed;"':""}
               >
                 <span class="font-mono text-[10px] font-semibold">${n.name}</span>
@@ -2606,7 +2606,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `).join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${t>=5?e?"空闲后 NextTurn 唤醒驱动，开启第 3 轮":"NextTurn wakes the driver into turn 3":e?"所有 mutation 归一化为 splice 事件":"Every mutation folds into a splice event"}
@@ -2614,7 +2614,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <span class="font-mono">agent/inbox/spliced</span>
         </div>
       </div>
-    `,r)}}"u">typeof customElements&&!customElements.get("nai-agent-inbox")&&customElements.define("nai-agent-inbox",ek);let ew=[{name:"secret-scrub",matcher:"*",decision:"allow",latencyMs:4},{name:"workspace-guard",matcher:"fs.*",decision:"ask",reasonEn:"writes outside declared scopes",reasonZh:"写入超出声明的 write scopes",latencyMs:11},{name:"rate-limiter",matcher:"*",decision:"allow",latencyMs:2}],ey={deny:0,ask:1,block:2,allow:3},e$={allow:{chip:"bg-green-tint text-green",dot:"bg-green",labelEn:"allow",labelZh:"允许"},ask:{chip:"bg-orange-tint text-orange",dot:"bg-orange",labelEn:"ask",labelZh:"询问"},deny:{chip:"bg-red-tint text-red",dot:"bg-red",labelEn:"deny",labelZh:"拒绝"},block:{chip:"bg-accent-tint text-accent-ink",dot:"bg-accent",labelEn:"block",labelZh:"阻断"}},e_=["SessionStart","UserPrompt","ToolPre","ToolPost","Stop","Subagent"],eE=[700,750,750,750,1400,1400,3800];class eS extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._phase=0}onMount(){this._phase=0,this._schedulePhase()}onUnmount(){this._phase=0}_schedulePhase(){let e=eE[this._phase];this.registerTimeout(()=>{this._phase=(this._phase+1)%eE.length,this.render(),this._schedulePhase()},e)}render(){let e=this.isZh,t=this._phase,n=Math.max(0,Math.min(t,ew.length)),i=t>=4?t>=5?"allow":ew.map(e=>e.decision).sort((e,t)=>ey[e]-ey[t])[0]??"allow":null,s=`
+    `,r)}}"u">typeof customElements&&!customElements.get("nai-agent-inbox")&&customElements.define("nai-agent-inbox",ek);let ew=[{name:"secret-scrub",matcher:"*",decision:"allow",latencyMs:4},{name:"workspace-guard",matcher:"fs.*",decision:"ask",reasonEn:"writes outside declared scopes",reasonZh:"写入超出声明的 write scopes",latencyMs:11},{name:"rate-limiter",matcher:"*",decision:"allow",latencyMs:2}],ey={deny:0,ask:1,block:2,allow:3},e$={allow:{chip:"bg-green-tint text-green",dot:"bg-green",labelEn:"allow",labelZh:"允许"},ask:{chip:"bg-orange-tint text-orange",dot:"bg-orange",labelEn:"ask",labelZh:"询问"},deny:{chip:"bg-red-tint text-red",dot:"bg-red",labelEn:"deny",labelZh:"拒绝"},block:{chip:"bg-accent-tint text-accent-ink",dot:"bg-accent",labelEn:"block",labelZh:"阻断"}},e_=["SessionStart","UserPrompt","ToolPre","ToolPost","Stop","Subagent"],eE=[700,750,750,750,1400,1400,3800];class eS extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._phase=0}onMount(){this._phase=0,this._schedulePhase()}onUnmount(){this._phase=0}_schedulePhase(){let e=eE[this._phase];this.registerTimeout(()=>{this._phase=(this._phase+1)%eE.length,this.render(),this._schedulePhase()},e)}render(){let e=this.isZh,t=this._phase,n=Math.max(0,Math.min(t,ew.length)),s=t>=4?t>=5?"allow":ew.map(e=>e.decision).sort((e,t)=>ey[e]-ey[t])[0]??"allow":null,i=`
       .border-accent\\/50 { border-color: color-mix(in srgb, var(--accent, #0285ff) 50%, transparent); }
       .border-green\\/40 { border-color: color-mix(in srgb, var(--green, #189a4d) 40%, transparent); }
       .border-orange\\/40 { border-color: color-mix(in srgb, var(--orange, #ef720c) 40%, transparent); }
@@ -2628,7 +2628,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .py-px { padding-top: 1px; padding-bottom: 1px; }
     `;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full bg-accent animate-pulse"></span>
@@ -2642,7 +2642,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           <span class="font-mono text-[10.5px] text-ink-3">Harness.Hooks</span>
         </div>
 
-        {/* Hook points strip */}
+        
         <div class="flex flex-wrap gap-1">
           ${e_.map(e=>`
             <span
@@ -2653,7 +2653,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           `).join("")}
         </div>
 
-        {/* The tool call being inspected */}
+        
         <div class="mt-3 flex items-center gap-2 rounded-control border border-line bg-inset px-2.5 py-2">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
             <path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3 3.7-3.7z" />
@@ -2665,15 +2665,15 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
 
-        {/* Pipeline: hooks evaluating in sequence */}
+        
         <div class="mt-3 flex min-h-[132px] flex-col gap-1.5">
-          ${ew.map((t,i)=>{let s=i<n,r=e$[t.decision];return`
+          ${ew.map((t,s)=>{let i=s<n,r=e$[t.decision];return`
               <div
-                class="hook-item flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${s?"border-line bg-surface":"border-line/60 bg-inset/40 opacity-45"}"
-                ${s?'style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;"':""}
+                class="hook-item flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${i?"border-line bg-surface":"border-line/60 bg-inset/40 opacity-45"}"
+                ${i?'style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;"':""}
               >
-                {/* connector */}
-                <span class="flex size-1.5 shrink-0 rounded-full ${s?r.dot:"bg-line-strong"}"></span>
+                
+                <span class="flex size-1.5 shrink-0 rounded-full ${i?r.dot:"bg-line-strong"}"></span>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5">
                     <code class="font-mono text-[11px] font-medium text-ink">${t.name}</code>
@@ -2681,13 +2681,13 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                       ${t.matcher}
                     </span>
                   </div>
-                  ${s&&t.reasonEn?`
+                  ${i&&t.reasonEn?`
                     <span class="mt-0.5 block truncate text-[10.5px] text-ink-3">
                       ${e?t.reasonZh:t.reasonEn}
                     </span>
                   `:""}
                 </div>
-                ${s?`
+                ${i?`
                   <span class="shrink-0 rounded-chip px-1.5 py-0.5 font-mono text-[10px] font-medium ${r.chip}">
                     ${e?r.labelZh:r.labelEn}
                   </span>
@@ -2695,15 +2695,15 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                   <span class="shrink-0 font-mono text-[9.5px] text-ink-3">…</span>
                 `}
                 <span class="w-8 shrink-0 text-right font-mono text-[9.5px] tabular-nums text-ink-3">
-                  ${s?`${t.latencyMs}ms`:""}
+                  ${i?`${t.latencyMs}ms`:""}
                 </span>
               </div>
             `}).join("")}
         </div>
 
-        {/* Merge bar */}
+        
         <div
-          class="merge-bar mt-1 flex items-center justify-between gap-2 rounded-control border px-3 py-2.5 transition-all duration-500 ${"allow"===i?"border-green/40 bg-green-tint/50":"ask"===i?"border-orange/40 bg-orange-tint/50":"border-line bg-inset/50"}"
+          class="merge-bar mt-1 flex items-center justify-between gap-2 rounded-control border px-3 py-2.5 transition-all duration-500 ${"allow"===s?"border-green/40 bg-green-tint/50":"ask"===s?"border-orange/40 bg-orange-tint/50":"border-line bg-inset/50"}"
         >
           <div class="flex min-w-0 items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
@@ -2717,19 +2717,19 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               deny &gt; ask &gt; block &gt; allow
             </span>
           </div>
-          ${i?`
+          ${s?`
             <span
-              class="shrink-0 whitespace-nowrap rounded-chip px-2 py-0.5 font-mono text-[10.5px] font-semibold ${e$[i].chip}"
+              class="shrink-0 whitespace-nowrap rounded-chip px-2 py-0.5 font-mono text-[10.5px] font-semibold ${e$[s].chip}"
               style="animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;"
             >
-              ${"allow"===i&&t>=5?e?"allow · 已批准":"allow · approved":e?e$[i].labelZh:e$[i].labelEn}
+              ${"allow"===s&&t>=5?e?"allow · 已批准":"allow · approved":e?e$[s].labelZh:e$[s].labelEn}
             </span>
           `:`
             <span class="font-mono text-[10px] text-ink-3">…</span>
           `}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${t>=4&&t<5?e?"workspace-guard 升级为 ask → 等待人工批准":"workspace-guard escalated to ask → awaiting approval":e?"HookInvokedFact 全部落入 durable log":"Every HookInvokedFact lands in the durable log"}
@@ -2739,7 +2739,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
       </div>
-    `,s)}}"u">typeof customElements&&!customElements.get("nai-hook-pipeline")&&customElements.define("nai-hook-pipeline",eS);let eC=[{turns:{completed:6,blocked:1,aborted:0,error:0,maxTokens:0,open:1},steps:14,toolCalls:19,tokensIn:41208,tokensOut:6893,llmMs:21400,spark:[8,12,18,24,31,41]},{turns:{completed:7,blocked:1,aborted:0,error:0,maxTokens:0,open:1},steps:17,toolCalls:23,tokensIn:50872,tokensOut:8104,llmMs:25800,spark:[8,12,18,24,31,41,51]},{turns:{completed:8,blocked:1,aborted:1,error:0,maxTokens:0,open:1},steps:20,toolCalls:27,tokensIn:59930,tokensOut:9761,llmMs:30100,spark:[8,12,18,24,31,41,51,60]},{turns:{completed:9,blocked:1,aborted:1,error:0,maxTokens:1,open:0},steps:24,toolCalls:31,tokensIn:71455,tokensOut:11290,llmMs:36900,spark:[8,12,18,24,31,41,51,60,71]}];function ej(e){return e>=1e3?`${(e/1e3).toFixed(1)}k`:String(e)}class eM extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._frame=0}onMount(){this._frame=0,this._scheduleFrame()}onUnmount(){this._frame=0}_scheduleFrame(){this._frame<eC.length-1?this.registerTimeout(()=>{this._frame++,this.render(),this._scheduleFrame()},2400):this.registerTimeout(()=>{this._frame=0,this.render(),this._scheduleFrame()},4600)}render(){let e=this.isZh,t=eC[this._frame],n=t.turns.completed+t.turns.blocked+t.turns.aborted+t.turns.error+t.turns.maxTokens+t.turns.open,i=Math.max(...eC[eC.length-1].spark),s=[{key:"completed",labelEn:"completed",labelZh:"完成",value:t.turns.completed,color:"var(--green)"},{key:"blocked",labelEn:"blocked",labelZh:"阻塞",value:t.turns.blocked,color:"var(--orange)"},{key:"aborted",labelEn:"aborted",labelZh:"中止",value:t.turns.aborted,color:"var(--ink-3)"},{key:"error",labelEn:"error",labelZh:"错误",value:t.turns.error,color:"var(--red)"},{key:"maxTokens",labelEn:"max-tokens",labelZh:"达到上限",value:t.turns.maxTokens,color:"#b585e0"},{key:"open",labelEn:"open",labelZh:"进行中",value:t.turns.open,color:"var(--accent)"}],r=[{labelEn:"Turns",labelZh:"轮次",value:String(n)},{labelEn:"Steps",labelZh:"步骤",value:String(t.steps)},{labelEn:"Tool calls",labelZh:"工具调用",value:String(t.toolCalls)},{labelEn:"Tokens in",labelZh:"输入 tokens",value:ej(t.tokensIn)},{labelEn:"Tokens out",labelZh:"输出 tokens",value:ej(t.tokensOut)},{labelEn:"LLM time",labelZh:"LLM 耗时",value:`${(Math.round(t.llmMs/100)/10).toFixed(1)}s`}],o=`
+    `,i)}}"u">typeof customElements&&!customElements.get("nai-hook-pipeline")&&customElements.define("nai-hook-pipeline",eS);let eC=[{turns:{completed:6,blocked:1,aborted:0,error:0,maxTokens:0,open:1},steps:14,toolCalls:19,tokensIn:41208,tokensOut:6893,llmMs:21400,spark:[8,12,18,24,31,41]},{turns:{completed:7,blocked:1,aborted:0,error:0,maxTokens:0,open:1},steps:17,toolCalls:23,tokensIn:50872,tokensOut:8104,llmMs:25800,spark:[8,12,18,24,31,41,51]},{turns:{completed:8,blocked:1,aborted:1,error:0,maxTokens:0,open:1},steps:20,toolCalls:27,tokensIn:59930,tokensOut:9761,llmMs:30100,spark:[8,12,18,24,31,41,51,60]},{turns:{completed:9,blocked:1,aborted:1,error:0,maxTokens:1,open:0},steps:24,toolCalls:31,tokensIn:71455,tokensOut:11290,llmMs:36900,spark:[8,12,18,24,31,41,51,60,71]}];function ej(e){return e>=1e3?`${(e/1e3).toFixed(1)}k`:String(e)}class eM extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._frame=0}onMount(){this._frame=0,this._scheduleFrame()}onUnmount(){this._frame=0}_scheduleFrame(){this._frame<eC.length-1?this.registerTimeout(()=>{this._frame++,this.render(),this._scheduleFrame()},2400):this.registerTimeout(()=>{this._frame=0,this.render(),this._scheduleFrame()},4600)}render(){let e=this.isZh,t=eC[this._frame],n=t.turns.completed+t.turns.blocked+t.turns.aborted+t.turns.error+t.turns.maxTokens+t.turns.open,s=Math.max(...eC[eC.length-1].spark),i=[{key:"completed",labelEn:"completed",labelZh:"完成",value:t.turns.completed,color:"var(--green)"},{key:"blocked",labelEn:"blocked",labelZh:"阻塞",value:t.turns.blocked,color:"var(--orange)"},{key:"aborted",labelEn:"aborted",labelZh:"中止",value:t.turns.aborted,color:"var(--ink-3)"},{key:"error",labelEn:"error",labelZh:"错误",value:t.turns.error,color:"var(--red)"},{key:"maxTokens",labelEn:"max-tokens",labelZh:"达到上限",value:t.turns.maxTokens,color:"#b585e0"},{key:"open",labelEn:"open",labelZh:"进行中",value:t.turns.open,color:"var(--accent)"}],r=[{labelEn:"Turns",labelZh:"轮次",value:String(n)},{labelEn:"Steps",labelZh:"步骤",value:String(t.steps)},{labelEn:"Tool calls",labelZh:"工具调用",value:String(t.toolCalls)},{labelEn:"Tokens in",labelZh:"输入 tokens",value:ej(t.tokensIn)},{labelEn:"Tokens out",labelZh:"输出 tokens",value:ej(t.tokensOut)},{labelEn:"LLM time",labelZh:"LLM 耗时",value:`${(Math.round(t.llmMs/100)/10).toFixed(1)}s`}],o=`
       .bg-inset\\/60 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 60%, transparent); }
       .bg-accent\\/35 { background-color: color-mix(in srgb, var(--accent, #0285ff) 35%, transparent); }
       .size-1\\.5 { width: 6px; height: 6px; }
@@ -2748,7 +2748,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .tracking-wider { letter-spacing: 0.05em; }
     `;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full ${t.turns.open>0?"bg-accent animate-pulse":"bg-green"}"></span>
@@ -2764,7 +2764,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
 
-        {/* Metric tiles */}
+        
         <div class="grid grid-cols-3 gap-1.5">
           ${r.map(t=>`
             <div class="metric-tile rounded-control border border-line bg-inset/60 px-2.5 py-2">
@@ -2776,7 +2776,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           `).join("")}
         </div>
 
-        {/* Turn outcome breakdown */}
+        
         <div class="mt-4">
           <div class="mb-1.5 flex items-center justify-between">
             <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -2785,7 +2785,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             <span class="font-mono text-[9.5px] text-ink-3">turn/end \xb7 six kinds</span>
           </div>
           <div class="flex h-2 w-full overflow-hidden rounded-full bg-field">
-            ${s.map(e=>e.value>0?`
+            ${i.map(e=>e.value>0?`
                 <span
                   class="h-full transition-all duration-700"
                   style="width: ${e.value/n*100}%; background: ${e.color};"
@@ -2794,7 +2794,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               `:"").join("")}
           </div>
           <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-            ${s.map(t=>`
+            ${i.map(t=>`
               <span class="flex items-center gap-1 text-[10px] text-ink-2">
                 <span class="size-1.5 rounded-full" style="background: ${t.color};"></span>
                 ${e?t.labelZh:t.labelEn}
@@ -2804,7 +2804,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
 
-        {/* Token sparkline */}
+        
         <div class="mt-4">
           <div class="mb-1.5 flex items-center justify-between">
             <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -2815,22 +2815,22 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </span>
           </div>
           <div class="spark-container flex h-12 items-end gap-1">
-            ${eC[eC.length-1].spark.map((e,n)=>{let s=t.spark[n];return`
+            ${eC[eC.length-1].spark.map((e,n)=>{let i=t.spark[n];return`
                 <span
-                  class="flex-1 rounded-t-[3px] transition-all duration-700 ${void 0===s?"bg-field":n===t.spark.length-1?"bg-accent":"bg-accent/35"}"
-                  style="height: ${void 0===s?"8%":`${Math.max(8,s/i*100)}%`};"
+                  class="flex-1 rounded-t-[3px] transition-all duration-700 ${void 0===i?"bg-field":n===t.spark.length-1?"bg-accent":"bg-accent/35"}"
+                  style="height: ${void 0===i?"8%":`${Math.max(8,i/s*100)}%`};"
                 ></span>
               `}).join("")}
           </div>
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${e?"投影 = durable 事实的纯折叠":"Projection = pure fold of durable facts"}</span>
           <span class="font-mono">Harness.Session.Stats</span>
         </div>
       </div>
-    `,o)}}"u">typeof customElements&&!customElements.get("nai-session-telemetry")&&customElements.define("nai-session-telemetry",eM);let ez=["w-01","w-02","w-03","w-04"];class eZ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._done=0}onMount(){this._done=0,this._scheduleTick()}onUnmount(){this._done=0}_scheduleTick(){this._done<40?this.registerTimeout(()=>{this._done=Math.min(40,this._done+4),this.render(),this._scheduleTick()},420):this.registerTimeout(()=>{this._done=0,this.render(),this._scheduleTick()},4200)}render(){let e=this.isZh,t=this._done,n=t<40,i=n?Math.min(4,40-t):0,s=Math.round(t/40*100),r=`
+    `,o)}}"u">typeof customElements&&!customElements.get("nai-session-telemetry")&&customElements.define("nai-session-telemetry",eM);let ez=["w-01","w-02","w-03","w-04"];class eZ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._done=0}onMount(){this._done=0,this._scheduleTick()}onUnmount(){this._done=0}_scheduleTick(){this._done<40?this.registerTimeout(()=>{this._done=Math.min(40,this._done+4),this.render(),this._scheduleTick()},420):this.registerTimeout(()=>{this._done=0,this.render(),this._scheduleTick()},4200)}render(){let e=this.isZh,t=this._done,n=t<40,s=n?Math.min(4,40-t):0,i=Math.round(t/40*100),r=`
       .border-accent\\/40 { border-color: color-mix(in srgb, var(--accent, #0285ff) 40%, transparent); }
       .bg-accent-tint\\/25 { background-color: color-mix(in srgb, var(--accent-tint, #e9f3ff) 25%, transparent); }
       .bg-green\\/80 { background-color: color-mix(in srgb, var(--green, #189a4d) 80%, transparent); }
@@ -2843,7 +2843,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .tracking-wider { letter-spacing: 0.05em; }
     `;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full ${n?"bg-accent animate-pulse":"bg-green"}"></span>
@@ -2854,10 +2854,10 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               run/8f2e1a
             </span>
           </div>
-          <span class="font-mono text-[10.5px] tabular-nums text-ink-3">${s}%</span>
+          <span class="font-mono text-[10.5px] tabular-nums text-ink-3">${i}%</span>
         </div>
 
-        {/* Run meta */}
+        
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-inset px-2.5 py-2 font-mono text-[10px] text-ink-3">
           <span class="truncate">
             digest <span class="text-ink-2">sha256:9b7c…e4f1</span>
@@ -2873,18 +2873,18 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
 
-        {/* Concurrency slots */}
+        
         <div class="mt-3 flex flex-col gap-1.5">
-          ${ez.map((s,r)=>{let o=r<i;return`
+          ${ez.map((i,r)=>{let o=r<s;return`
               <div
                 class="slot-row flex items-center gap-2.5 rounded-control border px-2.5 py-1.5 transition-all duration-300 ${o?"border-accent/40 bg-accent-tint/25":"border-line bg-surface"}"
               >
                 <span
                   class="flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[8.5px] font-semibold ${o?"bg-accent text-white":"bg-field text-ink-3"}"
                 >
-                  ${s.slice(-2)}
+                  ${i.slice(-2)}
                 </span>
-                <span class="font-mono text-[10.5px] text-ink-2">${s}</span>
+                <span class="font-mono text-[10.5px] text-ink-2">${i}</span>
                 <div class="min-w-0 flex-1">
                   ${o?`
                     <div class="h-1.5 w-full overflow-hidden rounded-full bg-field">
@@ -2904,7 +2904,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `}).join("")}
         </div>
 
-        {/* Item grid */}
+        
         <div class="mt-4">
           <div class="mb-1.5 flex items-center justify-between">
             <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -2915,24 +2915,24 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </span>
           </div>
           <div class="grid grid-cols-10 gap-1">
-            ${Array.from({length:40},(e,s)=>`
+            ${Array.from({length:40},(e,i)=>`
                 <span
-                  class="item-tile aspect-square w-full rounded-[4px] transition-all duration-300 ${s<t?"bg-green/80":n&&s>=t&&s<t+i?"bg-accent animate-pulse":"bg-field border border-line/60"}"
-                  title="item-${s+1}"
+                  class="item-tile aspect-square w-full rounded-[4px] transition-all duration-300 ${i<t?"bg-green/80":n&&i>=t&&i<t+s?"bg-accent animate-pulse":"bg-field border border-line/60"}"
+                  title="item-${i+1}"
                 ></span>
               `).join("")}
           </div>
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
-            ${n?e?`${i} 个成员并发处理中`:`${i} members in flight`:e?"全部条目处理完成":"All items processed"}
+            ${n?e?`${s} 个成员并发处理中`:`${s} members in flight`:e?"全部条目处理完成":"All items processed"}
           </span>
           <span class="font-mono">Harness.Workflow</span>
         </div>
       </div>
-    `,r)}}"u">typeof customElements&&!customElements.get("nai-workflow-run")&&customElements.define("nai-workflow-run",eZ);let eA=[{id:"before",titleEn:"Before edits",titleZh:"编辑前",time:"10:31",files:["app/page.tsx","components/chat.tsx"],summaryEn:"Clean baseline before the agent changed the chat flow.",summaryZh:"智能体修改聊天流程前的干净基线。"},{id:"edited",titleEn:"Implementation",titleZh:"实现完成",time:"10:38",files:["app/page.tsx","components/chat.tsx","tests/chat.test.tsx"],summaryEn:"Streaming behavior updated and regression coverage added.",summaryZh:"已更新流式交互，并新增回归测试。"},{id:"verified",titleEn:"Verified",titleZh:"验证通过",time:"10:42",files:["tests/chat.test.tsx"],summaryEn:"Checks passed; this is the current execution state.",summaryZh:"检查已通过；这是当前执行状态。"}];class eR extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selected=1,this._current=2,this._confirming=!1,this._announcement=""}selectCheckpoint(e){this._selected=e,this._confirming=!1,this.render()}confirmRestore(){this._current=this._selected,this._confirming=!1;let e=eA[this._selected],t=this.isZh?e.titleZh:e.titleEn;this._announcement=this.isZh?`已恢复“${t}”`:`Restored “${t}”`,this.render()}render(){let e=this.isZh,t=eA[this._selected],n=e?t.titleZh:t.titleEn,i=this._selected===this._current,s=`
+    `,r)}}"u">typeof customElements&&!customElements.get("nai-workflow-run")&&customElements.define("nai-workflow-run",eZ);let eA=[{id:"before",titleEn:"Before edits",titleZh:"编辑前",time:"10:31",files:["app/page.tsx","components/chat.tsx"],summaryEn:"Clean baseline before the agent changed the chat flow.",summaryZh:"智能体修改聊天流程前的干净基线。"},{id:"edited",titleEn:"Implementation",titleZh:"实现完成",time:"10:38",files:["app/page.tsx","components/chat.tsx","tests/chat.test.tsx"],summaryEn:"Streaming behavior updated and regression coverage added.",summaryZh:"已更新流式交互，并新增回归测试。"},{id:"verified",titleEn:"Verified",titleZh:"验证通过",time:"10:42",files:["tests/chat.test.tsx"],summaryEn:"Checks passed; this is the current execution state.",summaryZh:"检查已通过；这是当前执行状态。"}];class eR extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selected=1,this._current=2,this._confirming=!1,this._announcement=""}selectCheckpoint(e){this._selected=e,this._confirming=!1,this.render()}confirmRestore(){this._current=this._selected,this._confirming=!1;let e=eA[this._selected],t=this.isZh?e.titleZh:e.titleEn;this._announcement=this.isZh?`已恢复“${t}”`:`Restored “${t}”`,this.render()}render(){let e=this.isZh,t=eA[this._selected],n=e?t.titleZh:t.titleEn,s=this._selected===this._current,i=`
       .bg-inset\\/45 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 45%, transparent); }
       .border-orange\\/35 { border-color: color-mix(in srgb, var(--orange, #ef720c) 35%, transparent); }
       .grid-cols-\\[12rem_1fr\\] { grid-template-columns: 12rem 1fr; }
@@ -2968,7 +2968,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
         <div class="grid md:grid-cols-[12rem_1fr]">
           <ol class="border-b border-line bg-inset/45 p-3 md:border-r md:border-b-0">
-            ${eA.map((t,n)=>{let i=e?t.titleZh:t.titleEn,s=n===this._current,r=n===this._selected;return`
+            ${eA.map((t,n)=>{let s=e?t.titleZh:t.titleEn,i=n===this._current,r=n===this._selected;return`
                 <li class="relative pb-2 last:pb-0">
                   ${n<eA.length-1?`<span
                           aria-hidden="true"
@@ -2977,21 +2977,21 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                   <button
                     type="button"
                     data-idx="${n}"
-                    aria-label="${e?"选择检查点":"Select checkpoint"} ${i}"
+                    aria-label="${e?"选择检查点":"Select checkpoint"} ${s}"
                     aria-pressed="${r}"
-                    ${s?'aria-current="step"':""}
-                    class="nav-btn relative flex w-full items-start gap-2.5 rounded-control px-2 py-2 text-left transition-colors motion-reduce:transition-none ${r?s?"bg-green-tint":"bg-accent-tint":"hover:bg-hover"}"
+                    ${i?'aria-current="step"':""}
+                    class="nav-btn relative flex w-full items-start gap-2.5 rounded-control px-2 py-2 text-left transition-colors motion-reduce:transition-none ${r?i?"bg-green-tint":"bg-accent-tint":"hover:bg-hover"}"
                   >
                     <span
                       aria-hidden="true"
-                      class="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 ${s?"border-green bg-green":r?"border-accent bg-accent":"border-line-strong bg-surface"}"
+                      class="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 ${i?"border-green bg-green":r?"border-accent bg-accent":"border-line-strong bg-surface"}"
                     ></span>
                     <span class="min-w-0">
                       <span class="block text-[11.5px] font-medium text-ink">
-                        ${i}
+                        ${s}
                       </span>
                       <span class="mt-0.5 block font-mono text-[9.5px] text-ink-3">
-                        ${t.time}${s?` \xb7 ${e?"当前":"current"}`:""}
+                        ${t.time}${i?` \xb7 ${e?"当前":"current"}`:""}
                       </span>
                     </span>
                   </button>
@@ -3060,11 +3060,11 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               <button
                 type="button"
                 id="btn-trigger-restore"
-                aria-label="${i?e?"当前检查点":"Current checkpoint":e?"恢复检查点":"Restore checkpoint"}"
-                ${i?"disabled":""}
+                aria-label="${s?e?"当前检查点":"Current checkpoint":e?"恢复检查点":"Restore checkpoint"}"
+                ${s?"disabled":""}
                 class="mt-3 w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-[10.5px] font-medium text-ink shadow-btn transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3 disabled:shadow-none motion-reduce:transition-none"
               >
-                ${i?e?"当前检查点":"Current checkpoint":e?"恢复到此检查点":"Restore this checkpoint"}
+                ${s?e?"当前检查点":"Current checkpoint":e?"恢复到此检查点":"Restore this checkpoint"}
               </button>
             `}
 
@@ -3078,7 +3078,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </section>
-    `,s),this.shadowRoot.querySelectorAll(".nav-btn").forEach(e=>{e.addEventListener("click",()=>{let t=parseInt(e.getAttribute("data-idx"),10);this.selectCheckpoint(t)})}),this.shadowRoot.querySelector("#btn-trigger-restore")?.addEventListener("click",()=>{this._confirming=!0,this.render()}),this.shadowRoot.querySelector("#btn-cancel-restore")?.addEventListener("click",()=>{this._confirming=!1,this.render()}),this.shadowRoot.querySelector("#btn-confirm-restore")?.addEventListener("click",()=>{this.confirmRestore()})}}"u">typeof customElements&&!customElements.get("nai-checkpoint-timeline")&&customElements.define("nai-checkpoint-timeline",eR);let eL=[{id:"cordis-hmr",name:"Cordis.Hmr",version:"1.0.4",scope:"Kernel",enabled:!0,hmrVersion:3,services:[{name:"IHmrWatcher",provider:"Cordis.Hmr.FileSystemWatcher",consumers:["Harness.Core.AgentLoop","Harness.Skill"],status:"active"}]},{id:"harness-llm-deepseek",name:"Harness.Llm.DeepSeek",version:"0.9.2",scope:"Harness",enabled:!0,hmrVersion:1,services:[{name:"ILlmProvider",provider:"DeepSeekReasoningProvider",consumers:["Harness.Core.AgentLoop","Harness.Compaction"],status:"active"}]},{id:"harness-sandbox-e2b",name:"Harness.Sandbox.E2b",version:"0.8.0",scope:"Harness",enabled:!0,hmrVersion:2,services:[{name:"ISandboxRuntime",provider:"E2bContainerWorker",consumers:["Harness.CodeRuntime.Tools","Harness.Terminal.Tools"],status:"active"}]},{id:"harness-lsp",name:"Harness.Lsp.Stdio",version:"0.5.1",scope:"Extension",enabled:!0,hmrVersion:1,services:[{name:"ILspDiagnosticsService",provider:"OmniSharpStdioBridge",consumers:["Harness.Fs.Tools"],status:"active"}]}];class eT extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._plugins=JSON.parse(JSON.stringify(eL)),this._reloadingId=null}handleToggle(e){this._plugins=this._plugins.map(t=>t.id===e?{...t,enabled:!t.enabled}:t),this.render()}handleTriggerHmr(e){this._reloadingId=e,this.render(),this.registerTimeout(()=>{this._plugins=this._plugins.map(t=>t.id===e?{...t,hmrVersion:t.hmrVersion+1}:t),this._reloadingId=null,this.render()},800)}render(){let e=this.isZh,t=this._plugins.filter(e=>e.enabled).length,n=`
+    `,i),this.shadowRoot.querySelectorAll(".nav-btn").forEach(e=>{e.addEventListener("click",()=>{let t=parseInt(e.getAttribute("data-idx"),10);this.selectCheckpoint(t)})}),this.shadowRoot.querySelector("#btn-trigger-restore")?.addEventListener("click",()=>{this._confirming=!0,this.render()}),this.shadowRoot.querySelector("#btn-cancel-restore")?.addEventListener("click",()=>{this._confirming=!1,this.render()}),this.shadowRoot.querySelector("#btn-confirm-restore")?.addEventListener("click",()=>{this.confirmRestore()})}}"u">typeof customElements&&!customElements.get("nai-checkpoint-timeline")&&customElements.define("nai-checkpoint-timeline",eR);let eL=[{id:"cordis-hmr",name:"Cordis.Hmr",version:"1.0.4",scope:"Kernel",enabled:!0,hmrVersion:3,services:[{name:"IHmrWatcher",provider:"Cordis.Hmr.FileSystemWatcher",consumers:["Harness.Core.AgentLoop","Harness.Skill"],status:"active"}]},{id:"harness-llm-deepseek",name:"Harness.Llm.DeepSeek",version:"0.9.2",scope:"Harness",enabled:!0,hmrVersion:1,services:[{name:"ILlmProvider",provider:"DeepSeekReasoningProvider",consumers:["Harness.Core.AgentLoop","Harness.Compaction"],status:"active"}]},{id:"harness-sandbox-e2b",name:"Harness.Sandbox.E2b",version:"0.8.0",scope:"Harness",enabled:!0,hmrVersion:2,services:[{name:"ISandboxRuntime",provider:"E2bContainerWorker",consumers:["Harness.CodeRuntime.Tools","Harness.Terminal.Tools"],status:"active"}]},{id:"harness-lsp",name:"Harness.Lsp.Stdio",version:"0.5.1",scope:"Extension",enabled:!0,hmrVersion:1,services:[{name:"ILspDiagnosticsService",provider:"OmniSharpStdioBridge",consumers:["Harness.Fs.Tools"],status:"active"}]}];class eT extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._plugins=JSON.parse(JSON.stringify(eL)),this._reloadingId=null}handleToggle(e){this._plugins=this._plugins.map(t=>t.id===e?{...t,enabled:!t.enabled}:t),this.render()}handleTriggerHmr(e){this._reloadingId=e,this.render(),this.registerTimeout(()=>{this._plugins=this._plugins.map(t=>t.id===e?{...t,hmrVersion:t.hmrVersion+1}:t),this._reloadingId=null,this.render()},800)}render(){let e=this.isZh,t=this._plugins.filter(e=>e.enabled).length,n=`
       .bg-inset\\/30 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 30%, transparent); }
       .bg-hover\\/20 { background-color: color-mix(in srgb, var(--hover, #f4f5f6) 20%, transparent); }
       .bg-page\\/50 { background-color: color-mix(in srgb, var(--page, #fafafb) 50%, transparent); }
@@ -3091,7 +3091,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .max-w-\\[180px\\] { max-width: 180px; }
     `;this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -3121,13 +3121,13 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
 
-        {/* Plugin Cards List */}
+        
         <div class="mt-3.5 flex flex-col gap-2.5">
-          ${this._plugins.map(t=>{let n=this._reloadingId===t.id,i="Kernel"===t.scope?"bg-orange-tint text-orange":"Harness"===t.scope?"bg-accent-tint text-accent-ink":"bg-green-tint text-green",s="Kernel"===t.scope?e?"内核":"Kernel":t.scope;return`
+          ${this._plugins.map(t=>{let n=this._reloadingId===t.id,s="Kernel"===t.scope?"bg-orange-tint text-orange":"Harness"===t.scope?"bg-accent-tint text-accent-ink":"bg-green-tint text-green",i="Kernel"===t.scope?e?"内核":"Kernel":t.scope;return`
               <div
                 class="rounded-control border transition-all ${t.enabled?"border-line bg-inset/30 hover:border-line-strong hover:bg-hover/20":"border-line/60 bg-page/50 opacity-60"}"
               >
-                {/* Plugin Header Bar */}
+                
                 <div class="flex items-center justify-between p-3">
                   <div class="flex items-center gap-2 min-w-0">
                     <button
@@ -3143,9 +3143,9 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                       v${t.version}
                     </span>
                     <span
-                      class="rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${i}"
+                      class="rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${s}"
                     >
-                      ${s}
+                      ${i}
                     </span>
                   </div>
 
@@ -3175,7 +3175,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                   </div>
                 </div>
 
-                {/* Service Definitions */}
+                
                 ${t.enabled?`
                   <div class="border-t border-line/60 bg-surface/50 px-3 py-2 text-[11px]">
                     ${t.services.map((t,n)=>`
@@ -3211,13 +3211,13 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `}).join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3.5 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${e?"Harness.Boot 容器已在 84ms 内装配":"Harness.Boot container loaded in 84ms"}</span>
           <span class="font-mono">Cordis v0.10.2</span>
         </div>
       </div>
-    `,n),this.shadowRoot.querySelectorAll("[data-toggle]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-toggle");this.handleToggle(t)})}),this.shadowRoot.querySelectorAll("[data-hmr]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-hmr");this.handleTriggerHmr(t)})})}}"u">typeof customElements&&!customElements.get("nai-cordis-plugin-tree")&&customElements.define("nai-cordis-plugin-tree",eT);let eB=[{id:"strict",nameEn:"Strict Sandboxed",nameZh:"严格沙盒隔离",sandbox:"E2B Cloud",approvalEn:"Strict Prompt",approvalZh:"全量拦截审批",descEn:"Isolated remote container. Prompt user before all file edits, shell commands, and outbound HTTP.",descZh:"在远程隔离容器中执行。任何文件修改、终端命令及外网 HTTP 调用均需用户手动确认。",icon:"shield"},{id:"balanced",nameEn:"Balanced Dev",nameZh:"开发平衡模式",sandbox:"Local Process",approvalEn:"Write-Only Prompt",approvalZh:"仅写操作审批",descEn:"Local sandbox with workspace isolation. Read operations auto-approve; write/exec prompt once.",descZh:"本地沙盒与工作区隔离。读操作自动放行；文件写入与命令执行仅提示一次。",icon:"scale"},{id:"autonomous",nameEn:"Autonomous Agent",nameZh:"全自主执行模式",sandbox:"Local Process",approvalEn:"Autonomous",approvalZh:"完全自主",descEn:"Full automated execution. Retains durable exactly-once audit ledger in SQLite.",descZh:"全自动执行流。在 SQLite 中保留可完整重放的 Exactly-Once 审计账本。",icon:"bolt"}],eq=[{id:"aud-1",action:"fs.write",target:"src/Harness.Core/Session.cs",statusEn:"Approved",statusZh:"已批准",timestamp:"21:48:12",hash:"e4f8a1...3b9c"},{id:"aud-2",action:"shell.exec",target:"dotnet build Harness.slnx",statusEn:"Approved",statusZh:"已批准",timestamp:"21:48:19",hash:"82a0bc...19d4"},{id:"aud-3",action:"fs.read",target:"NuGet.config",statusEn:"Auto-Allowed",statusZh:"自动放行",timestamp:"21:48:22",hash:"6c7d1e...90fa"}];class eH extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selectedPreset="balanced",this._isReplaying=!1,this._replayVerified=!1}handleSelectPreset(e){this._selectedPreset=e,this.render()}handleReplayAudit(){this._isReplaying=!0,this._replayVerified=!1,this.render(),this.registerTimeout(()=>{this._isReplaying=!1,this._replayVerified=!0,this.render()},900)}render(){let e=this.isZh,t=this._selectedPreset,n=this._isReplaying,i=this._replayVerified,s=`
+    `,n),this.shadowRoot.querySelectorAll("[data-toggle]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-toggle");this.handleToggle(t)})}),this.shadowRoot.querySelectorAll("[data-hmr]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-hmr");this.handleTriggerHmr(t)})})}}"u">typeof customElements&&!customElements.get("nai-cordis-plugin-tree")&&customElements.define("nai-cordis-plugin-tree",eT);let eB=[{id:"strict",nameEn:"Strict Sandboxed",nameZh:"严格沙盒隔离",sandbox:"E2B Cloud",approvalEn:"Strict Prompt",approvalZh:"全量拦截审批",descEn:"Isolated remote container. Prompt user before all file edits, shell commands, and outbound HTTP.",descZh:"在远程隔离容器中执行。任何文件修改、终端命令及外网 HTTP 调用均需用户手动确认。",icon:"shield"},{id:"balanced",nameEn:"Balanced Dev",nameZh:"开发平衡模式",sandbox:"Local Process",approvalEn:"Write-Only Prompt",approvalZh:"仅写操作审批",descEn:"Local sandbox with workspace isolation. Read operations auto-approve; write/exec prompt once.",descZh:"本地沙盒与工作区隔离。读操作自动放行；文件写入与命令执行仅提示一次。",icon:"scale"},{id:"autonomous",nameEn:"Autonomous Agent",nameZh:"全自主执行模式",sandbox:"Local Process",approvalEn:"Autonomous",approvalZh:"完全自主",descEn:"Full automated execution. Retains durable exactly-once audit ledger in SQLite.",descZh:"全自动执行流。在 SQLite 中保留可完整重放的 Exactly-Once 审计账本。",icon:"bolt"}],eq=[{id:"aud-1",action:"fs.write",target:"src/Harness.Core/Session.cs",statusEn:"Approved",statusZh:"已批准",timestamp:"21:48:12",hash:"e4f8a1...3b9c"},{id:"aud-2",action:"shell.exec",target:"dotnet build Harness.slnx",statusEn:"Approved",statusZh:"已批准",timestamp:"21:48:19",hash:"82a0bc...19d4"},{id:"aud-3",action:"fs.read",target:"NuGet.config",statusEn:"Auto-Allowed",statusZh:"自动放行",timestamp:"21:48:22",hash:"6c7d1e...90fa"}];class eH extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selectedPreset="balanced",this._isReplaying=!1,this._replayVerified=!1}handleSelectPreset(e){this._selectedPreset=e,this.render()}handleReplayAudit(){this._isReplaying=!0,this._replayVerified=!1,this.render(),this.registerTimeout(()=>{this._isReplaying=!1,this._replayVerified=!0,this.render()},900)}render(){let e=this.isZh,t=this._selectedPreset,n=this._isReplaying,s=this._replayVerified,i=`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
@@ -3245,19 +3245,19 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
         <!-- Preset Selector Grid -->
         <div class="mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-2">
-          ${eB.map(n=>{var i;let s=t===n.id;return`
+          ${eB.map(n=>{var s;let i=t===n.id;return`
               <div
                 data-preset="${n.id}"
-                class="preset-tile preset-item flex flex-col justify-between rounded-control border p-2.5 transition-all cursor-pointer ${s?"border-accent bg-accent-tint/30 shadow-sm ring-1 ring-accent":"border-line bg-inset/40 hover:border-line-strong hover:bg-hover/30"}"
+                class="preset-tile preset-item flex flex-col justify-between rounded-control border p-2.5 transition-all cursor-pointer ${i?"border-accent bg-accent-tint/30 shadow-sm ring-1 ring-accent":"border-line bg-inset/40 hover:border-line-strong hover:bg-hover/30"}"
               >
                 <div>
                   <div class="flex items-center gap-1.5 mb-1">
-                    <span class="flex size-4 items-center justify-center ${s?"text-accent-ink":"text-ink-2"}">
-                      ${"shield"===(i=n.icon)?`
+                    <span class="flex size-4 items-center justify-center ${i?"text-accent-ink":"text-ink-2"}">
+                      ${"shield"===(s=n.icon)?`
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-        `:"scale"===i?`
+        `:"scale"===s?`
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3v18M8 21h8M3 7h4l-3 7a3.5 3.5 0 0 1-4 0l3-7zm14 0h4l-3 7a3.5 3.5 0 0 1-4 0l3-7zM5 7l7-4 7 4" transform="translate(1 0) scale(0.92)" />
           </svg>
@@ -3299,7 +3299,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               <span class="text-[11.5px] font-semibold text-ink">
                 ${e?"可重放审计流水 (Audit Trail)":"Replayable Audit Trail"}
               </span>
-              ${i?`
+              ${s?`
                 <span class="flex items-center gap-0.5 text-green font-mono text-[10px]">
                   ${e?"✓ 校验通过":"✓ Validated"}
                 </span>
@@ -3337,7 +3337,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `;this.setHtml(s),this.shadowRoot.querySelectorAll(".preset-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-preset");t&&this.handleSelectPreset(t)})}),this.shadowRoot.querySelector("#btn-replay-audit")?.addEventListener("click",()=>{this.handleReplayAudit()})}}"u">typeof customElements&&!customElements.get("nai-permission-preset-card")&&customElements.define("nai-permission-preset-card",eH);let eI=[{id:"diag-1",severity:"error",code:"CS0103",messageEn:"The name 'ContextSpilloverService' does not exist in the current context.",messageZh:"当前上下文中不存在名称 'ContextSpilloverService'，缺少对应命名空间引用。",file:"src/Harness.Compaction/Compactor.cs",line:38,col:14},{id:"diag-2",severity:"warning",code:"CS8618",messageEn:"Non-nullable property 'SessionLedger' must contain a non-null value when exiting constructor.",messageZh:"不可为 null 的属性 'SessionLedger' 在退出构造函数时必须包含非 null 值。",file:"src/Harness.Session.Persistence/SqliteSessionStore.cs",line:22,col:29},{id:"diag-3",severity:"warning",code:"CA2000",messageEn:"Dispose objects before losing scope: 'CancellationTokenSource' is never disposed.",messageZh:"在失去作用域前释放对象: 'CancellationTokenSource' 从未被显式 Dispose 释放。",file:"src/Harness.CodeRuntime/WorkerProcess.cs",line:74,col:21}];class eP extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._filter="all",this._diagnostics=JSON.parse(JSON.stringify(eI)),this._fixedIds=[]}setFilter(e){this._filter=e,this.render()}handleFix(e){this._fixedIds.push(e),this.render(),this.registerTimeout(()=>{this._diagnostics=this._diagnostics.filter(t=>t.id!==e),this._fixedIds=this._fixedIds.filter(t=>t!==e),this.render()},600)}render(){let e=this.isZh,t=this._diagnostics.filter(e=>"all"===this._filter||e.severity===this._filter),n=`
+    `;this.setHtml(i),this.shadowRoot.querySelectorAll(".preset-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-preset");t&&this.handleSelectPreset(t)})}),this.shadowRoot.querySelector("#btn-replay-audit")?.addEventListener("click",()=>{this.handleReplayAudit()})}}"u">typeof customElements&&!customElements.get("nai-permission-preset-card")&&customElements.define("nai-permission-preset-card",eH);let eI=[{id:"diag-1",severity:"error",code:"CS0103",messageEn:"The name 'ContextSpilloverService' does not exist in the current context.",messageZh:"当前上下文中不存在名称 'ContextSpilloverService'，缺少对应命名空间引用。",file:"src/Harness.Compaction/Compactor.cs",line:38,col:14},{id:"diag-2",severity:"warning",code:"CS8618",messageEn:"Non-nullable property 'SessionLedger' must contain a non-null value when exiting constructor.",messageZh:"不可为 null 的属性 'SessionLedger' 在退出构造函数时必须包含非 null 值。",file:"src/Harness.Session.Persistence/SqliteSessionStore.cs",line:22,col:29},{id:"diag-3",severity:"warning",code:"CA2000",messageEn:"Dispose objects before losing scope: 'CancellationTokenSource' is never disposed.",messageZh:"在失去作用域前释放对象: 'CancellationTokenSource' 从未被显式 Dispose 释放。",file:"src/Harness.CodeRuntime/WorkerProcess.cs",line:74,col:21}];class eP extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._filter="all",this._diagnostics=JSON.parse(JSON.stringify(eI)),this._fixedIds=[]}setFilter(e){this._filter=e,this.render()}handleFix(e){this._fixedIds.push(e),this.render(),this.registerTimeout(()=>{this._diagnostics=this._diagnostics.filter(t=>t.id!==e),this._fixedIds=this._fixedIds.filter(t=>t!==e),this.render()},600)}render(){let e=this.isZh,t=this._diagnostics.filter(e=>"all"===this._filter||e.severity===this._filter),n=`
       .border-red\\/30 { border-color: color-mix(in srgb, var(--red, #e3474c) 30%, transparent); }
       .border-red\\/50 { border-color: color-mix(in srgb, var(--red, #e3474c) 50%, transparent); }
       .bg-red-tint\\/20 { background-color: color-mix(in srgb, var(--red-tint, #fcecec) 20%, transparent); }
@@ -3352,7 +3352,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .leading-snug { line-height: 1.375; }
     `;this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -3376,7 +3376,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </div>
           </div>
 
-          {/* Filter Pills */}
+          
           <div class="flex rounded-control bg-field p-0.5 text-[11px]">
             ${["all","error","warning"].map(t=>`
                 <button
@@ -3390,7 +3390,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
 
-        {/* Diagnostics List */}
+        
         <div class="mt-3.5 flex flex-col gap-2">
           ${0===t.length?`
             <div class="rounded-control border border-dashed border-line p-6 text-center text-[12px] text-green">
@@ -3432,7 +3432,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
               `}).join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3.5 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${e?"目标框架: .NET 10.0":"Target framework: .NET 10.0"}</span>
           <span class="font-mono">
@@ -3440,7 +3440,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
       </div>
-    `,n),this.shadowRoot.querySelectorAll("[data-tab]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-tab");this.setFilter(t)})}),this.shadowRoot.querySelectorAll("[data-fix]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-fix");this.handleFix(t)})})}}"u">typeof customElements&&!customElements.get("nai-lsp-diagnostics")&&customElements.define("nai-lsp-diagnostics",eP);let eN=[{pid:1402,command:"dotnet run --project src/Harness.Boot",cpuPct:12.4,memMb:240,uptimeEn:"8m 12s",uptimeZh:"8分12秒"},{pid:1489,command:"node ./worker/lsp-bridge.js",cpuPct:3.1,memMb:85,uptimeEn:"6m 40s",uptimeZh:"6分40秒"}];class eF extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._isRunning=!0,this._cpuUsage=15.5,this._memUsage=325}handleRestart(){this._isRunning=!1,this.render(),this.registerTimeout(()=>{this._isRunning=!0,this._cpuUsage=8.2,this._memUsage=212,this.render()},1e3)}render(){let e=this.isZh,t=`
+    `,n),this.shadowRoot.querySelectorAll("[data-tab]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-tab");this.setFilter(t)})}),this.shadowRoot.querySelectorAll("[data-fix]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-fix");this.handleFix(t)})})}}"u">typeof customElements&&!customElements.get("nai-lsp-diagnostics")&&customElements.define("nai-lsp-diagnostics",eP);let eN=[{pid:1402,command:"dotnet run --project src/Harness.Boot",cpuPct:12.4,memMb:240,uptimeEn:"8m 12s",uptimeZh:"8分12秒"},{pid:1489,command:"node ./worker/lsp-bridge.js",cpuPct:3.1,memMb:85,uptimeEn:"6m 40s",uptimeZh:"6分40秒"}];class eO extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._isRunning=!0,this._cpuUsage=15.5,this._memUsage=325}handleRestart(){this._isRunning=!1,this.render(),this.registerTimeout(()=>{this._isRunning=!0,this._cpuUsage=8.2,this._memUsage=212,this.render()},1e3)}render(){let e=this.isZh,t=`
       .bg-inset\\/40 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 40%, transparent); }
       .bg-inset\\/30 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 30%, transparent); }
       .divide-line\\/60 > * + * { border-top-color: color-mix(in srgb, var(--line, #ecedef) 60%, transparent); }
@@ -3449,7 +3449,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .max-w-\\[240px\\] { max-width: 240px; }
     `;this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-green-tint text-green">
@@ -3490,7 +3490,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </button>
         </div>
 
-        {/* Resource Metrics Gauges */}
+        
         <div class="mt-3.5 grid grid-cols-2 gap-2.5">
           <div class="rounded-control border border-line bg-inset/40 p-3">
             <div class="flex items-baseline justify-between">
@@ -3525,7 +3525,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
 
-        {/* Process Table */}
+        
         <div class="mt-3.5 rounded-control border border-line bg-inset/30 p-3">
           <span class="text-[11px] font-semibold text-ink">
             ${e?"活动隔离进程树":"Active Isolated Processes"}
@@ -3549,7 +3549,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </div>
         </div>
       </div>
-    `,t),this.shadowRoot.querySelector("#btn-restart")?.addEventListener("click",()=>{this.handleRestart()})}}"u">typeof customElements&&!customElements.get("nai-sandbox-manager")&&customElements.define("nai-sandbox-manager",eF);let eD=[{id:"job-1",nameEn:"Vector Embeddings Sync & Reindex",nameZh:"向量嵌入同步与全量重索引",cron:"0 */4 * * *",nextRunEn:"In 1h 24m",nextRunZh:"1小时24分后",lastStatusEn:"Success",lastStatusZh:"执行成功",enabled:!0},{id:"job-2",nameEn:"Durable SQLite Session Snapshot",nameZh:"SQLite 会话不可变事实快照",cron:"0 * * * *",nextRunEn:"In 18m",nextRunZh:"18分钟后",lastStatusEn:"Success",lastStatusZh:"执行成功",enabled:!0},{id:"job-3",nameEn:"Telemetry Batch Export & Rollup",nameZh:"遥测遥控日志批量聚合导出",cron:"0 0 * * *",nextRunEn:"At 00:00 UTC",nextRunZh:"今天 00:00 UTC",lastStatusEn:"Running",lastStatusZh:"执行中",enabled:!0}];class eO extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._jobs=JSON.parse(JSON.stringify(eD)),this._triggeringId=null}handleToggle(e){this._jobs=this._jobs.map(t=>t.id===e?{...t,enabled:!t.enabled}:t),this.render()}handleTriggerNow(e){this._triggeringId=e,this.render(),this.registerTimeout(()=>{this._triggeringId=null,this.render()},1200)}render(){let e=this.isZh,t=this._jobs.filter(e=>e.enabled).length,n=`
+    `,t),this.shadowRoot.querySelector("#btn-restart")?.addEventListener("click",()=>{this.handleRestart()})}}"u">typeof customElements&&!customElements.get("nai-sandbox-manager")&&customElements.define("nai-sandbox-manager",eO);let eD=[{id:"job-1",nameEn:"Vector Embeddings Sync & Reindex",nameZh:"向量嵌入同步与全量重索引",cron:"0 */4 * * *",nextRunEn:"In 1h 24m",nextRunZh:"1小时24分后",lastStatusEn:"Success",lastStatusZh:"执行成功",enabled:!0},{id:"job-2",nameEn:"Durable SQLite Session Snapshot",nameZh:"SQLite 会话不可变事实快照",cron:"0 * * * *",nextRunEn:"In 18m",nextRunZh:"18分钟后",lastStatusEn:"Success",lastStatusZh:"执行成功",enabled:!0},{id:"job-3",nameEn:"Telemetry Batch Export & Rollup",nameZh:"遥测遥控日志批量聚合导出",cron:"0 0 * * *",nextRunEn:"At 00:00 UTC",nextRunZh:"今天 00:00 UTC",lastStatusEn:"Running",lastStatusZh:"执行中",enabled:!0}];class eF extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._jobs=JSON.parse(JSON.stringify(eD)),this._triggeringId=null}handleToggle(e){this._jobs=this._jobs.map(t=>t.id===e?{...t,enabled:!t.enabled}:t),this.render()}handleTriggerNow(e){this._triggeringId=e,this.render(),this.registerTimeout(()=>{this._triggeringId=null,this.render()},1200)}render(){let e=this.isZh,t=this._jobs.filter(e=>e.enabled).length,n=`
       .bg-inset\\/40 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 40%, transparent); }
       .bg-hover\\/20 { background-color: color-mix(in srgb, var(--hover, #f4f5f6) 20%, transparent); }
       .bg-page\\/40 { background-color: color-mix(in srgb, var(--page, #fafafb) 40%, transparent); }
@@ -3559,7 +3559,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .py-0\\.2 { padding-top: 1px; padding-bottom: 1px; }
     `;this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -3588,9 +3588,9 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
           </span>
         </div>
 
-        {/* Jobs List */}
+        
         <div class="mt-3.5 flex flex-col gap-2">
-          ${this._jobs.map(t=>{let n=this._triggeringId===t.id,i="Success"===t.lastStatusEn?"bg-green-tint text-green":"Failed"===t.lastStatusEn?"bg-red-tint text-red":"bg-accent-tint text-accent-ink",s=e?t.lastStatusZh:t.lastStatusEn;return`
+          ${this._jobs.map(t=>{let n=this._triggeringId===t.id,s="Success"===t.lastStatusEn?"bg-green-tint text-green":"Failed"===t.lastStatusEn?"bg-red-tint text-red":"bg-accent-tint text-accent-ink",i=e?t.lastStatusZh:t.lastStatusEn;return`
               <div
                 class="flex items-center justify-between rounded-control border p-3 transition-all ${t.enabled?"border-line bg-inset/40 hover:border-line-strong hover:bg-hover/20":"border-line/60 bg-page/40 opacity-60"}"
               >
@@ -3619,9 +3619,9 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
                 <div class="flex items-center gap-2 shrink-0 pl-2">
                   <span
-                    class="rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium ${i}"
+                    class="rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium ${s}"
                   >
-                    ${s}
+                    ${i}
                   </span>
 
                   <button
@@ -3637,7 +3637,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `}).join("")}
         </div>
       </div>
-    `,n),this.shadowRoot.querySelectorAll("[data-toggle]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-toggle");this.handleToggle(t)})}),this.shadowRoot.querySelectorAll("[data-trigger]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-trigger");this.handleTriggerNow(t)})})}}"u">typeof customElements&&!customElements.get("nai-job-scheduler")&&customElements.define("nai-job-scheduler",eO);let eV=[{id:"fs",name:"filesystem",transport:"stdio",status:"connected",latencyMs:3,tools:[{qualified:"filesystem__read_file",descEn:"Read a workspace file",descZh:"读取工作区文件"},{qualified:"filesystem__write_file",descEn:"Write within declared scopes",descZh:"在声明范围内写文件"},{qualified:"filesystem__grep",descEn:"ripgrep over the repo",descZh:"对仓库执行 ripgrep"}]},{id:"rg",name:"ripgrep",transport:"stdio",status:"connected",latencyMs:5,tools:[{qualified:"ripgrep__search",descEn:"Pattern search with globs",descZh:"带 glob 的模式搜索"},{qualified:"ripgrep__files",descEn:"List files matching a glob",descZh:"按 glob 列出文件"}]},{id:"web",name:"web-fetch",transport:"stdio",status:"error",tools:[],errorEn:"handshake timeout after 10s · exit 1",errorZh:"握手 10 秒超时 · 退出码 1"}],eW={connected:{dot:"bg-green",chip:"bg-green-tint text-green",labelEn:"connected",labelZh:"已连接"},handshaking:{dot:"bg-orange animate-pulse",chip:"bg-orange-tint text-orange",labelEn:"handshake",labelZh:"握手中"},error:{dot:"bg-red",chip:"bg-red-tint text-red",labelEn:"error",labelZh:"错误"}};class eU extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._expanded="fs",this._retrying=!1,this._recovered=!1}toggleExpand(e){this._expanded=this._expanded===e?null:e,this.render()}handleRetry(){this._retrying=!0,this.render(),this.registerTimeout(()=>{this._retrying=!1,this._recovered=!0,this.render()},1600)}render(){let e=this.isZh,t=this._recovered?"connected":this._retrying?"handshaking":"error",n=eV.filter(e=>("web"===e.id?t:e.status)==="connected").length,i=eV.reduce((e,t)=>e+t.tools.length,0)+2*!!this._recovered,s=`
+    `,n),this.shadowRoot.querySelectorAll("[data-toggle]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-toggle");this.handleToggle(t)})}),this.shadowRoot.querySelectorAll("[data-trigger]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-trigger");this.handleTriggerNow(t)})})}}"u">typeof customElements&&!customElements.get("nai-job-scheduler")&&customElements.define("nai-job-scheduler",eF);let eV=[{id:"fs",name:"filesystem",transport:"stdio",status:"connected",latencyMs:3,tools:[{qualified:"filesystem__read_file",descEn:"Read a workspace file",descZh:"读取工作区文件"},{qualified:"filesystem__write_file",descEn:"Write within declared scopes",descZh:"在声明范围内写文件"},{qualified:"filesystem__grep",descEn:"ripgrep over the repo",descZh:"对仓库执行 ripgrep"}]},{id:"rg",name:"ripgrep",transport:"stdio",status:"connected",latencyMs:5,tools:[{qualified:"ripgrep__search",descEn:"Pattern search with globs",descZh:"带 glob 的模式搜索"},{qualified:"ripgrep__files",descEn:"List files matching a glob",descZh:"按 glob 列出文件"}]},{id:"web",name:"web-fetch",transport:"stdio",status:"error",tools:[],errorEn:"handshake timeout after 10s · exit 1",errorZh:"握手 10 秒超时 · 退出码 1"}],eW={connected:{dot:"bg-green",chip:"bg-green-tint text-green",labelEn:"connected",labelZh:"已连接"},handshaking:{dot:"bg-orange animate-pulse",chip:"bg-orange-tint text-orange",labelEn:"handshake",labelZh:"握手中"},error:{dot:"bg-red",chip:"bg-red-tint text-red",labelEn:"error",labelZh:"错误"}};class eU extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._expanded="fs",this._retrying=!1,this._recovered=!1}toggleExpand(e){this._expanded=this._expanded===e?null:e,this.render()}handleRetry(){this._retrying=!0,this.render(),this.registerTimeout(()=>{this._retrying=!1,this._recovered=!0,this.render()},1600)}render(){let e=this.isZh,t=this._recovered?"connected":this._retrying?"handshaking":"error",n=eV.filter(e=>("web"===e.id?t:e.status)==="connected").length,s=eV.reduce((e,t)=>e+t.tools.length,0)+2*!!this._recovered,i=`
       .bg-hover\\/30 { background-color: color-mix(in srgb, var(--hover, #f4f5f6) 30%, transparent); }
       .border-line\\/60 { border-color: color-mix(in srgb, var(--line, #ecedef) 60%, transparent); }
       .size-2 { width: 8px; height: 8px; }
@@ -3648,7 +3648,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
       .rotate-180 { transform: rotate(180deg); }
     `;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full bg-green"></span>
@@ -3660,13 +3660,13 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             </span>
           </div>
           <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
-            ${n}/${eV.length} \xb7 ${i} tools
+            ${n}/${eV.length} \xb7 ${s} tools
           </span>
         </div>
 
-        {/* Server rows */}
+        
         <div class="flex flex-col gap-1.5">
-          ${eV.map(n=>{let i="web"===n.id?t:n.status,s=eW[i],r=this._expanded===n.id,o="web"===n.id&&this._recovered?[{qualified:"web-fetch__get",descEn:"GET a URL as markdown",descZh:"以 markdown 获取 URL"},{qualified:"web-fetch__search",descEn:"Web search",descZh:"网页搜索"}]:n.tools,a="web"===n.id?41:n.latencyMs;return`
+          ${eV.map(n=>{let s="web"===n.id?t:n.status,i=eW[s],r=this._expanded===n.id,o="web"===n.id&&this._recovered?[{qualified:"web-fetch__get",descEn:"GET a URL as markdown",descZh:"以 markdown 获取 URL"},{qualified:"web-fetch__search",descEn:"Web search",descZh:"网页搜索"}]:n.tools,a="web"===n.id?41:n.latencyMs;return`
               <div
                 class="rounded-control border transition-colors ${r?"border-line-strong bg-hover/30":"border-line bg-surface"}"
               >
@@ -3676,15 +3676,15 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                   data-expand="${n.id}"
                   class="server-row flex w-full items-center gap-2.5 px-2.5 py-2 cursor-pointer"
                 >
-                  <span class="size-2 shrink-0 rounded-full ${s.dot}"></span>
+                  <span class="size-2 shrink-0 rounded-full ${i.dot}"></span>
                   <code class="font-mono text-[11.5px] font-medium text-ink">${n.name}</code>
                   <span class="rounded-chip bg-field px-1 font-mono text-[9px] text-ink-3">
                     ${n.transport}
                   </span>
-                  <span class="ml-auto shrink-0 rounded-chip px-1.5 py-px font-mono text-[9.5px] font-medium ${s.chip}">
-                    ${e?s.labelZh:s.labelEn}
+                  <span class="ml-auto shrink-0 rounded-chip px-1.5 py-px font-mono text-[9.5px] font-medium ${i.chip}">
+                    ${e?i.labelZh:i.labelEn}
                   </span>
-                  ${"connected"===i&&void 0!==a?`
+                  ${"connected"===s&&void 0!==a?`
                     <span class="shrink-0 font-mono text-[9.5px] tabular-nums text-ink-3">
                       ${a}ms
                     </span>
@@ -3699,7 +3699,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
 
                 ${r?`
                   <div class="border-t border-line/60 px-2.5 py-2" style="animation: fade-up 250ms cubic-bezier(0.23,1,0.32,1) both;">
-                    ${"error"===i?`
+                    ${"error"===s?`
                       <div class="flex items-center justify-between gap-2">
                         <span class="truncate font-mono text-[10.5px] text-red">
                           ${e?n.errorZh:n.errorEn}
@@ -3715,7 +3715,7 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
                           ${e?"重连":"Retry"}
                         </button>
                       </div>
-                    `:"handshaking"===i?`
+                    `:"handshaking"===s?`
                       <div class="flex items-center gap-2">
                         <span class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-orange animate-spin"></span>
                         <span class="font-mono text-[10.5px] text-ink-3">
@@ -3740,13 +3740,13 @@ a:focus-visible .animated-underline:after, a:hover .animated-underline:after { t
             `}).join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${e?"工具以 server__tool 限定名注册":"Tools register as server__tool"}</span>
           <span class="font-mono">Harness.Mcp</span>
         </div>
       </div>
-    `,s),this.shadowRoot.querySelectorAll("[data-expand]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-expand");this.toggleExpand(t)}),e.addEventListener("keydown",t=>{if("Enter"===t.key||" "===t.key){t.preventDefault();let n=e.getAttribute("data-expand");this.toggleExpand(n)}})}),this.shadowRoot.querySelector("#btn-retry-mcp")?.addEventListener("click",e=>{e.stopPropagation(),this.handleRetry()})}}"u">typeof customElements&&!customElements.get("nai-mcp-servers")&&customElements.define("nai-mcp-servers",eU);let eK=`import React from 'react';
+    `,i),this.shadowRoot.querySelectorAll("[data-expand]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-expand");this.toggleExpand(t)}),e.addEventListener("keydown",t=>{if("Enter"===t.key||" "===t.key){t.preventDefault();let n=e.getAttribute("data-expand");this.toggleExpand(n)}})}),this.shadowRoot.querySelector("#btn-retry-mcp")?.addEventListener("click",e=>{e.stopPropagation(),this.handleRetry()})}}"u">typeof customElements&&!customElements.get("nai-mcp-servers")&&customElements.define("nai-mcp-servers",eU);let eK=`import React from 'react';
 
 export function MetricsWidget({ title, value, change }: Props) {
   return (
@@ -3758,9 +3758,9 @@ export function MetricsWidget({ title, value, change }: Props) {
       </div>
     </div>
   );
-}`;async function eG(e){if(navigator.clipboard?.writeText)return await navigator.clipboard.writeText(e),!0;let t=document.createElement("textarea");t.value=e,t.style.position="fixed",t.style.opacity="0",document.body.appendChild(t),t.select();let n=document.execCommand("copy");return t.remove(),n}class eJ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._tab="preview",this._viewport="desktop",this._copied=!1,this._copyError=!1}setTab(e){this._tab=e,this.render()}setViewport(e){this._viewport=e,this.render()}async handleCopy(){this._copyError=!1;try{if(!await eG(eK)){this._copyError=!0,this.render();return}this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1600)}catch{this._copied=!1,this._copyError=!0,this.render()}}render(){let e=this.isZh,t=this._tab,n=this._viewport,i=this._copied,s=this._copyError;this.setHtml(`
+}`;async function eG(e){if(navigator.clipboard?.writeText)return await navigator.clipboard.writeText(e),!0;let t=document.createElement("textarea");t.value=e,t.style.position="fixed",t.style.opacity="0",document.body.appendChild(t),t.select();let n=document.execCommand("copy");return t.remove(),n}class eJ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._tab="preview",this._viewport="desktop",this._copied=!1,this._copyError=!1}setTab(e){this._tab=e,this.render()}setViewport(e){this._viewport=e,this.render()}async handleCopy(){this._copyError=!1;try{if(!await eG(eK)){this._copyError=!0,this.render();return}this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1600)}catch{this._copied=!1,this._copyError=!0,this.render()}}render(){let e=this.isZh,t=this._tab,n=this._viewport,s=this._copied,i=this._copyError;this.setHtml(`
       <div class="w-full max-w-xl overflow-hidden rounded-card border border-line bg-surface shadow-card">
-        {/* Top Header Bar */}
+        
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-inset px-3.5 py-2.5">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -3780,9 +3780,9 @@ export function MetricsWidget({ title, value, change }: Props) {
             </div>
           </div>
 
-          {/* Tab & Viewport Switchers */}
+          
           <div class="flex items-center gap-2">
-            {/* Tab Switcher */}
+            
             <div class="flex rounded-control bg-field p-0.5 text-[11px]">
               <button
                 type="button"
@@ -3800,7 +3800,7 @@ export function MetricsWidget({ title, value, change }: Props) {
               </button>
             </div>
 
-            {/* Viewport controls */}
+            
             ${"preview"===t?`
               <div class="hidden sm:flex items-center gap-1 rounded-control bg-field p-0.5 text-ink-3">
                 <button
@@ -3840,18 +3840,18 @@ export function MetricsWidget({ title, value, change }: Props) {
               </div>
             `:""}
 
-            {/* Copy Button */}
+            
             <button
               type="button"
               id="btn-copy"
               aria-label="${e?"复制":"Copy"}"
               class="flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
             >
-              ${s?`
+              ${i?`
                 <span role="status" aria-live="polite" class="text-red">
                   ${e?"复制失败":"Copy failed"}
                 </span>
-              `:i?`
+              `:s?`
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-green" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -3869,11 +3869,11 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
 
-        {/* Main Canvas Body */}
+        
         <div class="flex min-h-[220px] items-center justify-center bg-canvas p-6 transition-all">
           ${"preview"===t?`
             <div class="transition-all duration-300 w-full ${"mobile"===n?"max-w-[280px]":"tablet"===n?"max-w-[380px]":"max-w-md"}">
-              {/* Live Rendered Component Inside Sandbox */}
+              
               <div class="grid grid-cols-2 gap-3 rounded-control border border-line bg-surface p-4 shadow-sm">
                 <div class="flex flex-col">
                   <span class="text-[11px] text-ink-3">${e?"日活跃用户 (DAU)":"Daily Active Users"}</span>
@@ -3900,7 +3900,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           `}
         </div>
 
-        {/* Sandbox Footer */}
+        
         <div class="flex items-center justify-between border-t border-line bg-surface px-4 py-2 text-[11px] text-ink-3">
           <span>${e?"技术栈: React 19 + Tailwind CSS":"Framework: React 19 + Tailwind CSS"}</span>
           <span class="font-mono">${e?"编译耗时: 12ms":"Compiled in 12ms"}</span>
@@ -3929,29 +3929,29 @@ export function MetricsWidget({ title, value, change }: Props) {
               </tr>
             </thead>
             <tbody>
-              ${eY.map(n=>{let i=n.removed&&t,s=eX[n.dept]||"bg-ink-3";return`
+              ${eY.map(n=>{let s=n.removed&&t,i=eX[n.dept]||"bg-ink-3";return`
                   <tr
                     class="row-item border-b border-line transition-colors duration-400 last:border-0 hover:bg-hover"
-                    style="${i?"background: var(--red-tint);":""}"
+                    style="${s?"background: var(--red-tint);":""}"
                   >
                     <td
                       class="primitive-table-cell text-[13px] font-medium tabular-nums transition-colors duration-400"
-                      style="${i?"color: var(--red);":"color: var(--ink);"}"
+                      style="${s?"color: var(--red);":"color: var(--ink);"}"
                     >
                       ${e?n.nameZh:n.nameEn}
                     </td>
                     <td class="primitive-table-cell">
                       <span
                         class="inline-flex h-5.5 items-center gap-1.5 rounded-full bg-inset px-2 text-[11.5px] font-medium shadow-hairline transition-opacity duration-400"
-                        style="opacity: ${i?.55:1};"
+                        style="opacity: ${s?.55:1};"
                       >
-                        <span class="size-1.5 rounded-full ${s}"></span>
+                        <span class="size-1.5 rounded-full ${i}"></span>
                         <span class="text-ink-2">${e?n.deptZh:n.deptEn}</span>
                       </span>
                     </td>
                     <td
                       class="primitive-table-cell text-[12.5px] whitespace-nowrap transition-colors duration-400"
-                      style="${i?"color: var(--red); text-decoration-line: line-through; text-decoration-color: color-mix(in srgb, var(--red) 50%, transparent);":"color: var(--ink-2); text-decoration-line: none;"}"
+                      style="${s?"color: var(--red); text-decoration-line: line-through; text-decoration-color: color-mix(in srgb, var(--red) 50%, transparent);":"color: var(--ink-2); text-decoration-line: none;"}"
                     >
                       ${n.email}
                     </td>
@@ -3987,7 +3987,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </table>
         </div>
       </div>
-    `)}}"u">typeof customElements&&!customElements.get("nai-diff-table")&&customElements.define("nai-diff-table",e1);let e0={strong:{labelEn:"Very strong",labelZh:"非常强",color:"var(--green)",rank:3},weak:{labelEn:"Weak",labelZh:"较弱",color:"var(--orange)",rank:2},veryweak:{labelEn:"Very weak",labelZh:"非常弱",color:"var(--red)",rank:1},none:{labelEn:"No communication",labelZh:"无沟通",color:"var(--ink-3)",rank:0}},e2={B2B:"#f09a2f",B2C:"#92b72d",Cafe:"#ee6572",Catering:"#c84f9d","Dairy-free":"#16a6c7",Gelato:"#9a5cff",Imports:"#3f78ff",Local:"#25a878",Seasonal:"#f09a2f",Sorbet:"#16a6c7",Vegan:"#92b72d",Wholesale:"#3f78ff"},e5=[{id:"aurora",name:"Aurora Scoops — Reykjavík",tags:["Gelato","Seasonal"],lastEn:"9 days ago",lastZh:"9 天前",strength:"strong",website:"aurora-scoops.example.com"},{id:"kumo",name:"Kumo Creamery — Tokyo",tags:["B2C","Cafe","Vegan"],lastEn:"3 weeks ago",lastZh:"3 周前",strength:"strong",website:"kumo-creamery.example.com"},{id:"sol-nieve",name:"Sol y Nieve — Buenos Aires",tags:["Gelato","Local"],lastEn:"2 months ago",lastZh:"2 个月前",strength:"weak",website:"sol-y-nieve.example.com"},{id:"maple-orbit",name:"Maple Orbit — Montréal",tags:["B2B","Wholesale","Seasonal"],lastEn:"15 days ago",lastZh:"15 天前",strength:"weak",website:"maple-orbit.example.com"},{id:"blue-fig",name:"Blue Fig Gelato — Florence",tags:["Gelato","Cafe"],lastEn:"over 1 year ago",lastZh:"1 年多前",strength:"veryweak",website:"blue-fig.example.com"},{id:"sahara-swirl",name:"Sahara Swirl — Marrakech",tags:["Sorbet","Local"],lastEn:"5 months ago",lastZh:"5 个月前",strength:"veryweak"},{id:"cloudberry",name:"Cloudberry Cone — Helsinki",tags:["Dairy-free","Seasonal"],lastEn:"No contact",lastZh:"未联系",strength:"none",website:"cloudberry-cone.example.com"},{id:"palm-sugar",name:"Palm Sugar Creamery — Bangkok",tags:["B2C","Vegan"],lastEn:"3 months ago",lastZh:"3 个月前",strength:"veryweak",website:"palm-sugar.example.com"},{id:"cape-vanilla",name:"Cape Vanilla Co. — Cape Town",tags:["Wholesale","Imports"],lastEn:"over 1 year ago",lastZh:"1 年多前",strength:"veryweak",website:"cape-vanilla.example.com"},{id:"andes-snow",name:"Andes Snow Creamery — Quito",tags:["Gelato","Catering"],lastEn:"almost 2 years ago",lastZh:"近 2 年前",strength:"veryweak"},{id:"tasman-sea",name:"Tasman Sea Gelato — Hobart",tags:["Gelato","Local"],lastEn:"2 months ago",lastZh:"2 个月前",strength:"weak",website:"tasman-sea.example.com"},{id:"silk-road",name:"Silk Road Sorbet — Tbilisi",tags:["Sorbet","Imports"],lastEn:"about 1 month ago",lastZh:"约 1 个月前",strength:"weak",website:"silk-road.example.com"},{id:"rosewater",name:"Rosewater Kulfi — Jaipur",tags:["B2C","Seasonal"],lastEn:"2 months ago",lastZh:"2 个月前",strength:"veryweak"},{id:"lumen",name:"Lumen Soft Serve — Copenhagen",tags:["Dairy-free","Cafe"],lastEn:"8 months ago",lastZh:"8 个月前",strength:"weak",website:"lumen-soft-serve.example.com"},{id:"cacao-norte",name:"Cacao Norte — Oaxaca",tags:["B2B","Local","Wholesale"],lastEn:"about 2 years ago",lastZh:"约 2 年前",strength:"none",website:"cacao-norte.example.com"},{id:"pine-pistachio",name:"Pine & Pistachio — Istanbul",tags:["Gelato","Catering"],lastEn:"about 1 month ago",lastZh:"约 1 个月前",strength:"veryweak"},{id:"ember-cone",name:"Ember Cone Company — Seoul",tags:["B2C","Vegan"],lastEn:"15 days ago",lastZh:"15 天前",strength:"weak",website:"ember-cone.example.com"},{id:"coral-coast",name:"Coral Coast Sorbet — Honolulu",tags:["Sorbet","Local"],lastEn:"9 days ago",lastZh:"9 天前",strength:"strong",website:"coral-coast.example.com"},{id:"sunbird",name:"Sunbird Gelateria — Lisbon",tags:["Gelato","Cafe"],lastEn:"over 2 years ago",lastZh:"2 年多前",strength:"none",website:"sunbird.example.com"},{id:"mooncake",name:"Mooncake Ice Cream — Singapore",tags:["B2B","Wholesale"],lastEn:"about 1 month ago",lastZh:"约 1 个月前",strength:"veryweak",website:"mooncake-ice-cream.example.com"},{id:"juniper",name:"Juniper & Cream — Vancouver",tags:["Dairy-free","Catering"],lastEn:"No contact",lastZh:"未联系",strength:"none"},{id:"mango-moon",name:"Mango Moon Gelato — Nairobi",tags:["Sorbet","Vegan"],lastEn:"almost 2 years ago",lastZh:"近 2 年前",strength:"veryweak",website:"mango-moon.example.com"},{id:"fjord-fizz",name:"Fjord Fizz Ice — Oslo",tags:["Dairy-free","Seasonal"],lastEn:"No contact",lastZh:"未联系",strength:"none"},{id:"pampa",name:"Pampa Creamery — Córdoba",tags:["B2C","Local"],lastEn:"12 months ago",lastZh:"12 个月前",strength:"veryweak",website:"pampa-creamery.example.com"},{id:"lotus-leaf",name:"Lotus Leaf Scoops — Hanoi",tags:["Vegan","Cafe"],lastEn:"15 days ago",lastZh:"15 天前",strength:"weak"},{id:"saffron-sky",name:"Saffron Sky Kulfi — Dubai",tags:["Imports","Catering"],lastEn:"almost 2 years ago",lastZh:"近 2 年前",strength:"veryweak",website:"saffron-sky.example.com"}];class e3 extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selected=new Set,this._sort={key:"name",dir:1}}toggleSort(e){this._sort.key===e?this._sort.dir=1===this._sort.dir?-1:1:this._sort={key:e,dir:1},this.render()}toggleRow(e){this._selected.has(e)?this._selected.delete(e):this._selected.add(e),this.render()}toggleAll(e,t){e?t.forEach(e=>this._selected.delete(e.id)):t.forEach(e=>this._selected.add(e.id)),this.render()}render(){let e=this.isZh,t=this._sort,n=[...e5].sort((e,n)=>("name"===t.key?e.name.localeCompare(n.name):"last"===t.key?e.lastEn.localeCompare(n.lastEn):e0[e.strength].rank-e0[n.strength].rank)*t.dir),i=n.length>0&&n.every(e=>this._selected.has(e.id)),s=!i&&n.some(e=>this._selected.has(e.id)),r=Math.round(e5.reduce((e,t)=>e+e0[t.strength].rank,0)/e5.length/3*100);this.setHtml(`
+    `)}}"u">typeof customElements&&!customElements.get("nai-diff-table")&&customElements.define("nai-diff-table",e1);let e0={strong:{labelEn:"Very strong",labelZh:"非常强",color:"var(--green)",rank:3},weak:{labelEn:"Weak",labelZh:"较弱",color:"var(--orange)",rank:2},veryweak:{labelEn:"Very weak",labelZh:"非常弱",color:"var(--red)",rank:1},none:{labelEn:"No communication",labelZh:"无沟通",color:"var(--ink-3)",rank:0}},e2={B2B:"#f09a2f",B2C:"#92b72d",Cafe:"#ee6572",Catering:"#c84f9d","Dairy-free":"#16a6c7",Gelato:"#9a5cff",Imports:"#3f78ff",Local:"#25a878",Seasonal:"#f09a2f",Sorbet:"#16a6c7",Vegan:"#92b72d",Wholesale:"#3f78ff"},e5=[{id:"aurora",name:"Aurora Scoops — Reykjavík",tags:["Gelato","Seasonal"],lastEn:"9 days ago",lastZh:"9 天前",strength:"strong",website:"aurora-scoops.example.com"},{id:"kumo",name:"Kumo Creamery — Tokyo",tags:["B2C","Cafe","Vegan"],lastEn:"3 weeks ago",lastZh:"3 周前",strength:"strong",website:"kumo-creamery.example.com"},{id:"sol-nieve",name:"Sol y Nieve — Buenos Aires",tags:["Gelato","Local"],lastEn:"2 months ago",lastZh:"2 个月前",strength:"weak",website:"sol-y-nieve.example.com"},{id:"maple-orbit",name:"Maple Orbit — Montréal",tags:["B2B","Wholesale","Seasonal"],lastEn:"15 days ago",lastZh:"15 天前",strength:"weak",website:"maple-orbit.example.com"},{id:"blue-fig",name:"Blue Fig Gelato — Florence",tags:["Gelato","Cafe"],lastEn:"over 1 year ago",lastZh:"1 年多前",strength:"veryweak",website:"blue-fig.example.com"},{id:"sahara-swirl",name:"Sahara Swirl — Marrakech",tags:["Sorbet","Local"],lastEn:"5 months ago",lastZh:"5 个月前",strength:"veryweak"},{id:"cloudberry",name:"Cloudberry Cone — Helsinki",tags:["Dairy-free","Seasonal"],lastEn:"No contact",lastZh:"未联系",strength:"none",website:"cloudberry-cone.example.com"},{id:"palm-sugar",name:"Palm Sugar Creamery — Bangkok",tags:["B2C","Vegan"],lastEn:"3 months ago",lastZh:"3 个月前",strength:"veryweak",website:"palm-sugar.example.com"},{id:"cape-vanilla",name:"Cape Vanilla Co. — Cape Town",tags:["Wholesale","Imports"],lastEn:"over 1 year ago",lastZh:"1 年多前",strength:"veryweak",website:"cape-vanilla.example.com"},{id:"andes-snow",name:"Andes Snow Creamery — Quito",tags:["Gelato","Catering"],lastEn:"almost 2 years ago",lastZh:"近 2 年前",strength:"veryweak"},{id:"tasman-sea",name:"Tasman Sea Gelato — Hobart",tags:["Gelato","Local"],lastEn:"2 months ago",lastZh:"2 个月前",strength:"weak",website:"tasman-sea.example.com"},{id:"silk-road",name:"Silk Road Sorbet — Tbilisi",tags:["Sorbet","Imports"],lastEn:"about 1 month ago",lastZh:"约 1 个月前",strength:"weak",website:"silk-road.example.com"},{id:"rosewater",name:"Rosewater Kulfi — Jaipur",tags:["B2C","Seasonal"],lastEn:"2 months ago",lastZh:"2 个月前",strength:"veryweak"},{id:"lumen",name:"Lumen Soft Serve — Copenhagen",tags:["Dairy-free","Cafe"],lastEn:"8 months ago",lastZh:"8 个月前",strength:"weak",website:"lumen-soft-serve.example.com"},{id:"cacao-norte",name:"Cacao Norte — Oaxaca",tags:["B2B","Local","Wholesale"],lastEn:"about 2 years ago",lastZh:"约 2 年前",strength:"none",website:"cacao-norte.example.com"},{id:"pine-pistachio",name:"Pine & Pistachio — Istanbul",tags:["Gelato","Catering"],lastEn:"about 1 month ago",lastZh:"约 1 个月前",strength:"veryweak"},{id:"ember-cone",name:"Ember Cone Company — Seoul",tags:["B2C","Vegan"],lastEn:"15 days ago",lastZh:"15 天前",strength:"weak",website:"ember-cone.example.com"},{id:"coral-coast",name:"Coral Coast Sorbet — Honolulu",tags:["Sorbet","Local"],lastEn:"9 days ago",lastZh:"9 天前",strength:"strong",website:"coral-coast.example.com"},{id:"sunbird",name:"Sunbird Gelateria — Lisbon",tags:["Gelato","Cafe"],lastEn:"over 2 years ago",lastZh:"2 年多前",strength:"none",website:"sunbird.example.com"},{id:"mooncake",name:"Mooncake Ice Cream — Singapore",tags:["B2B","Wholesale"],lastEn:"about 1 month ago",lastZh:"约 1 个月前",strength:"veryweak",website:"mooncake-ice-cream.example.com"},{id:"juniper",name:"Juniper & Cream — Vancouver",tags:["Dairy-free","Catering"],lastEn:"No contact",lastZh:"未联系",strength:"none"},{id:"mango-moon",name:"Mango Moon Gelato — Nairobi",tags:["Sorbet","Vegan"],lastEn:"almost 2 years ago",lastZh:"近 2 年前",strength:"veryweak",website:"mango-moon.example.com"},{id:"fjord-fizz",name:"Fjord Fizz Ice — Oslo",tags:["Dairy-free","Seasonal"],lastEn:"No contact",lastZh:"未联系",strength:"none"},{id:"pampa",name:"Pampa Creamery — Córdoba",tags:["B2C","Local"],lastEn:"12 months ago",lastZh:"12 个月前",strength:"veryweak",website:"pampa-creamery.example.com"},{id:"lotus-leaf",name:"Lotus Leaf Scoops — Hanoi",tags:["Vegan","Cafe"],lastEn:"15 days ago",lastZh:"15 天前",strength:"weak"},{id:"saffron-sky",name:"Saffron Sky Kulfi — Dubai",tags:["Imports","Catering"],lastEn:"almost 2 years ago",lastZh:"近 2 年前",strength:"veryweak",website:"saffron-sky.example.com"}];class e3 extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._selected=new Set,this._sort={key:"name",dir:1}}toggleSort(e){this._sort.key===e?this._sort.dir=1===this._sort.dir?-1:1:this._sort={key:e,dir:1},this.render()}toggleRow(e){this._selected.has(e)?this._selected.delete(e):this._selected.add(e),this.render()}toggleAll(e,t){e?t.forEach(e=>this._selected.delete(e.id)):t.forEach(e=>this._selected.add(e.id)),this.render()}render(){let e=this.isZh,t=this._sort,n=[...e5].sort((e,n)=>("name"===t.key?e.name.localeCompare(n.name):"last"===t.key?e.lastEn.localeCompare(n.lastEn):e0[e.strength].rank-e0[n.strength].rank)*t.dir),s=n.length>0&&n.every(e=>this._selected.has(e.id)),i=!s&&n.some(e=>this._selected.has(e.id)),r=Math.round(e5.reduce((e,t)=>e+e0[t.strength].rank,0)/e5.length/3*100);this.setHtml(`
       <div class="records-shell">
         <div class="records-scroll" tabindex="0" aria-label="${e?"公司表格。横向与纵向滚动以查看所有列与记录。":"Companies table. Scroll horizontally and vertically to view all columns and records."}">
           <table class="records-table">
@@ -4003,9 +4003,9 @@ export function MetricsWidget({ title, value, change }: Props) {
                 <th class="records-header-cell records-sticky-cell">
                   <div class="records-company-header">
                     <label class="records-checkbox" title="${e?"全选公司":"Select all companies"}">
-                      <input type="checkbox" id="check-all-input" ${i?"checked":""} aria-label="${e?"全选公司":"Select all companies"}" />
-                      <span class="records-checkbox-box ${i||s?"is-active":""}">
-                        ${s?'<span class="records-checkbox-dash"></span>':i?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>':""}
+                      <input type="checkbox" id="check-all-input" ${s?"checked":""} aria-label="${e?"全选公司":"Select all companies"}" />
+                      <span class="records-checkbox-box ${s||i?"is-active":""}">
+                        ${i?'<span class="records-checkbox-dash"></span>':s?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>':""}
                       </span>
                     </label>
                     <span>${e?"公司":"Company"}</span>
@@ -4068,7 +4068,7 @@ export function MetricsWidget({ title, value, change }: Props) {
               </tr>
             </thead>
             <tbody>
-              ${n.map(t=>{let n=this._selected.has(t.id),i=e0[t.strength],s=t.website?`https://${t.website}`:"#";return`
+              ${n.map(t=>{let n=this._selected.has(t.id),s=e0[t.strength],i=t.website?`https://${t.website}`:"#";return`
                     <tr class="records-row ${n?"is-selected":""}">
                       <td class="records-cell records-sticky-cell records-company-cell">
                         <label class="records-checkbox" title="${e?`选择 ${t.name}`:`Select ${t.name}`}">
@@ -4078,7 +4078,7 @@ export function MetricsWidget({ title, value, change }: Props) {
                           </span>
                         </label>
                         <span class="records-company-mark">${t.name.slice(0,1).toUpperCase()}</span>
-                        <a href="${s}" class="records-company-name ${t.website?"has-link":""}" ${!t.website?'onclick="event.preventDefault()"':""}>
+                        <a href="${i}" class="records-company-name ${t.website?"has-link":""}" ${!t.website?'onclick="event.preventDefault()"':""}>
                           ${t.name}
                         </a>
                       </td>
@@ -4098,8 +4098,8 @@ export function MetricsWidget({ title, value, change }: Props) {
                       </td>
                       <td class="records-cell">
                         <span class="records-strength">
-                          <span class="records-strength-dot" style="background: ${i.color};"></span>
-                          ${e?i.labelZh:i.labelEn}
+                          <span class="records-strength-dot" style="background: ${s.color};"></span>
+                          ${e?s.labelZh:s.labelEn}
                         </span>
                       </td>
                       <td class="records-cell">
@@ -4141,24 +4141,24 @@ export function MetricsWidget({ title, value, change }: Props) {
           </table>
         </div>
       </div>
-    `),this.shadowRoot?.querySelector("#check-all-input")?.addEventListener("change",()=>{this.toggleAll(i,n)}),this.shadowRoot?.querySelectorAll(".row-checkbox").forEach(e=>{e.addEventListener("change",t=>{let n=e.getAttribute("data-id");n&&this.toggleRow(n)})}),this.shadowRoot?.querySelector("#sort-last")?.addEventListener("click",()=>this.toggleSort("last")),this.shadowRoot?.querySelector("#btn-sort-strength")?.addEventListener("click",()=>this.toggleSort("strength"))}}"u">typeof customElements&&!customElements.get("nai-records-table")&&customElements.define("nai-records-table",e3);let e4=[{key:"all",labelEn:"All",labelZh:"全部",count:5},{key:"todo",labelEn:"To do",labelZh:"待办",dot:"#f09a2f",count:2},{key:"progress",labelEn:"In Progress",labelZh:"进行中",dot:"#16a6c7",count:2},{key:"done",labelEn:"Completed",labelZh:"已完成",dot:"#25a878",count:1}],e6=[{taskEn:"Restock mango sorbet",taskZh:"补货芒果雪葩",dateEn:"Dec 03",dateZh:"12月3日",status:"todo",ownerEn:"Mango Moon Gelato",ownerZh:"Mango Moon 意式冰淇淋"},{taskEn:"Churn black sesame",taskZh:"搅拌黑芝麻基底",dateEn:"Sep 22",dateZh:"9月22日",status:"progress",ownerEn:"Kumo Creamery",ownerZh:"Kumo 乳品工坊"},{taskEn:"Print summer menu",taskZh:"印制夏季菜单",dateEn:"Jan 02",dateZh:"1月2日",status:"todo",ownerEn:"Coral Coast Sorbet",ownerZh:"Coral Coast 雪葩"},{taskEn:"Taste-test batch 42",taskZh:"试吃评测第 42 批",dateEn:"Nov 08",dateZh:"11月8日",status:"progress",ownerEn:"Maple Orbit",ownerZh:"Maple Orbit 枫糖"},{taskEn:"Order waffle cones",taskZh:"订购华夫脆筒",dateEn:"Apr 14",dateZh:"4月14日",status:"done",ownerEn:"Aurora Scoops",ownerZh:"Aurora 冰品铺"}],e8={todo:{labelEn:"To do",labelZh:"待办",color:"#f09a2f"},progress:{labelEn:"In Progress",labelZh:"进行中",color:"#16a6c7"},done:{labelEn:"Completed",labelZh:"已完成",color:"#25a878"}},e7=[{en:"Task name",zh:"任务名称"},{en:"Date",zh:"日期"},{en:"Status",zh:"状态"},{en:"Advisor",zh:"顾问"}];class e9 extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._filter="all"}setFilter(e){this._filter=e,this.render()}render(){let e=this.isZh,t=this._filter;this.setHtml(`
+    `),this.shadowRoot?.querySelector("#check-all-input")?.addEventListener("change",()=>{this.toggleAll(s,n)}),this.shadowRoot?.querySelectorAll(".row-checkbox").forEach(e=>{e.addEventListener("change",t=>{let n=e.getAttribute("data-id");n&&this.toggleRow(n)})}),this.shadowRoot?.querySelector("#sort-last")?.addEventListener("click",()=>this.toggleSort("last")),this.shadowRoot?.querySelector("#btn-sort-strength")?.addEventListener("click",()=>this.toggleSort("strength"))}}"u">typeof customElements&&!customElements.get("nai-records-table")&&customElements.define("nai-records-table",e3);let e4=[{key:"all",labelEn:"All",labelZh:"全部",count:5},{key:"todo",labelEn:"To do",labelZh:"待办",dot:"#f09a2f",count:2},{key:"progress",labelEn:"In Progress",labelZh:"进行中",dot:"#16a6c7",count:2},{key:"done",labelEn:"Completed",labelZh:"已完成",dot:"#25a878",count:1}],e6=[{taskEn:"Restock mango sorbet",taskZh:"补货芒果雪葩",dateEn:"Dec 03",dateZh:"12月3日",status:"todo",ownerEn:"Mango Moon Gelato",ownerZh:"Mango Moon 意式冰淇淋"},{taskEn:"Churn black sesame",taskZh:"搅拌黑芝麻基底",dateEn:"Sep 22",dateZh:"9月22日",status:"progress",ownerEn:"Kumo Creamery",ownerZh:"Kumo 乳品工坊"},{taskEn:"Print summer menu",taskZh:"印制夏季菜单",dateEn:"Jan 02",dateZh:"1月2日",status:"todo",ownerEn:"Coral Coast Sorbet",ownerZh:"Coral Coast 雪葩"},{taskEn:"Taste-test batch 42",taskZh:"试吃评测第 42 批",dateEn:"Nov 08",dateZh:"11月8日",status:"progress",ownerEn:"Maple Orbit",ownerZh:"Maple Orbit 枫糖"},{taskEn:"Order waffle cones",taskZh:"订购华夫脆筒",dateEn:"Apr 14",dateZh:"4月14日",status:"done",ownerEn:"Aurora Scoops",ownerZh:"Aurora 冰品铺"}],e8={todo:{labelEn:"To do",labelZh:"待办",color:"#f09a2f"},progress:{labelEn:"In Progress",labelZh:"进行中",color:"#16a6c7"},done:{labelEn:"Completed",labelZh:"已完成",color:"#25a878"}},e7=[{en:"Task name",zh:"任务名称"},{en:"Date",zh:"日期"},{en:"Status",zh:"状态"},{en:"Advisor",zh:"顾问"}];class e9 extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._filter="all"}setFilter(e){this._filter=e,this.render()}render(){let e=this.isZh,t=this._filter;this.setHtml(`
       <div class="w-full max-w-105">
-        {/* filter chips */}
+        
         <div
           class="-mx-1 mb-1 flex items-center gap-1 overflow-x-auto px-1 py-1"
           style="scrollbar-width: none;"
         >
-          ${e4.map(n=>{let i=t===n.key;return`
+          ${e4.map(n=>{let s=t===n.key;return`
               <button
                 type="button"
-                aria-pressed="${i}"
+                aria-pressed="${s}"
                 data-key="${n.key}"
-                class="chip-btn flex h-6.5 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-[background-color,box-shadow,color] duration-200 cursor-pointer ${i?"bg-surface text-ink shadow-btn":"text-ink-2 hover:bg-hover"}"
+                class="chip-btn flex h-6.5 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-[background-color,box-shadow,color] duration-200 cursor-pointer ${s?"bg-surface text-ink shadow-btn":"text-ink-2 hover:bg-hover"}"
               >
                 ${n.dot?`<span class="size-1.5 rounded-full" style="background: ${n.dot}"></span>`:""}
                 ${e?n.labelZh:n.labelEn}
                 <span
-                  class="rounded-[4px] px-1 text-[10.5px] tabular-nums ${i?"bg-field text-ink-2":"text-ink-3"}"
+                  class="rounded-[4px] px-1 text-[10.5px] tabular-nums ${s?"bg-field text-ink-2":"text-ink-3"}"
                 >
                   ${n.count}
                 </span>
@@ -4166,7 +4166,7 @@ export function MetricsWidget({ title, value, change }: Props) {
             `}).join("")}
         </div>
 
-        {/* table */}
+        
         <div
           aria-label="Scrollable task table"
           class="overflow-x-auto rounded-card bg-surface shadow-card"
@@ -4178,10 +4178,10 @@ export function MetricsWidget({ title, value, change }: Props) {
             <div class="grid grid-cols-[1.3fr_0.6fr_0.95fr_0.9fr] border-b border-line px-3 py-2 text-[11.5px] font-medium text-ink-3">
               ${e7.map(t=>`<span>${e?t.zh:t.en}</span>`).join("")}
             </div>
-            ${e6.map(n=>{let i="all"===t||n.status===t,s=e8[n.status];return`
+            ${e6.map(n=>{let s="all"===t||n.status===t,i=e8[n.status];return`
                 <div
-                  class="row-wrapper ${i?"visible":""} grid transition-[grid-template-rows,opacity] duration-300"
-                  style="grid-template-rows: ${i?"1fr":"0fr"}; opacity: ${+!!i}; transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);"
+                  class="row-wrapper ${s?"visible":""} grid transition-[grid-template-rows,opacity] duration-300"
+                  style="grid-template-rows: ${s?"1fr":"0fr"}; opacity: ${+!!s}; transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);"
                 >
                   <div class="overflow-hidden">
                     <div
@@ -4192,9 +4192,9 @@ export function MetricsWidget({ title, value, change }: Props) {
                       <span>
                         <span
                           class="inline-flex h-5 items-center rounded-[5px] px-1.5 text-[11px] font-medium"
-                          style="color: ${s.color}; background: color-mix(in srgb, ${s.color} 13%, transparent);"
+                          style="color: ${i.color}; background: color-mix(in srgb, ${i.color} 13%, transparent);"
                         >
-                          ${e?s.labelZh:s.labelEn}
+                          ${e?i.labelZh:i.labelEn}
                         </span>
                       </span>
                       <span class="truncate text-ink-2">${e?n.ownerZh:n.ownerEn}</span>
@@ -4205,7 +4205,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
       </div>
-    `),this.shadowRoot?.querySelectorAll("[data-key]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.setFilter(t)})})}}"u">typeof customElements&&!customElements.get("nai-filter-table")&&customElements.define("nai-filter-table",e9);let te="Churn pistachio first thing Saturday so the batch has time to fully firm before the afternoon rush.",tt="周六一开工就先搅拌开心果这一批，让冰淇淋在下午高峰前充分凝冻成型。",tn="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-normal text-ink transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.96] cursor-pointer";class ti extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._mode="idle",this._action="Improve",this._prompt="",this._expanded=!1,this._streamCount=0,this._shown=!1,this._anchor={x:0,y:0},this._positioned=!1}onMount(){if(this.registerTimeout(()=>{this._shown=!0,this.place(),this.render()},280),"u">typeof ResizeObserver){let e=new ResizeObserver(()=>this.place()),t=this.shadowRoot?.querySelector(".selection-host");t&&e.observe(t),this._cleanups.push(()=>e.disconnect())}}reset(){this._mode="idle",this._prompt="",this._expanded=!1,this._streamCount=0,this.render()}place(){let e=this.shadowRoot?.querySelector(".selection-host"),t=this.shadowRoot?.querySelector(".selection-target");if(!e||!t)return;let n=t.getBoundingClientRect(),i=e.getBoundingClientRect(),s={x:Math.round(n.left-i.left+n.width/2),y:Math.round(n.bottom-i.top+8)};this._anchor=s,this._positioned=!0}run(e){this._action=e,this._expanded=!1,this._mode="thinking",this.render(),this.registerTimeout(()=>{this._mode="streaming",this._streamCount=0,this.render(),this._runStream()},700)}_runStream(){let e=this.isZh,t=e?tt:te,n=e?t.split(""):t.split(" "),i=()=>{"streaming"===this._mode&&(this._streamCount<n.length?(this._streamCount++,this.place(),this.render(),this.registerTimeout(i,46)):(this._mode="result",this.place(),this.render()))};this.registerTimeout(i,46)}reset(){this._expanded=!1,this._prompt="",this._action="Improve",this._mode="idle",this.place(),this.render()}render(){let e=this.isZh,t=e?tt:te,n=e?t.split(""):t.split(" "),i="thinking"===this._mode||"streaming"===this._mode,s=this._shown,r=this._prompt.trim().length>0,o="Improve"===this._action?e?"优化中":"Improving":"Shorten"===this._action?e?"精简中":"Shortening":"Change tone"===this._action?e?"调整语气中":"Changing tone":e?"编辑中":"Editing";this.setHtml(`
+    `),this.shadowRoot?.querySelectorAll("[data-key]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.setFilter(t)})})}}"u">typeof customElements&&!customElements.get("nai-filter-table")&&customElements.define("nai-filter-table",e9);let te="Churn pistachio first thing Saturday so the batch has time to fully firm before the afternoon rush.",tt="周六一开工就先搅拌开心果这一批，让冰淇淋在下午高峰前充分凝冻成型。",tn="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-normal text-ink transition-[background-color,color,transform] duration-150 hover:bg-hover active:scale-[0.96] cursor-pointer";class ts extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._mode="idle",this._action="Improve",this._prompt="",this._expanded=!1,this._streamCount=0,this._shown=!1,this._anchor={x:0,y:0},this._positioned=!1}onMount(){if(this.registerTimeout(()=>{this._shown=!0,this.place(),this.render()},280),"u">typeof ResizeObserver){let e=new ResizeObserver(()=>this.place()),t=this.shadowRoot?.querySelector(".selection-host");t&&e.observe(t),this._cleanups.push(()=>e.disconnect())}}reset(){this._mode="idle",this._prompt="",this._expanded=!1,this._streamCount=0,this.render()}place(){let e=this.shadowRoot?.querySelector(".selection-host"),t=this.shadowRoot?.querySelector(".selection-target");if(!e||!t)return;let n=t.getBoundingClientRect(),s=e.getBoundingClientRect(),i={x:Math.round(n.left-s.left+n.width/2),y:Math.round(n.bottom-s.top+8)};this._anchor=i,this._positioned=!0}run(e){this._action=e,this._expanded=!1,this._mode="thinking",this.render(),this.registerTimeout(()=>{this._mode="streaming",this._streamCount=0,this.render(),this._runStream()},700)}_runStream(){let e=this.isZh,t=e?tt:te,n=e?t.split(""):t.split(" "),s=()=>{"streaming"===this._mode&&(this._streamCount<n.length?(this._streamCount++,this.place(),this.render(),this.registerTimeout(s,46)):(this._mode="result",this.place(),this.render()))};this.registerTimeout(s,46)}reset(){this._expanded=!1,this._prompt="",this._action="Improve",this._mode="idle",this.place(),this.render()}render(){let e=this.isZh,t=e?tt:te,n=e?t.split(""):t.split(" "),s="thinking"===this._mode||"streaming"===this._mode,i=this._shown,r=this._prompt.trim().length>0,o="Improve"===this._action?e?"优化中":"Improving":"Shorten"===this._action?e?"精简中":"Shortening":"Change tone"===this._action?e?"调整语气中":"Changing tone":e?"编辑中":"Editing";this.setHtml(`
       <div class="w-full max-w-[460px]">
         <div class="selection-host relative select-none pb-12">
           <p class="text-[13px] leading-relaxed text-ink">
@@ -4222,17 +4222,17 @@ export function MetricsWidget({ title, value, change }: Props) {
             style="
               transform: translate3d(${this._anchor.x}px, ${this._anchor.y}px, 0) translateX(-50%);
               transition: transform 320ms cubic-bezier(0.77,0,0.175,1), opacity 180ms ease-out;
-              opacity: ${+!!s};
-              pointer-events: ${s?"auto":"none"};
+              opacity: ${+!!i};
+              pointer-events: ${i?"auto":"none"};
               will-change: transform;
             "
           >
             <div
               class="flex h-9 w-fit max-w-[calc(100vw-48px)] items-center justify-center gap-0.5 overflow-hidden rounded-full bg-surface p-1 font-sans font-normal text-ink antialiased shadow-overlay"
-              style="${s?"animation: pop-in 220ms cubic-bezier(0.23,1,0.32,1) both;":""}"
+              style="${i?"animation: pop-in 220ms cubic-bezier(0.23,1,0.32,1) both;":""}"
             >
               <div class="flex w-fit shrink-0 items-center justify-center gap-0.5">
-                ${i?`
+                ${s?`
                   <span class="inline-flex h-7 items-center gap-1.5 whitespace-nowrap px-2.5 text-[12.5px] font-normal text-ink-2">
                     <span
                       class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 animate-spin"
@@ -4396,9 +4396,9 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
       </div>
-    `),this.shadowRoot?.querySelector("#btn-keep")?.addEventListener("click",()=>this.reset()),this.shadowRoot?.querySelector("#btn-discard")?.addEventListener("click",()=>this.reset()),this.shadowRoot?.querySelector("#btn-retry")?.addEventListener("click",()=>this.run(this._action)),this.shadowRoot?.querySelector("#btn-explain")?.addEventListener("click",()=>this.run("Explain")),this.shadowRoot?.querySelector("#btn-improve")?.addEventListener("click",()=>this.run("Improve")),this.shadowRoot?.querySelector("#btn-shorten")?.addEventListener("click",()=>this.run("Shorten")),this.shadowRoot?.querySelector("#btn-tone")?.addEventListener("click",()=>this.run("Change tone")),this.shadowRoot?.querySelector("#btn-grammar")?.addEventListener("click",()=>this.run("Fix grammar")),this.shadowRoot?.querySelector("#btn-toggle-expand")?.addEventListener("click",()=>{this._expanded=!this._expanded,this.render()});let a=this.shadowRoot?.querySelector("#prompt-input");a&&a.addEventListener("input",e=>{this._prompt=e.target.value,this.render();let t=this.shadowRoot?.querySelector("#prompt-input");t&&(t.focus(),t.selectionStart=t.selectionEnd=this._prompt.length)});let l=this.shadowRoot?.querySelector("#prompt-form");l&&l.addEventListener("submit",e=>{e.preventDefault(),this.run(this._prompt.trim()||"Improve")}),this.shadowRoot?.querySelector("#btn-send-prompt")?.addEventListener("click",()=>{this.run(this._prompt.trim()||"Improve")}),this.place()}}"u">typeof customElements&&!customElements.get("nai-selection-actions")&&customElements.define("nai-selection-actions",ti);let ts={listening:"Listening to your request...",thinking:"Analyzing AST and resolving circular dependencies...",speaking:"I have updated the routing configuration and verified all 6 endpoints.",idle:"Tap to start voice conversation"},tr={listening:"正在聆听您的指令...",thinking:"正在分析抽象语法树并解决循环依赖...",speaking:"已更新全局路由配置，并成功验证了全部 6 个接口端点。",idle:"点击麦克风开始实时语音对话"},to={listening:{en:"Listening",zh:"倾听中"},thinking:{en:"Thinking",zh:"思考中"},speaking:{en:"Speaking",zh:"回答中"},idle:{en:"Idle",zh:"已就绪"}};class ta extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._state="speaking",this._isMuted=!1,this._bars=[12,24,18,32,28,40,36,48,42,34,26,38,20,16,28,14]}onMount(){this.registerInterval(()=>{"idle"===this._state?this._bars=this._bars.map(()=>4):this._bars=this._bars.map(()=>"speaking"===this._state?Math.floor(38*Math.random())+10:"listening"===this._state?Math.floor(20*Math.random())+6:"thinking"===this._state?Math.floor(12*Math.random())+4:4),this._updateBarsOnly()},120)}_updateBarsOnly(){let e=this.shadowRoot?.querySelector("#equalizer-bars");if(!e)return;let t="speaking"===this._state?"var(--accent)":"listening"===this._state?"var(--green)":"thinking"===this._state?"var(--orange)":"var(--line-strong)";e.querySelectorAll("span").forEach((e,n)=>{e.style.height=`${this._bars[n]}px`,e.style.backgroundColor=t})}setState(e){this._state=e,"idle"===e&&(this._bars=this._bars.map(()=>4)),this.render()}toggleMute(){this._isMuted=!this._isMuted,this.render()}render(){let e=this.isZh,t=this._state,n=this._isMuted,i=this._bars,s="speaking"===t?"var(--accent)":"listening"===t?"var(--green)":"thinking"===t?"var(--orange)":"var(--line-strong)";this.setHtml(`
+    `),this.shadowRoot?.querySelector("#btn-keep")?.addEventListener("click",()=>this.reset()),this.shadowRoot?.querySelector("#btn-discard")?.addEventListener("click",()=>this.reset()),this.shadowRoot?.querySelector("#btn-retry")?.addEventListener("click",()=>this.run(this._action)),this.shadowRoot?.querySelector("#btn-explain")?.addEventListener("click",()=>this.run("Explain")),this.shadowRoot?.querySelector("#btn-improve")?.addEventListener("click",()=>this.run("Improve")),this.shadowRoot?.querySelector("#btn-shorten")?.addEventListener("click",()=>this.run("Shorten")),this.shadowRoot?.querySelector("#btn-tone")?.addEventListener("click",()=>this.run("Change tone")),this.shadowRoot?.querySelector("#btn-grammar")?.addEventListener("click",()=>this.run("Fix grammar")),this.shadowRoot?.querySelector("#btn-toggle-expand")?.addEventListener("click",()=>{this._expanded=!this._expanded,this.render()});let a=this.shadowRoot?.querySelector("#prompt-input");a&&a.addEventListener("input",e=>{this._prompt=e.target.value,this.render();let t=this.shadowRoot?.querySelector("#prompt-input");t&&(t.focus(),t.selectionStart=t.selectionEnd=this._prompt.length)});let l=this.shadowRoot?.querySelector("#prompt-form");l&&l.addEventListener("submit",e=>{e.preventDefault(),this.run(this._prompt.trim()||"Improve")}),this.shadowRoot?.querySelector("#btn-send-prompt")?.addEventListener("click",()=>{this.run(this._prompt.trim()||"Improve")}),this.place()}}"u">typeof customElements&&!customElements.get("nai-selection-actions")&&customElements.define("nai-selection-actions",ts);let ti={listening:"Listening to your request...",thinking:"Analyzing AST and resolving circular dependencies...",speaking:"I have updated the routing configuration and verified all 6 endpoints.",idle:"Tap to start voice conversation"},tr={listening:"正在聆听您的指令...",thinking:"正在分析抽象语法树并解决循环依赖...",speaking:"已更新全局路由配置，并成功验证了全部 6 个接口端点。",idle:"点击麦克风开始实时语音对话"},to={listening:{en:"Listening",zh:"倾听中"},thinking:{en:"Thinking",zh:"思考中"},speaking:{en:"Speaking",zh:"回答中"},idle:{en:"Idle",zh:"已就绪"}};class ta extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._state="speaking",this._isMuted=!1,this._bars=[12,24,18,32,28,40,36,48,42,34,26,38,20,16,28,14]}onMount(){this.registerInterval(()=>{"idle"===this._state?this._bars=this._bars.map(()=>4):this._bars=this._bars.map(()=>"speaking"===this._state?Math.floor(38*Math.random())+10:"listening"===this._state?Math.floor(20*Math.random())+6:"thinking"===this._state?Math.floor(12*Math.random())+4:4),this._updateBarsOnly()},120)}_updateBarsOnly(){let e=this.shadowRoot?.querySelector("#equalizer-bars");if(!e)return;let t="speaking"===this._state?"var(--accent)":"listening"===this._state?"var(--green)":"thinking"===this._state?"var(--orange)":"var(--line-strong)";e.querySelectorAll("span").forEach((e,n)=>{e.style.height=`${this._bars[n]}px`,e.style.backgroundColor=t})}setState(e){this._state=e,"idle"===e&&(this._bars=this._bars.map(()=>4)),this.render()}toggleMute(){this._isMuted=!this._isMuted,this.render()}render(){let e=this.isZh,t=this._state,n=this._isMuted,s=this._bars,i="speaking"===t?"var(--accent)":"listening"===t?"var(--green)":"thinking"===t?"var(--orange)":"var(--line-strong)";this.setHtml(`
       <div class="flex w-full max-w-sm flex-col items-center rounded-card border border-line bg-surface p-6 shadow-card">
-        {/* Top Status & Latency Bar */}
+        
         <div class="flex w-full items-center justify-between text-[11px] text-ink-3">
           <div class="flex items-center gap-1.5 font-mono">
             <span
@@ -4411,7 +4411,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           <span class="font-mono text-[10.5px]">210ms • Opus 48kHz</span>
         </div>
 
-        {/* Fluid Gradient Orb */}
+        
         <div class="relative my-8 flex size-36 items-center justify-center">
           <div
             class="absolute inset-0 rounded-full blur-xl transition-all duration-700 ${"speaking"===t?"bg-accent/30 scale-125":"listening"===t?"bg-green/25 scale-110":"thinking"===t?"bg-orange/30 scale-115":"bg-line/40 scale-90"}"
@@ -4430,22 +4430,22 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
 
-        {/* Audio Waveform Equalizer */}
+        
         <div id="equalizer-bars" class="flex h-10 w-full items-center justify-center gap-1">
-          ${i.map(e=>`
+          ${s.map(e=>`
             <span
               class="w-1 rounded-full transition-all duration-100"
-              style="height: ${e}px; background-color: ${s};"
+              style="height: ${e}px; background-color: ${i};"
             ></span>
           `).join("")}
         </div>
 
-        {/* Streaming Live Transcript */}
+        
         <p class="mt-4 min-h-[38px] text-center text-[12px] leading-relaxed text-ink-2">
-          ${e?tr[t]:ts[t]}
+          ${e?tr[t]:ti[t]}
         </p>
 
-        {/* State Switcher Pills */}
+        
         <div class="mt-4 flex items-center gap-1 rounded-control bg-field p-1 text-[11px]">
           ${["listening","thinking","speaking","idle"].map(n=>`
             <button
@@ -4459,7 +4459,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           `).join("")}
         </div>
 
-        {/* Bottom Controls */}
+        
         <div class="mt-5 flex w-full items-center justify-center gap-3 border-t border-line pt-4">
           <button
             type="button"
@@ -4527,7 +4527,7 @@ export function MetricsWidget({ title, value, change }: Props) {
       }
     `;this.setHtml(`
       <div class="w-full max-w-2xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Prompt Banner */}
+        
         <div class="flex items-start justify-between border-b border-line pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-5 items-center justify-center rounded-full bg-accent-tint text-accent-ink">
@@ -4545,9 +4545,9 @@ export function MetricsWidget({ title, value, change }: Props) {
           </span>
         </div>
 
-        {/* Side-by-Side Model Output Grid */}
+        
         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Model A */}
+          
           <div
             class="flex flex-col rounded-control border p-3 transition-all ${"A"===t?"border-accent bg-accent-tint/20 ring-1 ring-accent":"border-line bg-inset/40"}"
           >
@@ -4573,7 +4573,7 @@ export function MetricsWidget({ title, value, change }: Props) {
             </div>
           </div>
 
-          {/* Model B */}
+          
           <div
             class="flex flex-col rounded-control border p-3 transition-all ${"B"===t?"border-accent bg-accent-tint/20 ring-1 ring-accent":"border-line bg-inset/40"}"
           >
@@ -4600,7 +4600,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
 
-        {/* Voting Actions & Feedback */}
+        
         <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
           <span class="text-[11.5px] text-ink-3">
             ${t?e?"偏好投票已记录至 RLHF 训练数据集":"Preferences recorded for RLHF dataset":e?"哪个模型的输出质量更高？":"Which response is higher quality?"}
@@ -4631,9 +4631,9 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
       </div>
-    `,n),this.shadowRoot.querySelector("#vote-a")?.addEventListener("click",()=>this.vote("A")),this.shadowRoot.querySelector("#vote-tie")?.addEventListener("click",()=>this.vote("tie")),this.shadowRoot.querySelector("#vote-b")?.addEventListener("click",()=>this.vote("B"))}}"u">typeof customElements&&!customElements.get("nai-model-arena")&&customElements.define("nai-model-arena",tc);let tp=[-2.9,-3.4,-3.05,-3.86,-3.52,-4.1,-3.82,-4.41],th=[.22,.58,.42,.91,.76,1.08,.96,1.15],tu=[274,289,264,307,331,1210,1718,2112],tx=[18,19,17,21,22,58,81,96],tg=[{name:"VAN",label:"Vanilla",pct:72.5,amount:"$51,785",color:"var(--orange)"},{name:"CHOC",label:"Chocolate",pct:22.8,amount:"$16,278",color:"var(--line-strong)"},{name:"MINT",label:"Mint",pct:4.7,amount:"$3,357",color:"var(--line)"}];class tm extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._page=0,this._hoverIndex=null,this._anomalyMetric="spend",this._allocSelected="VAN"}setPage(e){this._page=(this._page+e+3)%3,this._hoverIndex=null,this.render()}setAnomalyMetric(e){this._anomalyMetric=e,this._hoverIndex=null,this.render()}setAllocSelected(e){this._allocSelected=e,this.render()}_drawCompareChart(e){if(!e)return;let t=e.getContext("2d");if(!t)return;let n=window.devicePixelRatio||1,i=e.getBoundingClientRect().width||320;e.width=i*n,e.height=130*n,t.scale(n,n),t.clearRect(0,0,i,130);let s=tp.length,r=[...tp,...th],o=Math.min(...r)-.5,a=Math.max(...r)+.5,l=e=>e/(s-1)*(i-24)+12,d=e=>116-(e-o)/(a-o)*102,c=d(0);t.strokeStyle="rgba(154, 157, 163, 0.25)",t.lineWidth=1,t.setLineDash([4,4]),t.beginPath(),t.moveTo(12,c),t.lineTo(i-12,c),t.stroke(),t.setLineDash([]),t.strokeStyle="var(--orange, #ef720c)",t.lineWidth=2.2,t.beginPath();for(let e=0;e<s;e++){let n=l(e),i=d(tp[e]);0===e?t.moveTo(n,i):t.lineTo(n,i)}t.stroke(),t.strokeStyle="var(--accent, #0285ff)",t.lineWidth=2.2,t.beginPath();for(let e=0;e<s;e++){let n=l(e),i=d(th[e]);0===e?t.moveTo(n,i):t.lineTo(n,i)}if(t.stroke(),null!==this._hoverIndex&&this._hoverIndex>=0&&this._hoverIndex<s){let e=l(this._hoverIndex);t.strokeStyle="rgba(154, 157, 163, 0.4)",t.lineWidth=1,t.beginPath(),t.moveTo(e,6),t.lineTo(e,124),t.stroke(),t.fillStyle="#ef720c",t.beginPath(),t.arc(e,d(tp[this._hoverIndex]),3.5,0,2*Math.PI),t.fill(),t.fillStyle="#0285ff",t.beginPath(),t.arc(e,d(th[this._hoverIndex]),3.5,0,2*Math.PI),t.fill()}}_drawAnomalyChart(e){if(!e)return;let t=e.getContext("2d");if(!t)return;let n=window.devicePixelRatio||1,i=e.getBoundingClientRect().width||320;e.width=i*n,e.height=130*n,t.scale(n,n),t.clearRect(0,0,i,130);let s="spend"===this._anomalyMetric?tu:tx,r=s.length,o=.8*Math.min(...s),a=1.1*Math.max(...s),l=e=>e/(r-1)*(i-24)+12,d=e=>116-(e-o)/(a-o)*102,c=t.createLinearGradient(0,10,0,130);c.addColorStop(0,"rgba(227, 71, 76, 0.2)"),c.addColorStop(1,"rgba(227, 71, 76, 0.0)"),t.fillStyle=c,t.beginPath(),t.moveTo(l(0),116);for(let e=0;e<r;e++)t.lineTo(l(e),d(s[e]));t.lineTo(l(r-1),116),t.closePath(),t.fill(),t.strokeStyle="var(--red, #e3474c)",t.lineWidth=2.2,t.beginPath();for(let e=0;e<r;e++){let n=l(e),i=d(s[e]);0===e?t.moveTo(n,i):t.lineTo(n,i)}if(t.stroke(),null!==this._hoverIndex&&this._hoverIndex>=0&&this._hoverIndex<r){let e=l(this._hoverIndex);t.strokeStyle="rgba(154, 157, 163, 0.4)",t.lineWidth=1,t.beginPath(),t.moveTo(e,6),t.lineTo(e,124),t.stroke(),t.fillStyle="#e3474c",t.beginPath(),t.arc(e,d(s[this._hoverIndex]),3.5,0,2*Math.PI),t.fill()}}render(){let e=this.isZh,t=this._page,n=[{prose:e?'你的 <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Creamery</span> 中表现最差的是 Rocky Road——下跌 <code class="font-mono text-[11.5px] text-red">-6%</code>，合 <code class="font-mono text-[11.5px] text-red">-$2,453.44</code>。':'The worst performer in your <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Creamery</span> is Rocky Road — down <code class="font-mono text-[11.5px] text-red">-6%</code> or <code class="font-mono text-[11.5px] text-red">-$2,453.44</code>.',pill:e?"需要重新平衡口味组合吗？":"Should I rebalance flavors?"},{prose:e?'<span class="font-medium text-ink">12 月 13 日</span>的冷柜电费异常偏高——比你的平均水平高出 <code class="font-mono text-[11.5px] text-red">+$1,834.66</code>。':'Unusually high freezer bill on <span class="font-medium text-ink">Dec 13</span> — <code class="font-mono text-[11.5px] text-red">+$1,834.66</code> above your average.',pill:e?"获取降低冷柜成本的建议":"Get tips on cutting freezer costs"},{prose:e?'你在 <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Vanilla</span> 上投入过重——它占你库存的 <span class="font-medium text-ink">72.5%</span>。':'You\'re heavily invested in <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Vanilla</span> — it\'s <span class="font-medium text-ink">72.5%</span> of your case.',pill:e?"如果看季节性口味，会有什么变化？":"If we look at seasonals, what changes?"}][t];if(this.setHtml(`
+    `,n),this.shadowRoot.querySelector("#vote-a")?.addEventListener("click",()=>this.vote("A")),this.shadowRoot.querySelector("#vote-tie")?.addEventListener("click",()=>this.vote("tie")),this.shadowRoot.querySelector("#vote-b")?.addEventListener("click",()=>this.vote("B"))}}"u">typeof customElements&&!customElements.get("nai-model-arena")&&customElements.define("nai-model-arena",tc);let tp=[-2.9,-3.4,-3.05,-3.86,-3.52,-4.1,-3.82,-4.41],th=[.22,.58,.42,.91,.76,1.08,.96,1.15],tu=[274,289,264,307,331,1210,1718,2112],tx=[18,19,17,21,22,58,81,96],tg=[{name:"VAN",label:"Vanilla",pct:72.5,amount:"$51,785",color:"var(--orange)"},{name:"CHOC",label:"Chocolate",pct:22.8,amount:"$16,278",color:"var(--line-strong)"},{name:"MINT",label:"Mint",pct:4.7,amount:"$3,357",color:"var(--line)"}];class tm extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._page=0,this._hoverIndex=null,this._anomalyMetric="spend",this._allocSelected="VAN"}setPage(e){this._page=(this._page+e+3)%3,this._hoverIndex=null,this.render()}setAnomalyMetric(e){this._anomalyMetric=e,this._hoverIndex=null,this.render()}setAllocSelected(e){this._allocSelected=e,this.render()}_drawCompareChart(e){if(!e)return;let t=e.getContext("2d");if(!t)return;let n=window.devicePixelRatio||1,s=e.getBoundingClientRect().width||320;e.width=s*n,e.height=130*n,t.scale(n,n),t.clearRect(0,0,s,130);let i=tp.length,r=[...tp,...th],o=Math.min(...r)-.5,a=Math.max(...r)+.5,l=e=>e/(i-1)*(s-24)+12,d=e=>116-(e-o)/(a-o)*102,c=d(0);t.strokeStyle="rgba(154, 157, 163, 0.25)",t.lineWidth=1,t.setLineDash([4,4]),t.beginPath(),t.moveTo(12,c),t.lineTo(s-12,c),t.stroke(),t.setLineDash([]),t.strokeStyle="var(--orange, #ef720c)",t.lineWidth=2.2,t.beginPath();for(let e=0;e<i;e++){let n=l(e),s=d(tp[e]);0===e?t.moveTo(n,s):t.lineTo(n,s)}t.stroke(),t.strokeStyle="var(--accent, #0285ff)",t.lineWidth=2.2,t.beginPath();for(let e=0;e<i;e++){let n=l(e),s=d(th[e]);0===e?t.moveTo(n,s):t.lineTo(n,s)}if(t.stroke(),null!==this._hoverIndex&&this._hoverIndex>=0&&this._hoverIndex<i){let e=l(this._hoverIndex);t.strokeStyle="rgba(154, 157, 163, 0.4)",t.lineWidth=1,t.beginPath(),t.moveTo(e,6),t.lineTo(e,124),t.stroke(),t.fillStyle="#ef720c",t.beginPath(),t.arc(e,d(tp[this._hoverIndex]),3.5,0,2*Math.PI),t.fill(),t.fillStyle="#0285ff",t.beginPath(),t.arc(e,d(th[this._hoverIndex]),3.5,0,2*Math.PI),t.fill()}}_drawAnomalyChart(e){if(!e)return;let t=e.getContext("2d");if(!t)return;let n=window.devicePixelRatio||1,s=e.getBoundingClientRect().width||320;e.width=s*n,e.height=130*n,t.scale(n,n),t.clearRect(0,0,s,130);let i="spend"===this._anomalyMetric?tu:tx,r=i.length,o=.8*Math.min(...i),a=1.1*Math.max(...i),l=e=>e/(r-1)*(s-24)+12,d=e=>116-(e-o)/(a-o)*102,c=t.createLinearGradient(0,10,0,130);c.addColorStop(0,"rgba(227, 71, 76, 0.2)"),c.addColorStop(1,"rgba(227, 71, 76, 0.0)"),t.fillStyle=c,t.beginPath(),t.moveTo(l(0),116);for(let e=0;e<r;e++)t.lineTo(l(e),d(i[e]));t.lineTo(l(r-1),116),t.closePath(),t.fill(),t.strokeStyle="var(--red, #e3474c)",t.lineWidth=2.2,t.beginPath();for(let e=0;e<r;e++){let n=l(e),s=d(i[e]);0===e?t.moveTo(n,s):t.lineTo(n,s)}if(t.stroke(),null!==this._hoverIndex&&this._hoverIndex>=0&&this._hoverIndex<r){let e=l(this._hoverIndex);t.strokeStyle="rgba(154, 157, 163, 0.4)",t.lineWidth=1,t.beginPath(),t.moveTo(e,6),t.lineTo(e,124),t.stroke(),t.fillStyle="#e3474c",t.beginPath(),t.arc(e,d(i[this._hoverIndex]),3.5,0,2*Math.PI),t.fill()}}render(){let e=this.isZh,t=this._page,n=[{prose:e?'你的 <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Creamery</span> 中表现最差的是 Rocky Road——下跌 <code class="font-mono text-[11.5px] text-red">-6%</code>，合 <code class="font-mono text-[11.5px] text-red">-$2,453.44</code>。':'The worst performer in your <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Creamery</span> is Rocky Road — down <code class="font-mono text-[11.5px] text-red">-6%</code> or <code class="font-mono text-[11.5px] text-red">-$2,453.44</code>.',pill:e?"需要重新平衡口味组合吗？":"Should I rebalance flavors?"},{prose:e?'<span class="font-medium text-ink">12 月 13 日</span>的冷柜电费异常偏高——比你的平均水平高出 <code class="font-mono text-[11.5px] text-red">+$1,834.66</code>。':'Unusually high freezer bill on <span class="font-medium text-ink">Dec 13</span> — <code class="font-mono text-[11.5px] text-red">+$1,834.66</code> above your average.',pill:e?"获取降低冷柜成本的建议":"Get tips on cutting freezer costs"},{prose:e?'你在 <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Vanilla</span> 上投入过重——它占你库存的 <span class="font-medium text-ink">72.5%</span>。':'You\'re heavily invested in <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Vanilla</span> — it\'s <span class="font-medium text-ink">72.5%</span> of your case.',pill:e?"如果看季节性口味，会有什么变化？":"If we look at seasonals, what changes?"}][t];if(this.setHtml(`
       <div class="flex w-full max-w-sm flex-col gap-2 font-sans">
-        {/* Pager Header */}
+        
         <div class="flex items-center justify-between">
           <div class="flex items-baseline gap-1.5">
             <span class="text-[13px] font-semibold text-ink">${e?"智能洞察":"Insights"}</span>
@@ -4663,7 +4663,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
 
-        {/* Dynamic prose + subcard */}
+        
         <div class="animate-fade-up">
           <p class="text-[12.5px] leading-relaxed text-ink-2">
             ${n.prose}
@@ -4671,7 +4671,7 @@ export function MetricsWidget({ title, value, change }: Props) {
 
           <div class="mt-2 min-h-[278px] rounded-card bg-surface p-3 shadow-hairline">
             ${0===t?`
-              {/* CompareCard */}
+              
               <div class="flex items-center gap-4">
                 <div class="flex-1">
                   <span class="flex items-center gap-1.5 text-[11.5px] text-ink-2">
@@ -4709,7 +4709,7 @@ export function MetricsWidget({ title, value, change }: Props) {
                 </div>
               </div>
             `:1===t?`
-              {/* AnomalyCard */}
+              
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1.5 text-[12px] font-medium text-ink">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-red" aria-hidden="true">
@@ -4760,7 +4760,7 @@ export function MetricsWidget({ title, value, change }: Props) {
                 <span class="text-[11px] text-ink-3">${e?"较 3 个月均值":"vs 3 months"}</span>
               </div>
             `:`
-              {/* AllocationCard */}
+              
               <div>
                 <span class="flex items-center gap-1.5 text-[12px] font-medium text-ink">
                   <span class="flex size-3.5 items-center justify-center rounded-full bg-orange text-[8px] font-bold text-white">V</span>
@@ -4814,7 +4814,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </button>
         </div>
       </div>
-    `),this.shadowRoot?.querySelector("#btn-prev")?.addEventListener("click",()=>this.setPage(-1)),this.shadowRoot?.querySelector("#btn-next")?.addEventListener("click",()=>this.setPage(1)),0===t){let e=this.shadowRoot?.querySelector("#compare-canvas");this._drawCompareChart(e);let t=this.shadowRoot?.querySelector("#chart-stage-compare");t&&(t.addEventListener("pointermove",e=>{let n=t.getBoundingClientRect(),i=Math.round(Math.max(0,Math.min(1,(e.clientX-n.left)/n.width))*(tp.length-1));i!==this._hoverIndex&&(this._hoverIndex=i,this.render())}),t.addEventListener("pointerleave",()=>{this._hoverIndex=null,this.render()}))}else if(1===t){let e=this.shadowRoot?.querySelector("#anomaly-canvas");this._drawAnomalyChart(e),this.shadowRoot?.querySelector("#metric-spend")?.addEventListener("click",()=>this.setAnomalyMetric("spend")),this.shadowRoot?.querySelector("#metric-usage")?.addEventListener("click",()=>this.setAnomalyMetric("usage"));let t=this.shadowRoot?.querySelector("#chart-stage-anomaly");t&&(t.addEventListener("pointermove",e=>{let n=t.getBoundingClientRect(),i=Math.round(Math.max(0,Math.min(1,(e.clientX-n.left)/n.width))*(tu.length-1));i!==this._hoverIndex&&(this._hoverIndex=i,this.render())}),t.addEventListener("pointerleave",()=>{this._hoverIndex=null,this.render()}))}else 2===t&&this.shadowRoot?.querySelectorAll(".alloc-segment, .alloc-chip").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-name");t&&this.setAllocSelected(t)})})}}"u">typeof customElements&&!customElements.get("nai-insight-cards")&&customElements.define("nai-insight-cards",tm);let tb=[{key:"high",bodyZh:'建议从供应商 <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code> 追加补货华夫脆筒，预计交付周期为 <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>。',bodyEn:'Reorder waffle cones from <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code> with lead time <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>.',shortZh:"从 cone_king 补货 · 7天到货",shortEn:"Reorder from cone_king · 7-day lead",signal:3,tone:"var(--green)",labelZh:"高置信度推荐",labelEn:"High confidence",ctaZh:"采纳建议",ctaEn:"Accept",ctaStyle:"bg-accent text-white"},{key:"review",bodyZh:'为迎接旺季需求，建议将香草原料配方切换为 <code class="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code>。',bodyEn:'Switch vanilla to <code class="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code> for peak season.',shortZh:"切换为马达加斯加香草配方",shortEn:"Switch to vanilla_madagascar",signal:2,tone:"var(--orange)",labelZh:"需要人工复核",labelEn:"Needs review",ctaZh:"配置参数",ctaEn:"Configure",ctaStyle:"bg-ink text-canvas"},{key:"none",bodyZh:"对所有库存 SKU 发起全量紧急补货流程。",bodyEn:"Trigger a full restock cycle across every catalog SKU.",shortZh:"全品类 SKU 紧急补货",shortEn:"Full restock across every SKU",signal:0,tone:"var(--line-strong)",labelZh:"无足够置信信号",labelEn:"No signal",ctaZh:"忽略",ctaEn:"Dismiss",ctaStyle:"bg-field text-ink-3"}];class tf extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._activeKey="high",this._openDrawer=!1}setActiveKey(e){this._activeKey=e,this._openDrawer=!1,this.render()}toggleDrawer(){this._openDrawer=!this._openDrawer,this.render()}render(){let e=this.isZh,t=tb.find(e=>e.key===this._activeKey)||tb[0];this.setHtml(`
+    `),this.shadowRoot?.querySelector("#btn-prev")?.addEventListener("click",()=>this.setPage(-1)),this.shadowRoot?.querySelector("#btn-next")?.addEventListener("click",()=>this.setPage(1)),0===t){let e=this.shadowRoot?.querySelector("#compare-canvas");this._drawCompareChart(e);let t=this.shadowRoot?.querySelector("#chart-stage-compare");t&&(t.addEventListener("pointermove",e=>{let n=t.getBoundingClientRect(),s=Math.round(Math.max(0,Math.min(1,(e.clientX-n.left)/n.width))*(tp.length-1));s!==this._hoverIndex&&(this._hoverIndex=s,this.render())}),t.addEventListener("pointerleave",()=>{this._hoverIndex=null,this.render()}))}else if(1===t){let e=this.shadowRoot?.querySelector("#anomaly-canvas");this._drawAnomalyChart(e),this.shadowRoot?.querySelector("#metric-spend")?.addEventListener("click",()=>this.setAnomalyMetric("spend")),this.shadowRoot?.querySelector("#metric-usage")?.addEventListener("click",()=>this.setAnomalyMetric("usage"));let t=this.shadowRoot?.querySelector("#chart-stage-anomaly");t&&(t.addEventListener("pointermove",e=>{let n=t.getBoundingClientRect(),s=Math.round(Math.max(0,Math.min(1,(e.clientX-n.left)/n.width))*(tu.length-1));s!==this._hoverIndex&&(this._hoverIndex=s,this.render())}),t.addEventListener("pointerleave",()=>{this._hoverIndex=null,this.render()}))}else 2===t&&this.shadowRoot?.querySelectorAll(".alloc-segment, .alloc-chip").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-name");t&&this.setAllocSelected(t)})})}}"u">typeof customElements&&!customElements.get("nai-insight-cards")&&customElements.define("nai-insight-cards",tm);let tb=[{key:"high",bodyZh:'建议从供应商 <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code> 追加补货华夫脆筒，预计交付周期为 <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>。',bodyEn:'Reorder waffle cones from <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">cone_king</code> with lead time <code class="rounded-md bg-accent-tint px-1.5 py-0.5 font-mono text-[12px] text-accent-ink">7_days</code>.',shortZh:"从 cone_king 补货 · 7天到货",shortEn:"Reorder from cone_king · 7-day lead",signal:3,tone:"var(--green)",labelZh:"高置信度推荐",labelEn:"High confidence",ctaZh:"采纳建议",ctaEn:"Accept",ctaStyle:"bg-accent text-white"},{key:"review",bodyZh:'为迎接旺季需求，建议将香草原料配方切换为 <code class="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code>。',bodyEn:'Switch vanilla to <code class="rounded-md bg-orange-tint px-1.5 py-0.5 font-mono text-[12px] text-orange">vanilla_madagascar</code> for peak season.',shortZh:"切换为马达加斯加香草配方",shortEn:"Switch to vanilla_madagascar",signal:2,tone:"var(--orange)",labelZh:"需要人工复核",labelEn:"Needs review",ctaZh:"配置参数",ctaEn:"Configure",ctaStyle:"bg-ink text-canvas"},{key:"none",bodyZh:"对所有库存 SKU 发起全量紧急补货流程。",bodyEn:"Trigger a full restock cycle across every catalog SKU.",shortZh:"全品类 SKU 紧急补货",shortEn:"Full restock across every SKU",signal:0,tone:"var(--line-strong)",labelZh:"无足够置信信号",labelEn:"No signal",ctaZh:"忽略",ctaEn:"Dismiss",ctaStyle:"bg-field text-ink-3"}];class tf extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._activeKey="high",this._openDrawer=!1}setActiveKey(e){this._activeKey=e,this._openDrawer=!1,this.render()}toggleDrawer(){this._openDrawer=!this._openDrawer,this.render()}render(){let e=this.isZh,t=tb.find(e=>e.key===this._activeKey)||tb[0];this.setHtml(`
       <div class="w-full max-w-95 overflow-hidden rounded-card border border-line bg-surface shadow-card">
         <div class="p-4">
           <div class="flex items-start justify-between gap-3">
@@ -4823,7 +4823,7 @@ export function MetricsWidget({ title, value, change }: Props) {
             </p>
           </div>
 
-          {/* Drawer for alternatives */}
+          
           ${this._openDrawer?`
             <div class="mt-3.5 border-t border-line/60 pt-3 space-y-1">
               <span class="text-[11px] font-semibold text-ink-3 uppercase tracking-wider block mb-2">
@@ -4844,7 +4844,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           `:""}
         </div>
 
-        {/* Footer */}
+        
         <div class="flex items-center justify-between border-t border-line bg-inset px-4 py-2.5">
           <div class="flex items-center gap-2">
             <span class="flex items-end gap-0.5">
@@ -4872,9 +4872,9 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
       </div>
-    `),this.shadowRoot?.querySelector("#btn-toggle-alt")?.addEventListener("click",()=>this.toggleDrawer()),this.shadowRoot?.querySelectorAll("[data-key]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.setActiveKey(t)})})}}async function tv(e){if(navigator.clipboard?.writeText)return await navigator.clipboard.writeText(e),!0;let t=document.createElement("textarea");t.value=e,t.style.position="fixed",t.style.opacity="0",document.body.appendChild(t),t.select();let n=document.execCommand("copy");return t.remove(),n}"u">typeof customElements&&!customElements.get("nai-recommendation-card")&&customElements.define("nai-recommendation-card",tf);class tk extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._revealed=!1,this._copied=!1,this._copyError=!1,this._apiKey="dsk-live-9824f1a8c901e47d8b3a5c2e"}toggleReveal(){this._revealed=!this._revealed,this.render()}async handleCopy(){this._copyError=!1;try{if(!await tv(this._apiKey)){this._copyError=!0,this.render();return}this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1500)}catch{this._copied=!1,this._copyError=!0,this.render()}}render(){let e=this.isZh,t=this._revealed,n=this._copied,i=this._copyError,s=this._apiKey;this.setHtml(`
+    `),this.shadowRoot?.querySelector("#btn-toggle-alt")?.addEventListener("click",()=>this.toggleDrawer()),this.shadowRoot?.querySelectorAll("[data-key]").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.setActiveKey(t)})})}}async function tv(e){if(navigator.clipboard?.writeText)return await navigator.clipboard.writeText(e),!0;let t=document.createElement("textarea");t.value=e,t.style.position="fixed",t.style.opacity="0",document.body.appendChild(t),t.select();let n=document.execCommand("copy");return t.remove(),n}"u">typeof customElements&&!customElements.get("nai-recommendation-card")&&customElements.define("nai-recommendation-card",tf);class tk extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._revealed=!1,this._copied=!1,this._copyError=!1,this._apiKey="dsk-live-9824f1a8c901e47d8b3a5c2e"}toggleReveal(){this._revealed=!this._revealed,this.render()}async handleCopy(){this._copyError=!1;try{if(!await tv(this._apiKey)){this._copyError=!0,this.render();return}this._copied=!0,this.render(),this.registerTimeout(()=>{this._copied=!1,this.render()},1500)}catch{this._copied=!1,this._copyError=!0,this.render()}}render(){let e=this.isZh,t=this._revealed,n=this._copied,s=this._copyError,i=this._apiKey;this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -4902,7 +4902,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </span>
         </div>
 
-        {/* Sensitive Input Field */}
+        
         <div class="mt-4">
           <label
             for="sensitive-api-token"
@@ -4915,12 +4915,12 @@ export function MetricsWidget({ title, value, change }: Props) {
             <input
               id="token-input"
               type="${t?"text":"password"}"
-              value="${s}"
+              value="${i}"
               class="w-full font-mono text-[12px] text-ink bg-transparent focus:outline-none"
             />
 
             <div class="flex items-center gap-1 text-ink-3 shrink-0">
-              {/* Reveal / Hide Toggle */}
+              
               <button
                 type="button"
                 id="btn-reveal"
@@ -4940,14 +4940,14 @@ export function MetricsWidget({ title, value, change }: Props) {
                 `}
               </button>
 
-              {/* Copy Button */}
+              
               <button
                 type="button"
                 id="btn-copy"
                 aria-label="${e?"复制令牌":"Copy token"}"
                 class="flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-0.5 text-[10.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
               >
-                ${i?`
+                ${s?`
                   <span role="status" aria-live="polite" class="text-red font-medium">
                     ${e?"复制失败":"Copy failed"}
                   </span>
@@ -4967,13 +4967,13 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
 
-        {/* Security Scope Footer */}
+        
         <div class="mt-3.5 flex items-center justify-between text-[11px] text-ink-3">
           <span class="font-mono">${e?"作用域: chat.completions, reasoner":"Scope: chat.completions, reasoner"}</span>
           <span>${e?"有效期剩余 89 天":"Expires in 89 days"}</span>
         </div>
       </div>
-    `),this.shadowRoot?.querySelector("#btn-reveal")?.addEventListener("click",()=>this.toggleReveal()),this.shadowRoot?.querySelector("#btn-copy")?.addEventListener("click",()=>this.handleCopy());let r=this.shadowRoot?.querySelector("#sensitive-api-token");r?.addEventListener("input",e=>{this._apiKey=e.target.value})}}"u">typeof customElements&&!customElements.get("nai-sensitive-input")&&customElements.define("nai-sensitive-input",tk);class tw extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._isOpen=!0,this._activeTab="metrics"}toggleOpen(){this._isOpen=!this._isOpen,this.render()}setActiveTab(e){this._activeTab=e,this.render()}render(){let e=this.isZh,t=this._isOpen,n=this._activeTab,i=`
+    `),this.shadowRoot?.querySelector("#btn-reveal")?.addEventListener("click",()=>this.toggleReveal()),this.shadowRoot?.querySelector("#btn-copy")?.addEventListener("click",()=>this.handleCopy());let r=this.shadowRoot?.querySelector("#sensitive-api-token");r?.addEventListener("input",e=>{this._apiKey=e.target.value})}}"u">typeof customElements&&!customElements.get("nai-sensitive-input")&&customElements.define("nai-sensitive-input",tk);class tw extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._isOpen=!0,this._activeTab="metrics"}toggleOpen(){this._isOpen=!this._isOpen,this.render()}setActiveTab(e){this._activeTab=e,this.render()}render(){let e=this.isZh,t=this._isOpen,n=this._activeTab,s=`
       <div class="w-full max-w-xl overflow-hidden rounded-card border border-line bg-surface shadow-card transition-all">
         <!-- Top Layer Header -->
         <div class="flex items-center justify-between border-b border-line bg-inset px-4 py-3">
@@ -5103,9 +5103,9 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
       </div>
-    `;this.setHtml(i),this.shadowRoot.querySelector("#btn-toggle")?.addEventListener("click",()=>this.toggleOpen()),this.shadowRoot.querySelector("#tab-metrics")?.addEventListener("click",()=>this.setActiveTab("metrics")),this.shadowRoot.querySelector("#tab-events")?.addEventListener("click",()=>this.setActiveTab("events"))}}"u">typeof customElements&&!customElements.get("nai-layer-card")&&customElements.define("nai-layer-card",tw);let ty=[{key:"activity",labelEn:"Home",labelZh:"首页",section:"Workspace"},{key:"tasks",labelEn:"Agent tasks",labelZh:"智能体任务",section:"Workspace",count:!0},{key:"dashboard",labelEn:"Inbox",labelZh:"收件箱",section:"Workspace"},{key:"spaces",labelEn:"Suppliers",labelZh:"供应商",section:"Objects",plus:!0},{key:"analytics",labelEn:"Inventory",labelZh:"库存",section:"Objects"}];class t$ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._active="tasks",this._hovered=null,this._query="",this._badge=4}setActive(e){this._active=e,this.render()}setHovered(e){this._hovered=e,this._updateIndicator()}addNewTask(){this._badge++,this._active="tasks",this.render()}onMount(){this._updateIndicator()}_updateIndicator(){let e=this._hovered||this._active,t=this.shadowRoot?.querySelector(`[data-key="${e}"]`),n=this.shadowRoot?.querySelector("#nav-indicator"),i=this.shadowRoot?.querySelector("#nav-list-container");if(t&&n&&i){let e=i.getBoundingClientRect(),s=t.getBoundingClientRect();n.style.top=`${s.top-e.top}px`,n.style.height=`${s.height}px`,n.style.opacity="1"}else n&&(n.style.opacity="0")}render(){let e=this.isZh,t=this._active,n=this._badge,i=this._query;this.setHtml(`
+    `;this.setHtml(s),this.shadowRoot.querySelector("#btn-toggle")?.addEventListener("click",()=>this.toggleOpen()),this.shadowRoot.querySelector("#tab-metrics")?.addEventListener("click",()=>this.setActiveTab("metrics")),this.shadowRoot.querySelector("#tab-events")?.addEventListener("click",()=>this.setActiveTab("events"))}}"u">typeof customElements&&!customElements.get("nai-layer-card")&&customElements.define("nai-layer-card",tw);let ty=[{key:"activity",labelEn:"Home",labelZh:"首页",section:"Workspace"},{key:"tasks",labelEn:"Agent tasks",labelZh:"智能体任务",section:"Workspace",count:!0},{key:"dashboard",labelEn:"Inbox",labelZh:"收件箱",section:"Workspace"},{key:"spaces",labelEn:"Suppliers",labelZh:"供应商",section:"Objects",plus:!0},{key:"analytics",labelEn:"Inventory",labelZh:"库存",section:"Objects"}];class t$ extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._active="tasks",this._hovered=null,this._query="",this._badge=4}setActive(e){this._active=e,this.render()}setHovered(e){this._hovered=e,this._updateIndicator()}addNewTask(){this._badge++,this._active="tasks",this.render()}onMount(){this._updateIndicator()}_updateIndicator(){let e=this._hovered||this._active,t=this.shadowRoot?.querySelector(`[data-key="${e}"]`),n=this.shadowRoot?.querySelector("#nav-indicator"),s=this.shadowRoot?.querySelector("#nav-list-container");if(t&&n&&s){let e=s.getBoundingClientRect(),i=t.getBoundingClientRect();n.style.top=`${i.top-e.top}px`,n.style.height=`${i.height}px`,n.style.opacity="1"}else n&&(n.style.opacity="0")}render(){let e=this.isZh,t=this._active,n=this._badge,s=this._query;this.setHtml(`
       <div class="w-60 rounded-card bg-surface p-2 shadow-raised">
-        {/* workspace row */}
+        
         <button
           type="button"
           class="mb-2 flex w-full items-center gap-2.5 rounded-control p-1.5 text-left transition-[background-color,transform] duration-100 hover:bg-hover active:scale-[0.96] cursor-pointer"
@@ -5122,7 +5122,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </svg>
         </button>
 
-        {/* quick search */}
+        
         <label class="mb-1 flex h-8 items-center gap-2 rounded-control bg-inset px-2.5 shadow-hairline">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
@@ -5130,7 +5130,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </svg>
           <input
             id="sidebar-search-input"
-            value="${i}"
+            value="${s}"
             placeholder="${e?"快速搜索":"Quick search"}"
             class="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3"
           />
@@ -5139,7 +5139,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </kbd>
         </label>
 
-        {/* accent action */}
+        
         <button
           type="button"
           id="btn-new-task"
@@ -5153,7 +5153,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </span>
         </button>
 
-        {/* items */}
+        
         <div
           id="nav-list-container"
           class="relative flex flex-col gap-2"
@@ -5170,32 +5170,32 @@ export function MetricsWidget({ title, value, change }: Props) {
             "
           ></span>
 
-          ${[{key:"Workspace",label:e?"工作区":"Workspace"},{key:"Objects",label:e?"对象":"Objects"}].map(i=>`
+          ${[{key:"Workspace",label:e?"工作区":"Workspace"},{key:"Objects",label:e?"对象":"Objects"}].map(s=>`
             <div>
               <div class="px-2 pb-1 pt-1 text-[10.5px] font-medium uppercase tracking-[0.08em] text-ink-3">
-                ${i.label}
+                ${s.label}
               </div>
               <div class="flex flex-col gap-px">
-                ${ty.filter(e=>e.section===i.key).map(i=>{var s;let r=i.key===t;return`
+                ${ty.filter(e=>e.section===s.key).map(s=>{var i;let r=s.key===t;return`
                     <button
                       type="button"
-                      data-key="${i.key}"
+                      data-key="${s.key}"
                       aria-current="${r?"page":"false"}"
                       class="group relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-[color,transform] duration-150 active:scale-[0.96] cursor-pointer"
                     >
                       <span class="${r?"text-ink":"text-ink-3"}">
-                        ${s=i.key,`
+                        ${i=s.key,`
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      ${({activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2" />',tasks:'<g><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></g>',spaces:'<g><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" /></g>',dashboard:'<g><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></g>',analytics:'<g><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></g>'})[s]||""}
+      ${({activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2" />',tasks:'<g><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></g>',spaces:'<g><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" /></g>',dashboard:'<g><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></g>',analytics:'<g><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></g>'})[i]||""}
     </svg>
   `}
                       </span>
                       <span
                         class="min-w-0 flex-1 truncate text-[13px] transition-colors duration-150 ${r?"font-medium text-ink":"text-ink-2"}"
                       >
-                        ${e?i.labelZh:i.labelEn}
+                        ${e?s.labelZh:s.labelEn}
                       </span>
-                      ${i.count?`
+                      ${s.count?`
                         <span
                           class="flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums ${r?"bg-surface text-ink-2 shadow-hairline":"bg-accent-tint text-accent-ink"}"
                           style="animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;"
@@ -5203,7 +5203,7 @@ export function MetricsWidget({ title, value, change }: Props) {
                           ${n}
                         </span>
                       `:""}
-                      ${i.plus?`
+                      ${s.plus?`
                         <span
                           class="flex size-4.5 items-center justify-center rounded-[5px] text-ink-3 opacity-0 transition-[background-color,color,opacity] duration-100 group-hover:opacity-100 hover:bg-line/70 hover:text-ink-2 ${r?"opacity-100":""}"
                         >
@@ -5219,10 +5219,10 @@ export function MetricsWidget({ title, value, change }: Props) {
           `).join("")}
         </div>
       </div>
-    `),this.shadowRoot?.querySelector("#btn-new-task")?.addEventListener("click",()=>this.addNewTask()),this.shadowRoot?.querySelectorAll("[data-key]").forEach(e=>{let t=e.getAttribute("data-key");e.addEventListener("mouseenter",()=>this.setHovered(t)),e.addEventListener("click",()=>{t&&this.setActive(t)})}),this.shadowRoot?.querySelector("#nav-list-container")?.addEventListener("mouseleave",()=>{this.setHovered(null)});let s=this.shadowRoot?.querySelector("#sidebar-search-input");s?.addEventListener("input",e=>{this._query=e.target.value}),this._updateIndicator()}}"u">typeof customElements&&!customElements.get("nai-sidebar-nav")&&customElements.define("nai-sidebar-nav",t$);let t_=[{en:"Forecast summer demand",zh:"预测夏季需求"},{en:"Find waffle cone suppliers",zh:"寻找华夫脆筒供应商"},{en:"Compare seasonal flavors",zh:"对比季节限定口味"},{en:"Draft flavor launch plan",zh:"起草新口味上市计划"},{en:"Check cold-chain status",zh:"检查冷链状态"},{en:"Audit sugar costs",zh:"核算糖原料成本"},{en:"Retire low sellers",zh:"下架滞销口味"}];class tE extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._query=""}setQuery(e){this._query=e,this.render()}render(){let e=this.isZh,t=this._query,n=t=>e?t.zh:t.en,i=t?t_.filter(e=>n(e).toLowerCase().includes(t.toLowerCase())):t_.slice(0,5),s=t.length>2&&0===i.length;this.setHtml(`
+    `),this.shadowRoot?.querySelector("#btn-new-task")?.addEventListener("click",()=>this.addNewTask()),this.shadowRoot?.querySelectorAll("[data-key]").forEach(e=>{let t=e.getAttribute("data-key");e.addEventListener("mouseenter",()=>this.setHovered(t)),e.addEventListener("click",()=>{t&&this.setActive(t)})}),this.shadowRoot?.querySelector("#nav-list-container")?.addEventListener("mouseleave",()=>{this.setHovered(null)});let i=this.shadowRoot?.querySelector("#sidebar-search-input");i?.addEventListener("input",e=>{this._query=e.target.value}),this._updateIndicator()}}"u">typeof customElements&&!customElements.get("nai-sidebar-nav")&&customElements.define("nai-sidebar-nav",t$);let t_=[{en:"Forecast summer demand",zh:"预测夏季需求"},{en:"Find waffle cone suppliers",zh:"寻找华夫脆筒供应商"},{en:"Compare seasonal flavors",zh:"对比季节限定口味"},{en:"Draft flavor launch plan",zh:"起草新口味上市计划"},{en:"Check cold-chain status",zh:"检查冷链状态"},{en:"Audit sugar costs",zh:"核算糖原料成本"},{en:"Retire low sellers",zh:"下架滞销口味"}];class tE extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._query=""}setQuery(e){this._query=e,this.render()}render(){let e=this.isZh,t=this._query,n=t=>e?t.zh:t.en,s=t?t_.filter(e=>n(e).toLowerCase().includes(t.toLowerCase())):t_.slice(0,5),i=t.length>2&&0===s.length;this.setHtml(`
       <div class="flex min-h-[248px] w-full max-w-72 flex-col items-stretch">
         <div class="w-full self-start overflow-hidden rounded-card bg-surface shadow-raised">
-          {/* input row */}
+          
           <div class="flex h-10 items-center gap-2 border-b border-line px-3">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
@@ -5250,8 +5250,8 @@ export function MetricsWidget({ title, value, change }: Props) {
             `:""}
           </div>
 
-          {/* results / empty state */}
-          ${s?`
+          
+          ${i?`
             <div class="flex flex-col items-center justify-center gap-1 px-4 py-8" style="animation: fade-in 250ms ease-out both;">
               <span class="mb-1.5 flex size-8 items-center justify-center rounded-control bg-inset text-ink-3 shadow-hairline">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
@@ -5264,7 +5264,7 @@ export function MetricsWidget({ title, value, change }: Props) {
             </div>
           `:`
             <div class="p-1">
-              ${i.map(e=>`
+              ${s.map(e=>`
                 <button
                   key="${e.en}"
                   type="button"
@@ -5279,7 +5279,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           `}
         </div>
       </div>
-    `);let r=this.shadowRoot?.querySelector("#search-input");r&&r.addEventListener("input",e=>{this._query=e.target.value,this.render();let t=this.shadowRoot?.querySelector("#search-input");t&&(t.focus(),t.selectionStart=t.selectionEnd=this._query.length)}),this.shadowRoot?.querySelector("#btn-clear")?.addEventListener("click",()=>{this.setQuery("")}),this.shadowRoot?.querySelectorAll(".result-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-text");t&&this.setQuery(t)})})}}"u">typeof customElements&&!customElements.get("nai-search")&&customElements.define("nai-search",tE);let tS=["row","col","grid"],tC=[{key:"Seasonal",labelEn:"Seasonal",labelZh:"季节限定"},{key:"Classic",labelEn:"Classic",labelZh:"经典"},{key:"Limited",labelEn:"Limited",labelZh:"限量"}];class tj extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._seg=0,this._width=324,this._height=96,this._radius=28,this._opacity=100,this._menuOpen=!1,this._typeValue=null,this._dragState=null}setSeg(e){this._seg=e,this.render()}setTypeValue(e){this._typeValue=e,this._menuOpen=!1,this.render()}toggleMenu(){this._menuOpen=!this._menuOpen,this.render()}_clamp(e,t,n){return Math.min(n,Math.max(t,Math.round(e)))}_renderScrubField(e,t,n,i,s,r=""){let o="width"===e&&324!==n||"height"===e&&96!==n||"radius"===e&&28!==n||"opacity"===e&&100!==n;return`
+    `);let r=this.shadowRoot?.querySelector("#search-input");r&&r.addEventListener("input",e=>{this._query=e.target.value,this.render();let t=this.shadowRoot?.querySelector("#search-input");t&&(t.focus(),t.selectionStart=t.selectionEnd=this._query.length)}),this.shadowRoot?.querySelector("#btn-clear")?.addEventListener("click",()=>{this.setQuery("")}),this.shadowRoot?.querySelectorAll(".result-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-text");t&&this.setQuery(t)})})}}"u">typeof customElements&&!customElements.get("nai-search")&&customElements.define("nai-search",tE);let tS=["row","col","grid"],tC=[{key:"Seasonal",labelEn:"Seasonal",labelZh:"季节限定"},{key:"Classic",labelEn:"Classic",labelZh:"经典"},{key:"Limited",labelEn:"Limited",labelZh:"限量"}];class tj extends l{static get observedAttributes(){return["lang"]}constructor(){super(),this._seg=0,this._width=324,this._height=96,this._radius=28,this._opacity=100,this._menuOpen=!1,this._typeValue=null,this._dragState=null}setSeg(e){this._seg=e,this.render()}setTypeValue(e){this._typeValue=e,this._menuOpen=!1,this.render()}toggleMenu(){this._menuOpen=!this._menuOpen,this.render()}_clamp(e,t,n){return Math.min(n,Math.max(t,Math.round(e)))}_renderScrubField(e,t,n,s,i,r=""){let o="width"===e&&324!==n||"height"===e&&96!==n||"radius"===e&&28!==n||"opacity"===e&&100!==n;return`
       <label
         class="flex h-6.5 min-w-0 items-center gap-1 rounded-chip py-1 pr-1 pl-0.5 transition-[background-color,box-shadow] duration-200"
         style="
@@ -5287,16 +5287,16 @@ export function MetricsWidget({ title, value, change }: Props) {
           box-shadow: ${o?"0 0 0 1px var(--accent)":"none"};
         "
         data-field="${e}"
-        data-min="${i}"
-        data-max="${s}"
+        data-min="${s}"
+        data-max="${i}"
       >
-        {/* scrub handle */}
+        
         <span
           role="slider"
           aria-label="${t}"
           aria-valuenow="${n}"
-          aria-valuemin="${i}"
-          aria-valuemax="${s}"
+          aria-valuemin="${s}"
+          aria-valuemax="${i}"
           tabindex="0"
           data-field="${e}"
           class="scrub-handle flex h-full shrink-0 cursor-ew-resize touch-none items-center rounded-[4px] px-0.5 text-[12px] text-ink-3 select-none hover:text-ink-2 focus-visible:text-accent-ink focus-visible:outline-none"
@@ -5314,7 +5314,7 @@ export function MetricsWidget({ title, value, change }: Props) {
       </label>
     `}render(){let e=this.isZh,t=0!==this._seg||324!==this._width||96!==this._height||28!==this._radius||100!==this._opacity||null!==this._typeValue;this.setHtml(`
       <div class="relative w-full max-w-60 rounded-card bg-surface shadow-raised">
-        {/* header */}
+        
         <div class="primitive-card-bar flex items-center justify-between border-b border-line">
           <span class="text-[13px] font-medium text-ink">${e?"风味卡片":"Flavor card"}</span>
           ${t?`
@@ -5348,10 +5348,10 @@ export function MetricsWidget({ title, value, change }: Props) {
           `}
         </div>
 
-        {/* layout section */}
+        
         <div class="primitive-card-pad flex flex-col gap-2 border-b border-line">
           <p class="text-[12.5px] font-medium text-ink">${e?"布局":"Layout"}</p>
-          {/* segmented control: gray track, raised white thumb */}
+          
           <div class="relative grid grid-cols-3 rounded-control bg-field p-0.5">
             <span
               aria-hidden="true"
@@ -5404,7 +5404,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
 
-        {/* interaction section */}
+        
         <div class="primitive-card-footer flex items-center justify-between">
           <span class="text-[12px] text-ink-3">${e?"类型":"Type"}</span>
           <div class="relative -mr-0.5 w-30">
@@ -5459,7 +5459,7 @@ export function MetricsWidget({ title, value, change }: Props) {
           </div>
         </div>
       </div>
-    `),this.shadowRoot?.querySelectorAll("[data-idx]").forEach(e=>{e.addEventListener("click",()=>{let t=parseInt(e.getAttribute("data-idx")||"0",10);this.setSeg(t)})}),this.shadowRoot?.querySelectorAll(".scrub-handle").forEach(e=>{let t=e.getAttribute("data-field"),n=e.closest("label"),i=parseInt(n?.getAttribute("data-min")||"0",10),s=parseInt(n?.getAttribute("data-max")||"999",10);e.addEventListener("pointerdown",n=>{e.setPointerCapture(n.pointerId);let r="width"===t?this._width:"height"===t?this._height:"radius"===t?this._radius:this._opacity;this._dragState={x:n.clientX,val:r,fieldKey:t,min:i,max:s}}),e.addEventListener("pointermove",e=>{if(!this._dragState)return;let t=(e.clientX-this._dragState.x)/2,n=this._clamp(this._dragState.val+t,this._dragState.min,this._dragState.max);"width"===this._dragState.fieldKey?this._width=n:"height"===this._dragState.fieldKey?this._height=n:"radius"===this._dragState.fieldKey?this._radius=n:"opacity"===this._dragState.fieldKey&&(this._opacity=n),this.render()}),e.addEventListener("pointerup",()=>{this._dragState=null}),e.addEventListener("keydown",e=>{let n=e.shiftKey?10:1,r="width"===t?this._width:"height"===t?this._height:"radius"===t?this._radius:this._opacity;if("ArrowUp"===e.key||"ArrowRight"===e.key){e.preventDefault();let o=this._clamp(r+n,i,s);"width"===t?this._width=o:"height"===t?this._height=o:"radius"===t?this._radius=o:"opacity"===t&&(this._opacity=o),this.render()}else if("ArrowDown"===e.key||"ArrowLeft"===e.key){e.preventDefault();let o=this._clamp(r-n,i,s);"width"===t?this._width=o:"height"===t?this._height=o:"radius"===t?this._radius=o:"opacity"===t&&(this._opacity=o),this.render()}})}),this.shadowRoot?.querySelectorAll(".scrub-input").forEach(e=>{let t=e.getAttribute("data-field"),n=e.closest("label"),i=parseInt(n?.getAttribute("data-min")||"0",10),s=parseInt(n?.getAttribute("data-max")||"999",10);e.addEventListener("input",e=>{let n=Number(e.target.value.replace(/[^\d-]/g,""));if(!Number.isNaN(n)){let e=this._clamp(n,i,s);"width"===t?this._width=e:"height"===t?this._height=e:"radius"===t?this._radius=e:"opacity"===t&&(this._opacity=e)}}),e.addEventListener("blur",()=>{this.render()})}),this.shadowRoot?.querySelector("#btn-dropdown")?.addEventListener("click",()=>this.toggleMenu()),this.shadowRoot?.querySelectorAll(".dropdown-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.setTypeValue(t)})})}}"u">typeof customElements&&!customElements.get("nai-fine-tune-card")&&customElements.define("nai-fine-tune-card",tj),e.s([],76170),e.i(76170),e.i(29218),e.i(43516);let tM={spark:`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    `),this.shadowRoot?.querySelectorAll("[data-idx]").forEach(e=>{e.addEventListener("click",()=>{let t=parseInt(e.getAttribute("data-idx")||"0",10);this.setSeg(t)})}),this.shadowRoot?.querySelectorAll(".scrub-handle").forEach(e=>{let t=e.getAttribute("data-field"),n=e.closest("label"),s=parseInt(n?.getAttribute("data-min")||"0",10),i=parseInt(n?.getAttribute("data-max")||"999",10);e.addEventListener("pointerdown",n=>{e.setPointerCapture(n.pointerId);let r="width"===t?this._width:"height"===t?this._height:"radius"===t?this._radius:this._opacity;this._dragState={x:n.clientX,val:r,fieldKey:t,min:s,max:i}}),e.addEventListener("pointermove",e=>{if(!this._dragState)return;let t=(e.clientX-this._dragState.x)/2,n=this._clamp(this._dragState.val+t,this._dragState.min,this._dragState.max);"width"===this._dragState.fieldKey?this._width=n:"height"===this._dragState.fieldKey?this._height=n:"radius"===this._dragState.fieldKey?this._radius=n:"opacity"===this._dragState.fieldKey&&(this._opacity=n),this.render()}),e.addEventListener("pointerup",()=>{this._dragState=null}),e.addEventListener("keydown",e=>{let n=e.shiftKey?10:1,r="width"===t?this._width:"height"===t?this._height:"radius"===t?this._radius:this._opacity;if("ArrowUp"===e.key||"ArrowRight"===e.key){e.preventDefault();let o=this._clamp(r+n,s,i);"width"===t?this._width=o:"height"===t?this._height=o:"radius"===t?this._radius=o:"opacity"===t&&(this._opacity=o),this.render()}else if("ArrowDown"===e.key||"ArrowLeft"===e.key){e.preventDefault();let o=this._clamp(r-n,s,i);"width"===t?this._width=o:"height"===t?this._height=o:"radius"===t?this._radius=o:"opacity"===t&&(this._opacity=o),this.render()}})}),this.shadowRoot?.querySelectorAll(".scrub-input").forEach(e=>{let t=e.getAttribute("data-field"),n=e.closest("label"),s=parseInt(n?.getAttribute("data-min")||"0",10),i=parseInt(n?.getAttribute("data-max")||"999",10);e.addEventListener("input",e=>{let n=Number(e.target.value.replace(/[^\d-]/g,""));if(!Number.isNaN(n)){let e=this._clamp(n,s,i);"width"===t?this._width=e:"height"===t?this._height=e:"radius"===t?this._radius=e:"opacity"===t&&(this._opacity=e)}}),e.addEventListener("blur",()=>{this.render()})}),this.shadowRoot?.querySelector("#btn-dropdown")?.addEventListener("click",()=>this.toggleMenu()),this.shadowRoot?.querySelectorAll(".dropdown-item").forEach(e=>{e.addEventListener("click",()=>{let t=e.getAttribute("data-key");t&&this.setTypeValue(t)})})}}"u">typeof customElements&&!customElements.get("nai-fine-tune-card")&&customElements.define("nai-fine-tune-card",tj),e.s([],76170),e.i(76170),e.i(29218),e.i(43516);let tM={spark:`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>
   </svg>`,chevronDown:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M6 9l6 6 6-6"/>
@@ -5496,4 +5496,4 @@ export function MetricsWidget({ title, value, change }: Props) {
     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
   </svg>`,plus:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>`};e.s(["ICONS",0,tM],54143),e.i(54143),e.i(32083),e.s(["ICONS",0,tM,"NaiAgentInbox",0,ek,"NaiAgentTeams",0,U,"NaiApprovalCard",0,S,"NaiArtifactSandbox",0,eJ,"NaiAttachmentQueue",0,P,"NaiAudioOrb",0,ta,"NaiBaseElement",0,l,"NaiChat",0,R,"NaiCheckpointTimeline",0,eR,"NaiClarificationCard",0,en,"NaiCodeBlock",0,q,"NaiContextCards",0,ed,"NaiContextSpillover",0,ep,"NaiContextWindow",0,eo,"NaiCordisPluginTree",0,eT,"NaiDiffTable",0,e1,"NaiFilterTable",0,e9,"NaiFineTuneCard",0,tj,"NaiHookPipeline",0,eS,"NaiInsightCards",0,tm,"NaiJobScheduler",0,eO,"NaiLayerCard",0,tw,"NaiLoadingState",0,h,"NaiLspDiagnostics",0,eP,"NaiMcpServers",0,eU,"NaiMemoryInspector",0,el,"NaiMessageBranches",0,es,"NaiModelArena",0,tc,"NaiPermissionPresetCard",0,eH,"NaiPromptBar",0,Z,"NaiRecommendationCard",0,tf,"NaiRecordsTable",0,e3,"NaiSandboxManager",0,eF,"NaiSearch",0,tE,"NaiSelectionActions",0,ti,"NaiSensitiveInput",0,tk,"NaiSessionTelemetry",0,eM,"NaiSidebarNav",0,t$,"NaiStreamingText",0,$,"NaiSubagentTree",0,F,"NaiTaskRows",0,J,"NaiThinking",0,b,"NaiToolChips",0,ee,"NaiTurnLifecycle",0,eg,"NaiWorkflowRun",0,eZ,"UTILITY_CSS",0,a,"getGlobalLang",0,i,"onLangChange",0,r,"resolveLang",0,o,"setGlobalLang",0,s],74312)}]);
+  </svg>`};e.s(["ICONS",0,tM],54143),e.i(54143),e.i(32083),e.s(["ICONS",0,tM,"NaiAgentInbox",0,ek,"NaiAgentTeams",0,U,"NaiApprovalCard",0,S,"NaiArtifactSandbox",0,eJ,"NaiAttachmentQueue",0,P,"NaiAudioOrb",0,ta,"NaiBaseElement",0,l,"NaiChat",0,R,"NaiCheckpointTimeline",0,eR,"NaiClarificationCard",0,en,"NaiCodeBlock",0,q,"NaiContextCards",0,ed,"NaiContextSpillover",0,ep,"NaiContextWindow",0,eo,"NaiCordisPluginTree",0,eT,"NaiDiffTable",0,e1,"NaiFilterTable",0,e9,"NaiFineTuneCard",0,tj,"NaiHookPipeline",0,eS,"NaiInsightCards",0,tm,"NaiJobScheduler",0,eF,"NaiLayerCard",0,tw,"NaiLoadingState",0,h,"NaiLspDiagnostics",0,eP,"NaiMcpServers",0,eU,"NaiMemoryInspector",0,el,"NaiMessageBranches",0,ei,"NaiModelArena",0,tc,"NaiPermissionPresetCard",0,eH,"NaiPromptBar",0,Z,"NaiRecommendationCard",0,tf,"NaiRecordsTable",0,e3,"NaiSandboxManager",0,eO,"NaiSearch",0,tE,"NaiSelectionActions",0,ts,"NaiSensitiveInput",0,tk,"NaiSessionTelemetry",0,eM,"NaiSidebarNav",0,t$,"NaiStreamingText",0,$,"NaiSubagentTree",0,O,"NaiTaskRows",0,J,"NaiThinking",0,b,"NaiToolChips",0,ee,"NaiTurnLifecycle",0,eg,"NaiWorkflowRun",0,eZ,"UTILITY_CSS",0,a,"getGlobalLang",0,s,"onLangChange",0,r,"resolveLang",0,o,"setGlobalLang",0,i],74312)}]);

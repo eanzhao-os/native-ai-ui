@@ -80,7 +80,7 @@ export class NaiJobScheduler extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -109,7 +109,7 @@ export class NaiJobScheduler extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Jobs List */}
+        
         <div class="mt-3.5 flex flex-col gap-2">
           ${this._jobs
             .map((job) => {

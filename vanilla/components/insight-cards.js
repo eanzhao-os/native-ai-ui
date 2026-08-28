@@ -227,7 +227,7 @@ export class NaiInsightCards extends NaiBaseElement {
 
     this.setHtml(`
       <div class="flex w-full max-w-sm flex-col gap-2 font-sans">
-        {/* Pager Header */}
+        
         <div class="flex items-center justify-between">
           <div class="flex items-baseline gap-1.5">
             <span class="text-[13px] font-semibold text-ink">${zh ? "智能洞察" : "Insights"}</span>
@@ -257,7 +257,7 @@ export class NaiInsightCards extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Dynamic prose + subcard */}
+        
         <div class="animate-fade-up">
           <p class="text-[12.5px] leading-relaxed text-ink-2">
             ${currentMeta.prose}
@@ -267,7 +267,7 @@ export class NaiInsightCards extends NaiBaseElement {
             ${
               page === 0
                 ? `
-              {/* CompareCard */}
+              
               <div class="flex items-center gap-4">
                 <div class="flex-1">
                   <span class="flex items-center gap-1.5 text-[11.5px] text-ink-2">
@@ -311,7 +311,7 @@ export class NaiInsightCards extends NaiBaseElement {
             `
                 : page === 1
                 ? `
-              {/* AnomalyCard */}
+              
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1.5 text-[12px] font-medium text-ink">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-red" aria-hidden="true">
@@ -375,7 +375,7 @@ export class NaiInsightCards extends NaiBaseElement {
               </div>
             `
                 : `
-              {/* AllocationCard */}
+              
               <div>
                 <span class="flex items-center gap-1.5 text-[12px] font-medium text-ink">
                   <span class="flex size-3.5 items-center justify-center rounded-full bg-orange text-[8px] font-bold text-white">V</span>

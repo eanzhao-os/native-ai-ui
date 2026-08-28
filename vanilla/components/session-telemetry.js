@@ -85,7 +85,7 @@ export class NaiSessionTelemetry extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3">
           <div class="flex items-center gap-2">
             <span class="flex size-2 rounded-full ${f.turns.open > 0 ? "bg-accent animate-pulse" : "bg-green"}"></span>
@@ -101,7 +101,7 @@ export class NaiSessionTelemetry extends NaiBaseElement {
           </span>
         </div>
 
-        {/* Metric tiles */}
+        
         <div class="grid grid-cols-3 gap-1.5">
           ${metrics
             .map(
@@ -117,7 +117,7 @@ export class NaiSessionTelemetry extends NaiBaseElement {
             .join("")}
         </div>
 
-        {/* Turn outcome breakdown */}
+        
         <div class="mt-4">
           <div class="mb-1.5 flex items-center justify-between">
             <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -155,7 +155,7 @@ export class NaiSessionTelemetry extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Token sparkline */}
+        
         <div class="mt-4">
           <div class="mb-1.5 flex items-center justify-between">
             <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
@@ -182,7 +182,7 @@ export class NaiSessionTelemetry extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${zh ? "投影 = durable 事实的纯折叠" : "Projection = pure fold of durable facts"}</span>
           <span class="font-mono">Harness.Session.Stats</span>

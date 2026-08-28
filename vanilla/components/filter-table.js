@@ -49,7 +49,7 @@ export class NaiFilterTable extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-105">
-        {/* filter chips */}
+        
         <div
           class="-mx-1 mb-1 flex items-center gap-1 overflow-x-auto px-1 py-1"
           style="scrollbar-width: none;"
@@ -79,7 +79,7 @@ export class NaiFilterTable extends NaiBaseElement {
           }).join("")}
         </div>
 
-        {/* table */}
+        
         <div
           aria-label="Scrollable task table"
           class="overflow-x-auto rounded-card bg-surface shadow-card"

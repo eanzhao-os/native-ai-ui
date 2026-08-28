@@ -107,7 +107,7 @@ export class NaiAudioOrb extends NaiBaseElement {
 
     this.setHtml(`
       <div class="flex w-full max-w-sm flex-col items-center rounded-card border border-line bg-surface p-6 shadow-card">
-        {/* Top Status & Latency Bar */}
+        
         <div class="flex w-full items-center justify-between text-[11px] text-ink-3">
           <div class="flex items-center gap-1.5 font-mono">
             <span
@@ -128,7 +128,7 @@ export class NaiAudioOrb extends NaiBaseElement {
           <span class="font-mono text-[10.5px]">210ms • Opus 48kHz</span>
         </div>
 
-        {/* Fluid Gradient Orb */}
+        
         <div class="relative my-8 flex size-36 items-center justify-center">
           <div
             class="absolute inset-0 rounded-full blur-xl transition-all duration-700 ${
@@ -175,7 +175,7 @@ export class NaiAudioOrb extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Audio Waveform Equalizer */}
+        
         <div id="equalizer-bars" class="flex h-10 w-full items-center justify-center gap-1">
           ${bars
             .map(
@@ -189,12 +189,12 @@ export class NaiAudioOrb extends NaiBaseElement {
             .join("")}
         </div>
 
-        {/* Streaming Live Transcript */}
+        
         <p class="mt-4 min-h-[38px] text-center text-[12px] leading-relaxed text-ink-2">
           ${zh ? TRANSCRIPTS_ZH[state] : TRANSCRIPTS_EN[state]}
         </p>
 
-        {/* State Switcher Pills */}
+        
         <div class="mt-4 flex items-center gap-1 rounded-control bg-field p-1 text-[11px]">
           ${(["listening", "thinking", "speaking", "idle"])
             .map(
@@ -214,7 +214,7 @@ export class NaiAudioOrb extends NaiBaseElement {
             .join("")}
         </div>
 
-        {/* Bottom Controls */}
+        
         <div class="mt-5 flex w-full items-center justify-center gap-3 border-t border-line pt-4">
           <button
             type="button"

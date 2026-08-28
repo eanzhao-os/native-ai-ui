@@ -126,7 +126,7 @@ export class NaiThinking extends NaiBaseElement {
 
     this.setHtml(`
       <div class="flex min-h-[176px] w-full max-w-95 flex-col">
-        {/* Header */}
+        
         <button
           type="button"
           aria-expanded="${expanded}"
@@ -173,7 +173,7 @@ export class NaiThinking extends NaiBaseElement {
           </svg>
         </button>
 
-        {/* Expandable Trace */}
+        
         <div
           class="trace-container grid transition-all duration-400"
           style="

@@ -116,7 +116,7 @@ export class NaiCordisPluginTree extends NaiBaseElement {
 
     this.setHtml(`
       <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-        {/* Header */}
+        
         <div class="flex items-center justify-between pb-3.5 border-b border-line">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -146,7 +146,7 @@ export class NaiCordisPluginTree extends NaiBaseElement {
           </div>
         </div>
 
-        {/* Plugin Cards List */}
+        
         <div class="mt-3.5 flex flex-col gap-2.5">
           ${this._plugins
             .map((plugin) => {
@@ -167,7 +167,7 @@ export class NaiCordisPluginTree extends NaiBaseElement {
                     : "border-line/60 bg-page/50 opacity-60"
                 }"
               >
-                {/* Plugin Header Bar */}
+                
                 <div class="flex items-center justify-between p-3">
                   <div class="flex items-center gap-2 min-w-0">
                     <button
@@ -227,7 +227,7 @@ export class NaiCordisPluginTree extends NaiBaseElement {
                   </div>
                 </div>
 
-                {/* Service Definitions */}
+                
                 ${
                   plugin.enabled
                     ? `
@@ -277,7 +277,7 @@ export class NaiCordisPluginTree extends NaiBaseElement {
             .join("")}
         </div>
 
-        {/* Footer */}
+        
         <div class="mt-3.5 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${zh ? "Harness.Boot 容器已在 84ms 内装配" : "Harness.Boot container loaded in 84ms"}</span>
           <span class="font-mono">Cordis v0.10.2</span>
