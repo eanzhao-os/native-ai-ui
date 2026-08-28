@@ -1,65 +1,84 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import ThemeToggle from "./theme-toggle";
-import { LangProvider, useLangContext } from "@/lib/lang-context";
+import DemoViewport from "./demo-viewport";
+import { useSectionSpy } from "./use-section-spy";
+import {
+  LangProvider,
+  useLangContext,
+  type Lang,
+} from "@/lib/lang-context";
+
+type DemoProps = { lang?: Lang };
 
 // 1. Core & Composer
-import LoadingState from "@/components/loading-state";
-import ThinkingState from "@/components/thinking";
-import StreamingText from "@/components/streaming-text";
-import PromptBar from "@/components/prompt-bar";
-import ChatComposer from "@/components/chat";
-import CodeBlock from "@/components/code-block";
+const LoadingState = dynamic<DemoProps>(() => import("@/components/loading-state"));
+const ThinkingState = dynamic<DemoProps>(() => import("@/components/thinking"));
+const StreamingText = dynamic<DemoProps>(() => import("@/components/streaming-text"));
+const PromptBar = dynamic<DemoProps>(() => import("@/components/prompt-bar"));
+const ChatComposer = dynamic<DemoProps>(() => import("@/components/chat"));
+const CodeBlock = dynamic<DemoProps>(() => import("@/components/code-block"));
+const AttachmentQueue = dynamic<DemoProps>(() => import("@/components/attachment-queue"));
 
 // 2. Agentic & Multi-Agent
-import SubagentTree from "@/components/subagent-tree";
-import AgentTeams from "@/components/agent-teams";
-import TaskRows from "@/components/task-rows";
-import ToolChips from "@/components/tool-chips";
-import ApprovalCard from "@/components/approval-card";
-import ClarificationCard from "@/components/clarification-card";
+const SubagentTree = dynamic<DemoProps>(() => import("@/components/subagent-tree"));
+const AgentTeams = dynamic<DemoProps>(() => import("@/components/agent-teams"));
+const TaskRows = dynamic<DemoProps>(() => import("@/components/task-rows"));
+const ToolChips = dynamic<DemoProps>(() => import("@/components/tool-chips"));
+const ApprovalCard = dynamic<DemoProps>(() => import("@/components/approval-card"));
+const ClarificationCard = dynamic<DemoProps>(() => import("@/components/clarification-card"));
+const MessageBranches = dynamic<DemoProps>(() => import("@/components/message-branches"));
 
 // 3. Context & Tokenomics
-import ContextWindow from "@/components/context-window";
-import MemoryInspector from "@/components/memory-inspector";
-import ContextCards from "@/components/context-cards";
-import ContextSpillover from "@/components/context-spillover";
+const ContextWindow = dynamic<DemoProps>(() => import("@/components/context-window"));
+const MemoryInspector = dynamic<DemoProps>(() => import("@/components/memory-inspector"));
+const ContextCards = dynamic<DemoProps>(() => import("@/components/context-cards"));
+const ContextSpillover = dynamic<DemoProps>(() => import("@/components/context-spillover"));
 
 // 4. Agent Runtime
-import TurnLifecycle from "@/components/turn-lifecycle";
-import AgentInbox from "@/components/agent-inbox";
-import HookPipeline from "@/components/hook-pipeline";
-import SessionTelemetry from "@/components/session-telemetry";
-import WorkflowRun from "@/components/workflow-run";
+const TurnLifecycle = dynamic<DemoProps>(() => import("@/components/turn-lifecycle"));
+const AgentInbox = dynamic<DemoProps>(() => import("@/components/agent-inbox"));
+const HookPipeline = dynamic<DemoProps>(() => import("@/components/hook-pipeline"));
+const SessionTelemetry = dynamic<DemoProps>(() => import("@/components/session-telemetry"));
+const WorkflowRun = dynamic<DemoProps>(() => import("@/components/workflow-run"));
+const CheckpointTimeline = dynamic<DemoProps>(() => import("@/components/checkpoint-timeline"));
 
 // 5. Cordis & Infrastructure
-import CordisPluginTree from "@/components/cordis-plugin-tree";
-import PermissionPresetCard from "@/components/permission-preset-card";
-import LspDiagnostics from "@/components/lsp-diagnostics";
-import SandboxManager from "@/components/sandbox-manager";
-import JobScheduler from "@/components/job-scheduler";
-import McpServers from "@/components/mcp-servers";
+const CordisPluginTree = dynamic<DemoProps>(() => import("@/components/cordis-plugin-tree"));
+const PermissionPresetCard = dynamic<DemoProps>(() => import("@/components/permission-preset-card"));
+const LspDiagnostics = dynamic<DemoProps>(() => import("@/components/lsp-diagnostics"));
+const SandboxManager = dynamic<DemoProps>(() => import("@/components/sandbox-manager"));
+const JobScheduler = dynamic<DemoProps>(() => import("@/components/job-scheduler"));
+const McpServers = dynamic<DemoProps>(() => import("@/components/mcp-servers"));
 
 // 6. Artifacts & Data
-import ArtifactSandbox from "@/components/artifact-sandbox";
-import DiffTable from "@/components/diff-table";
-import RecordsTable from "@/components/records-table";
-import FilterTable from "@/components/filter-table";
-import SelectionActions from "@/components/selection-actions";
+const ArtifactSandbox = dynamic<DemoProps>(() => import("@/components/artifact-sandbox"));
+const DiffTable = dynamic<DemoProps>(() => import("@/components/diff-table"));
+const RecordsTable = dynamic<DemoProps>(() => import("@/components/records-table"));
+const FilterTable = dynamic<DemoProps>(() => import("@/components/filter-table"));
+const SelectionActions = dynamic<DemoProps>(() => import("@/components/selection-actions"));
 
 // 7. Multimodal & Arena
-import AudioOrb from "@/components/audio-orb";
-import ModelArena from "@/components/model-arena";
-import InsightCards from "@/components/insight-cards";
-import RecommendationCard from "@/components/recommendation-card";
+const AudioOrb = dynamic<DemoProps>(() => import("@/components/audio-orb"));
+const ModelArena = dynamic<DemoProps>(() => import("@/components/model-arena"));
+const InsightCards = dynamic<DemoProps>(() => import("@/components/insight-cards"));
+const RecommendationCard = dynamic<DemoProps>(() => import("@/components/recommendation-card"));
 
 // 8. Kumo & System Primitives
-import SensitiveInput from "@/components/sensitive-input";
-import LayerCard from "@/components/layer-card";
-import SidebarNav from "@/components/sidebar-nav";
-import SearchList from "@/components/search";
-import FineTuneCard from "@/components/fine-tune-card";
+const SensitiveInput = dynamic<DemoProps>(() => import("@/components/sensitive-input"));
+const LayerCard = dynamic<DemoProps>(() => import("@/components/layer-card"));
+const SidebarNav = dynamic<DemoProps>(() => import("@/components/sidebar-nav"));
+const SearchList = dynamic<DemoProps>(() => import("@/components/search"));
+const FineTuneCard = dynamic<DemoProps>(() => import("@/components/fine-tune-card"));
 
 type ComponentItem = {
   id: string;
@@ -67,7 +86,7 @@ type ComponentItem = {
   labelZh: string;
   descEn: string;
   descZh: string;
-  Component: React.ComponentType<any>;
+  Component: ComponentType<DemoProps>;
 };
 
 type CategoryGroup = {
@@ -93,6 +112,7 @@ const CATEGORIES: CategoryGroup[] = [
       { id: "prompt-bar", labelEn: "Prompt Bar", labelZh: "多模态输入栏", descEn: "Composer with shader sweep on send", descZh: "发送时带光谱扫过的输入栏", Component: PromptBar },
       { id: "chat", labelEn: "Chat Composer", labelZh: "对话消息与气泡输入", descEn: "Interactive chat panel with replies", descZh: "可交互的对话面板", Component: ChatComposer },
       { id: "code-block", labelEn: "Code Block", labelZh: "代码块与一键运行", descEn: "Syntax block with copy & run", descZh: "支持复制与运行的代码块", Component: CodeBlock },
+      { id: "attachment-queue", labelEn: "Attachment Queue", labelZh: "附件摄取队列", descEn: "Upload, parse, and index file states", descZh: "上传、解析与索引文件状态", Component: AttachmentQueue },
     ],
   },
   {
@@ -108,6 +128,7 @@ const CATEGORIES: CategoryGroup[] = [
       { id: "tool-chips", labelEn: "Tool Chips", labelZh: "工具调用状态胶囊徽章", descEn: "Tool-call status capsules", descZh: "工具调用状态胶囊", Component: ToolChips },
       { id: "approval-card", labelEn: "Approval Card", labelZh: "人机协同权限审批卡", descEn: "Human-in-the-loop action gate", descZh: "人在环路的操作审批", Component: ApprovalCard },
       { id: "clarification-card", labelEn: "Clarification Card", labelZh: "主动决策澄清卡片", descEn: "Agent asks before acting", descZh: "行动前主动澄清", Component: ClarificationCard },
+      { id: "message-branches", labelEn: "Message Branches", labelZh: "回答分支导航", descEn: "Compare regenerated answer branches", descZh: "比较重新生成的回答分支", Component: MessageBranches },
     ],
   },
   {
@@ -135,6 +156,7 @@ const CATEGORIES: CategoryGroup[] = [
       { id: "hook-pipeline", labelEn: "Hook Pipeline", labelZh: "Hook 决策管线", descEn: "Most-restrictive decision merge", descZh: "最严优先的决策合并", Component: HookPipeline },
       { id: "session-telemetry", labelEn: "Session Telemetry", labelZh: "会话遥测投影", descEn: "Live session stats fold", descZh: "实时会话统计折叠", Component: SessionTelemetry },
       { id: "workflow-run", labelEn: "Workflow Run", labelZh: "工作流扇出执行", descEn: "Fan-out with concurrency slots", descZh: "带并发槽位的扇出执行", Component: WorkflowRun },
+      { id: "checkpoint-timeline", labelEn: "Checkpoint Timeline", labelZh: "执行检查点时间线", descEn: "Inspect and restore execution state", descZh: "检查并恢复执行状态", Component: CheckpointTimeline },
     ],
   },
   {
@@ -195,6 +217,7 @@ const CATEGORIES: CategoryGroup[] = [
   },
 ];
 
+const ALL_COMPONENTS = CATEGORIES.flatMap((category) => category.items);
 const REGISTRY_BASE = "https://eanzhao-os.github.io/native-ai-ui/r";
 
 function CopyButton({ text, zh, className = "" }: { text: string; zh: boolean; className?: string }) {
@@ -235,16 +258,13 @@ function CopyButton({ text, zh, className = "" }: { text: string; zh: boolean; c
 }
 
 function ShowcaseContent() {
-  const { globalLang, setGlobalLang, componentLangs, setComponentLang, getLang } = useLangContext();
+  const { globalLang, setGlobalLang, setComponentLang, getLang } = useLangContext();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeSection, setActiveSection] = useState<string>("loading-state");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const zh = globalLang === "zh";
-
-  const allComponents = useMemo(() => CATEGORIES.flatMap((c) => c.items), []);
-  const totalCount = allComponents.length;
+  const totalCount = ALL_COMPONENTS.length;
 
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return CATEGORIES;
@@ -260,25 +280,14 @@ function ShowcaseContent() {
     })).filter((cat) => cat.items.length > 0);
   }, [searchQuery]);
 
-  // Scroll-spy over component sections
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY + 140;
-      for (const item of allComponents) {
-        const el = document.getElementById(item.id);
-        if (el) {
-          const top = el.offsetTop;
-          const height = el.offsetHeight;
-          if (scrollY >= top && scrollY < top + height) {
-            setActiveSection(item.id);
-            break;
-          }
-        }
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [allComponents]);
+  const visibleIds = useMemo(
+    () => filteredCategories.flatMap((category) => category.items.map((item) => item.id)),
+    [filteredCategories],
+  );
+  const activeSection = useSectionSpy(
+    visibleIds,
+    visibleIds[0] ?? ALL_COMPONENTS[0].id,
+  );
 
   // "/" focuses the sidebar search
   useEffect(() => {
@@ -296,7 +305,6 @@ function ShowcaseContent() {
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
-      setActiveSection(id);
       setMobileMenuOpen(false);
     }
   }, []);
@@ -345,6 +353,7 @@ function ShowcaseContent() {
               <button
                 key={l}
                 type="button"
+                aria-pressed={globalLang === l}
                 onClick={() => setGlobalLang(l)}
                 className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
                   globalLang === l ? "bg-surface text-ink shadow-xs" : "text-ink-3 hover:text-ink-2"
@@ -369,6 +378,7 @@ function ShowcaseContent() {
             <input
               ref={searchRef}
               type="text"
+              aria-label={zh ? "搜索组件" : "Search components"}
               placeholder={zh ? "搜索组件..." : "Search components..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -377,6 +387,7 @@ function ShowcaseContent() {
             {searchQuery ? (
               <button
                 type="button"
+                aria-label={zh ? "清除搜索" : "Clear search"}
                 onClick={() => setSearchQuery("")}
                 className="absolute right-2 flex size-4 items-center justify-center rounded-full text-[10px] text-ink-3 hover:text-ink cursor-pointer"
               >
@@ -415,6 +426,7 @@ function ShowcaseContent() {
                       <button
                         key={item.id}
                         type="button"
+                        aria-current={isActive ? "location" : undefined}
                         onClick={() => scrollToComponent(item.id)}
                         className={`group flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-[11.5px] transition-all cursor-pointer ${
                           isActive
@@ -468,6 +480,7 @@ function ShowcaseContent() {
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface/90 px-4 backdrop-blur-md lg:hidden">
           <button
             type="button"
+            aria-label={zh ? "打开组件导航" : "Open component navigation"}
             onClick={() => setMobileMenuOpen(true)}
             className="flex size-8 items-center justify-center rounded-control border border-line bg-field text-ink hover:bg-hover cursor-pointer"
           >
@@ -484,6 +497,7 @@ function ShowcaseContent() {
                 <button
                   key={l}
                   type="button"
+                  aria-pressed={globalLang === l}
                   onClick={() => setGlobalLang(l)}
                   className={`rounded-chip px-1.5 py-0.5 font-medium cursor-pointer ${
                     globalLang === l ? "bg-surface text-ink shadow-xs" : "text-ink-3"
@@ -630,6 +644,7 @@ function ShowcaseContent() {
                                 <button
                                   key={l}
                                   type="button"
+                                  aria-pressed={currentItemLang === l}
                                   onClick={() => setComponentLang(id, l)}
                                   className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
                                     currentItemLang === l
@@ -657,7 +672,9 @@ function ShowcaseContent() {
                             backgroundSize: "18px 18px",
                           }}
                         >
-                          <Component lang={currentItemLang} />
+                          <DemoViewport>
+                            <Component lang={currentItemLang} />
+                          </DemoViewport>
                         </div>
                       </section>
                     );
