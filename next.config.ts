@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-const isGithubActions = process.env.GITHUB_ACTIONS === "true";
-const basePath = isGithubActions ? "/native-ai-ui" : "";
+const isProd = process.env.NODE_ENV === "production";
+const basePath = process.env.BASE_PATH ?? (isProd ? "/native-ai-ui" : "");
 
 const nextConfig: NextConfig = {
   output: "export",
