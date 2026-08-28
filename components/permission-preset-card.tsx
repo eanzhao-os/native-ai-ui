@@ -69,7 +69,7 @@ const SAMPLE_AUDIT: AuditRecord[] = [
   {
     id: "aud-1",
     action: "fs.write",
-    target: "src/Tether.Core/Session.cs",
+    target: "src/Harness.Core/Session.cs",
     statusEn: "Approved",
     statusZh: "已批准",
     timestamp: "21:48:12",
@@ -78,7 +78,7 @@ const SAMPLE_AUDIT: AuditRecord[] = [
   {
     id: "aud-2",
     action: "shell.exec",
-    target: "dotnet build Tether.slnx",
+    target: "dotnet build Harness.slnx",
     statusEn: "Approved",
     statusZh: "已批准",
     timestamp: "21:48:19",
@@ -128,7 +128,7 @@ export default function PermissionPresetCard({ lang: propLang }: { lang?: "en" |
               {zh ? "权限预设与审计重放" : "Permission Presets & Auditing"}
             </h3>
             <p className="text-[11px] text-ink-3">
-              {zh ? "Tether 权限 Bundle 与持久化不可变事实" : "Tether authorization bundle & durable facts"}
+              {zh ? "Harness 权限 Bundle 与持久化不可变事实" : "Harness authorization bundle & durable facts"}
             </p>
           </div>
         </div>

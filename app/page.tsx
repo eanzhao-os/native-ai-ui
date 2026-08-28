@@ -26,14 +26,14 @@ import MemoryInspector from "@/components/memory-inspector";
 import ContextCards from "@/components/context-cards";
 import ContextSpillover from "@/components/context-spillover";
 
-// 4. Agent Runtime (Tether)
+// 4. Agent Runtime
 import TurnLifecycle from "@/components/turn-lifecycle";
 import AgentInbox from "@/components/agent-inbox";
 import HookPipeline from "@/components/hook-pipeline";
 import SessionTelemetry from "@/components/session-telemetry";
 import WorkflowRun from "@/components/workflow-run";
 
-// 5. Tether & Cordis Runtime
+// 5. Cordis & Infrastructure
 import CordisPluginTree from "@/components/cordis-plugin-tree";
 import PermissionPresetCard from "@/components/permission-preset-card";
 import LspDiagnostics from "@/components/lsp-diagnostics";
@@ -138,11 +138,11 @@ const CATEGORIES: CategoryGroup[] = [
     ],
   },
   {
-    id: "tether",
-    categoryEn: "Tether & Cordis Runtime",
-    categoryZh: "Tether & Cordis 运行态",
-    blurbEn: "Runtime widgets for the Tether C# agent harness.",
-    blurbZh: "面向 Tether C# Agent Harness 的运行态组件。",
+    id: "infra",
+    categoryEn: "Cordis & Infrastructure",
+    categoryZh: "Cordis 与基础设施",
+    blurbEn: "Runtime widgets for a Cordis-based C# agent harness.",
+    blurbZh: "面向 Cordis 架构 C# Agent Harness 的运行态组件。",
     items: [
       { id: "cordis-plugin-tree", labelEn: "Cordis Plugin Tree", labelZh: "Cordis 插件与服务拓扑", descEn: "Plugin/service topology with HMR", descZh: "插件服务拓扑与热重载", Component: CordisPluginTree },
       { id: "permission-preset-card", labelEn: "Permission Presets", labelZh: "权限预设与审计重放", descEn: "Exactly-once permission auditing", descZh: "精确一次的权限审计", Component: PermissionPresetCard },
@@ -542,8 +542,8 @@ function ShowcaseContent() {
               </h1>
               <p className="mt-3.5 max-w-lg text-[14px] leading-relaxed text-ink-2">
                 {zh
-                  ? `${totalCount} 个自包含、自演示的组件：流式生成、思考追踪、审批流、多智能体、Token 计量，以及 Tether C# Harness 运行态与 Kumo 风格系统原语。通过 shadcn CLI 一键安装。`
-                  : `${totalCount} self-contained, self-animating primitives — streaming, thinking traces, approvals, agent teams, tokenomics, plus Tether C# harness runtime widgets and Kumo-style system cards. Install any of them with the shadcn CLI.`}
+                  ? `${totalCount} 个自包含、自演示的组件：流式生成、思考追踪、审批流、多智能体、Token 计量，以及 Agent 运行时与 Kumo 风格系统原语。通过 shadcn CLI 一键安装。`
+                  : `${totalCount} self-contained, self-animating primitives — streaming, thinking traces, approvals, agent teams, tokenomics, plus agent-runtime widgets and Kumo-style system cards. Install any of them with the shadcn CLI.`}
               </p>
 
               {/* Install command */}
@@ -681,8 +681,8 @@ function ShowcaseContent() {
                 </div>
                 <p className="mt-2.5 text-[11.5px] leading-relaxed text-ink-3">
                   {zh
-                    ? "每个组件都是自包含的 .tsx 文件，自带演示动画。设计语言与 tokens 对齐 Kumo UI；运行态组件面向 Tether C# Agent Harness。"
-                    : "Every component is a self-contained .tsx that runs its own demo loop. Design tokens align with Kumo UI; runtime widgets target the Tether C# agent harness."}
+                    ? "每个组件都是自包含的 .tsx 文件，自带演示动画。设计语言与 tokens 对齐 Kumo UI；运行态组件面向 C# Agent Harness。"
+                    : "Every component is a self-contained .tsx that runs its own demo loop. Design tokens align with Kumo UI; runtime widgets target C# agent harnesses."}
                 </p>
               </div>
               <div className="flex gap-10 text-[11.5px]">
@@ -691,7 +691,7 @@ function ShowcaseContent() {
                     {zh ? "资源" : "Resources"}
                   </span>
                   <a href="https://github.com/eanzhao-os/native-ai-ui" target="_blank" rel="noreferrer" className="text-ink-2 hover:text-ink transition-colors">GitHub</a>
-                  <a href="https://github.com/eanzhao-os/tether" target="_blank" rel="noreferrer" className="text-ink-2 hover:text-ink transition-colors">Tether</a>
+                  <a href="https://github.com/koishijs/cordis" target="_blank" rel="noreferrer" className="text-ink-2 hover:text-ink transition-colors">Cordis</a>
                   <a href="https://kumo-ui.com" target="_blank" rel="noreferrer" className="text-ink-2 hover:text-ink transition-colors">Kumo UI</a>
                 </div>
                 <div className="flex flex-col gap-2">

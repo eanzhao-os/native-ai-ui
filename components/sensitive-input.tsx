@@ -40,7 +40,7 @@ export default function SensitiveInput({ lang: propLang }: { lang?: "en" | "zh" 
               </span>
             </div>
             <p className="text-[11px] text-ink-3">
-              {zh ? "DeepSeek 认证令牌与 Tether 运行凭据" : "DeepSeek Reasoning & Tether credentials"}
+              {zh ? "DeepSeek 认证令牌与 Harness 运行凭据" : "DeepSeek Reasoning & Harness credentials"}
             </p>
           </div>
         </div>

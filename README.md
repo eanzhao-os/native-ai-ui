@@ -60,7 +60,7 @@ Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest 
 | Session Telemetry | `components/session-telemetry.tsx` | — |
 | Workflow Run | `components/workflow-run.tsx` | — |
 
-### Tether & Cordis Runtime
+### Cordis & Infrastructure
 
 | Component | File | Extra deps |
 | --- | --- | --- |
@@ -154,7 +154,7 @@ depends on the specific faces beyond tabular figures in the mono stack.
 
 - **Beautiful UI**: Some components and foundational interactive primitives in this repository are adapted from and inspired by [Beautiful UI](https://www.beautifului.dev/) and [TurboKach/ai-native-react-components](https://github.com/TurboKach/ai-native-react-components).
 - **Kumo UI**: The design system, hairline border elevations, neutral surface tokens, sensitive credential masking, and layered card architectures align with [Kumo UI](https://kumo-ui.com/) (Cloudflare).
-- **Tether Harness**: Specialized runtime widgets (turn/step bracket timelines, dual-queue inbox semantics, hook decision pipelines, agent team rosters, workflow fan-out, session telemetry, Cordis plugin topologies, durable job schedules, exactly-once permission auditing, MCP inventories, and Roslyn LSP diagnostics) are tailored for the [Tether](https://github.com/eanzhao-os/tether) C# Agent Harness.
+- **C# Agent Harness**: Specialized runtime widgets (turn/step bracket timelines, dual-queue inbox semantics, hook decision pipelines, agent team rosters, workflow fan-out, session telemetry, Cordis plugin topologies, durable job schedules, exactly-once permission auditing, MCP inventories, and Roslyn LSP diagnostics) are tailored for a [Cordis](https://github.com/koishijs/cordis)-based C# agent harness.
 - Every component is `"use client"` and self-animating — they run their own demo loop
   (streaming, thinking, settling) rather than taking data props. Treat them as visual
   references to wire up to real state, not as finished API surfaces.

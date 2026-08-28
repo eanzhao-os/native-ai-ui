@@ -25,7 +25,7 @@ const INITIAL_DIAGNOSTICS: Diagnostic[] = [
     code: "CS0103",
     messageEn: "The name 'ContextSpilloverService' does not exist in the current context.",
     messageZh: "当前上下文中不存在名称 'ContextSpilloverService'，缺少对应命名空间引用。",
-    file: "src/Tether.Compaction/Compactor.cs",
+    file: "src/Harness.Compaction/Compactor.cs",
     line: 38,
     col: 14,
   },
@@ -35,7 +35,7 @@ const INITIAL_DIAGNOSTICS: Diagnostic[] = [
     code: "CS8618",
     messageEn: "Non-nullable property 'SessionLedger' must contain a non-null value when exiting constructor.",
     messageZh: "不可为 null 的属性 'SessionLedger' 在退出构造函数时必须包含非 null 值。",
-    file: "src/Tether.Session.Persistence/SqliteSessionStore.cs",
+    file: "src/Harness.Session.Persistence/SqliteSessionStore.cs",
     line: 22,
     col: 29,
   },
@@ -45,7 +45,7 @@ const INITIAL_DIAGNOSTICS: Diagnostic[] = [
     code: "CA2000",
     messageEn: "Dispose objects before losing scope: 'CancellationTokenSource' is never disposed.",
     messageZh: "在失去作用域前释放对象: 'CancellationTokenSource' 从未被显式 Dispose 释放。",
-    file: "src/Tether.CodeRuntime/WorkerProcess.cs",
+    file: "src/Harness.CodeRuntime/WorkerProcess.cs",
     line: 74,
     col: 21,
   },
@@ -92,7 +92,7 @@ export default function LspDiagnostics({ lang: propLang }: { lang?: "en" | "zh" 
               </span>
             </div>
             <p className="text-[11px] text-ink-3">
-              {zh ? "Tether.Lsp 工作区静态分析诊断流" : "Tether.Lsp live workspace analyzer stream"}
+              {zh ? "Harness.Lsp 工作区静态分析诊断流" : "Harness.Lsp live workspace analyzer stream"}
             </p>
           </div>
         </div>

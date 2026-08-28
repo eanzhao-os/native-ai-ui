@@ -92,7 +92,7 @@ export default function JobScheduler({ lang: propLang }: { lang?: "en" | "zh" })
                 {zh ? "持久化任务与 Cron 调度" : "Durable Job Scheduler"}
               </h3>
               <span className="rounded-chip border border-line bg-inset px-1.5 py-0.2 font-mono text-[9.5px] text-ink-3">
-                Tether.Jobs
+                Harness.Jobs
               </span>
             </div>
             <p className="text-[11px] text-ink-3">

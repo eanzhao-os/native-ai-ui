@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * WORKFLOW RUN — fan-out execution with concurrency slots
  *
- * Mirrors Tether.Workflow: a published WorkflowRun fans out
+ * Mirrors Harness.Workflow: a published WorkflowRun fans out
  * over items; members pick work bounded by MaxConcurrency.
  * The slot lanes show in-flight members; the item grid
  * fills as results land.
@@ -162,7 +162,7 @@ export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) 
             ? "全部条目处理完成"
             : "All items processed"}
         </span>
-        <span className="font-mono">Tether.Workflow</span>
+        <span className="font-mono">Harness.Workflow</span>
       </div>
     </div>
   );

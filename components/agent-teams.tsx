@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * AGENT TEAMS — durable roster + shared task DAG
  *
- * Mirrors Tether.AgentTeams: members provision → active,
+ * Mirrors Harness.AgentTeams: members provision → active,
  * tasks flow pending → in_progress → completed with CAS
  * revisions, dependencies, and workspace write scopes.
  * ───────────────────────────────────────────────────────── */
@@ -258,7 +258,7 @@ export default function AgentTeams({ lang: propLang }: { lang?: "en" | "zh" }) {
         <span>
           {zh ? `${activeCount}/4 成员已激活 · 事件溯源名册` : `${activeCount}/4 members active · event-sourced roster`}
         </span>
-        <span className="font-mono">Tether.AgentTeams</span>
+        <span className="font-mono">Harness.AgentTeams</span>
       </div>
     </div>
   );

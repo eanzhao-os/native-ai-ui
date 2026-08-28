@@ -19,7 +19,7 @@ type ProcessInfo = {
 const SAMPLE_PROCESSES: ProcessInfo[] = [
   {
     pid: 1402,
-    command: "dotnet run --project src/Tether.Boot",
+    command: "dotnet run --project src/Harness.Boot",
     cpuPct: 12.4,
     memMb: 240,
     uptimeEn: "8m 12s",
@@ -79,7 +79,7 @@ export default function SandboxManager({ lang: propLang }: { lang?: "en" | "zh" 
               </span>
             </div>
             <p className="text-[11px] text-ink-3">
-              {zh ? "隔离环境 Linux x86_64 • Tether.Sandbox.E2b" : "Isolated Linux x86_64 • Tether.Sandbox.E2b"}
+              {zh ? "隔离环境 Linux x86_64 • Harness.Sandbox.E2b" : "Isolated Linux x86_64 • Harness.Sandbox.E2b"}
             </p>
           </div>
         </div>

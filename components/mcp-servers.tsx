@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * MCP SERVERS — Model Context Protocol server panel
  *
- * Mirrors Tether.Mcp: stdio clients handshake with
+ * Mirrors Harness.Mcp: stdio clients handshake with
  * protocolVersion, then expose tools as server__tool.
  * One server is down with a retry action; servers expand
  * to show their tool inventory.
@@ -202,7 +202,7 @@ export default function McpServers({ lang: propLang }: { lang?: "en" | "zh" }) {
       {/* Footer */}
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
         <span>{zh ? "工具以 server__tool 限定名注册" : "Tools register as server__tool"}</span>
-        <span className="font-mono">Tether.Mcp</span>
+        <span className="font-mono">Harness.Mcp</span>
       </div>
     </div>
   );

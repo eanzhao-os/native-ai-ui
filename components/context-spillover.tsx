@@ -73,7 +73,7 @@ export default function ContextSpillover({ lang: propLang }: { lang?: "en" | "zh
               {zh ? "上下文压缩与磁盘溢出" : "Context Compaction & Spill"}
             </h3>
             <p className="text-[11px] text-ink-3">
-              {zh ? "Tether.Spill 超限数据磁盘分流存储" : "Tether.Spill disk-offloaded oversized tools"}
+              {zh ? "Harness.Spill 超限数据磁盘分流存储" : "Harness.Spill disk-offloaded oversized tools"}
             </p>
           </div>
         </div>
@@ -156,8 +156,8 @@ export default function ContextSpillover({ lang: propLang }: { lang?: "en" | "zh
                 <div className="mt-2.5 border-t border-line/60 pt-2 font-mono text-[10.5px] text-ink-2">
                   <div className="rounded bg-page p-2 leading-relaxed text-ink-3">
                     {zh
-                      ? "[水合片段预览: 48,500 token 原始输出已从 Tether.Spill.Local 磁盘缓存加载。原始 SHA256: 4d89a0b12...]"
-                      : "[Hydrated snippet: 48,500 tokens offloaded to Tether.Spill.Local storage. Original hash: sha256:4d89a0b12...]"}
+                      ? "[水合片段预览: 48,500 token 原始输出已从 Harness.Spill.Local 磁盘缓存加载。原始 SHA256: 4d89a0b12...]"
+                      : "[Hydrated snippet: 48,500 tokens offloaded to Harness.Spill.Local storage. Original hash: sha256:4d89a0b12...]"}
                   </div>
                 </div>
               )}

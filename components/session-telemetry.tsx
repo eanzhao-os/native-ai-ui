@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * SESSION TELEMETRY — live session stats projection
  *
- * Mirrors Tether.Session.Stats: turn outcome buckets,
+ * Mirrors Harness.Session.Stats: turn outcome buckets,
  * step/tool counters, LLM timing and token counters folded
  * from durable session facts. Numbers count up live; the
  * token sparkline grows with each folded turn.
@@ -184,7 +184,7 @@ export default function SessionTelemetry({ lang: propLang }: { lang?: "en" | "zh
       {/* Footer */}
       <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
         <span>{zh ? "投影 = durable 事实的纯折叠" : "Projection = pure fold of durable facts"}</span>
-        <span className="font-mono">Tether.Session.Stats</span>
+        <span className="font-mono">Harness.Session.Stats</span>
       </div>
     </div>
   );

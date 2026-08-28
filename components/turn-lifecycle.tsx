@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * TURN LIFECYCLE — turn/step bracket event timeline
  *
- * Mirrors Tether's agent loop structure:
+ * Mirrors Harness's agent loop structure:
  *   turn/start → request/header
  *     → (step/start → assistant/message → tool/call → tool/result → step/end)*
  *   → turn/end

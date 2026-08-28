@@ -18,7 +18,7 @@ type PluginNode = {
   id: string;
   name: string;
   version: string;
-  scope: "Kernel" | "Tether" | "Extension";
+  scope: "Kernel" | "Harness" | "Extension";
   services: ServiceInfo[];
   enabled: boolean;
   hmrVersion: number;
@@ -36,46 +36,46 @@ const INITIAL_PLUGINS: PluginNode[] = [
       {
         name: "IHmrWatcher",
         provider: "Cordis.Hmr.FileSystemWatcher",
-        consumers: ["Tether.Core.AgentLoop", "Tether.Skill"],
+        consumers: ["Harness.Core.AgentLoop", "Harness.Skill"],
         status: "active",
       },
     ],
   },
   {
-    id: "tether-llm-deepseek",
-    name: "Tether.Llm.DeepSeek",
+    id: "harness-llm-deepseek",
+    name: "Harness.Llm.DeepSeek",
     version: "0.9.2",
-    scope: "Tether",
+    scope: "Harness",
     enabled: true,
     hmrVersion: 1,
     services: [
       {
         name: "ILlmProvider",
         provider: "DeepSeekReasoningProvider",
-        consumers: ["Tether.Core.AgentLoop", "Tether.Compaction"],
+        consumers: ["Harness.Core.AgentLoop", "Harness.Compaction"],
         status: "active",
       },
     ],
   },
   {
-    id: "tether-sandbox-e2b",
-    name: "Tether.Sandbox.E2b",
+    id: "harness-sandbox-e2b",
+    name: "Harness.Sandbox.E2b",
     version: "0.8.0",
-    scope: "Tether",
+    scope: "Harness",
     enabled: true,
     hmrVersion: 2,
     services: [
       {
         name: "ISandboxRuntime",
         provider: "E2bContainerWorker",
-        consumers: ["Tether.CodeRuntime.Tools", "Tether.Terminal.Tools"],
+        consumers: ["Harness.CodeRuntime.Tools", "Harness.Terminal.Tools"],
         status: "active",
       },
     ],
   },
   {
-    id: "tether-lsp",
-    name: "Tether.Lsp.Stdio",
+    id: "harness-lsp",
+    name: "Harness.Lsp.Stdio",
     version: "0.5.1",
     scope: "Extension",
     enabled: true,
@@ -84,7 +84,7 @@ const INITIAL_PLUGINS: PluginNode[] = [
       {
         name: "ILspDiagnosticsService",
         provider: "OmniSharpStdioBridge",
-        consumers: ["Tether.Fs.Tools"],
+        consumers: ["Harness.Fs.Tools"],
         status: "active",
       },
     ],
@@ -138,7 +138,7 @@ export default function CordisPluginTree({ lang: propLang }: { lang?: "en" | "zh
               </span>
             </div>
             <p className="text-[11px] text-ink-3">
-              {zh ? "Tether 插件微内核依赖关系图" : "Tether harness plugin dependency graph"}
+              {zh ? "Harness 插件微内核依赖关系图" : "Agent harness plugin dependency graph"}
             </p>
           </div>
         </div>
@@ -186,7 +186,7 @@ export default function CordisPluginTree({ lang: propLang }: { lang?: "en" | "zh
                     className={`rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${
                       plugin.scope === "Kernel"
                         ? "bg-orange-tint text-orange"
-                        : plugin.scope === "Tether"
+                        : plugin.scope === "Harness"
                         ? "bg-accent-tint text-accent-ink"
                         : "bg-green-tint text-green"
                     }`}
@@ -261,7 +261,7 @@ export default function CordisPluginTree({ lang: propLang }: { lang?: "en" | "zh
 
       {/* Footer */}
       <div className="mt-3.5 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
-        <span>{zh ? "Tether.Boot 容器已在 84ms 内装配" : "Tether.Boot container loaded in 84ms"}</span>
+        <span>{zh ? "Harness.Boot 容器已在 84ms 内装配" : "Harness.Boot container loaded in 84ms"}</span>
         <span className="font-mono">Cordis v0.10.2</span>
       </div>
     </div>

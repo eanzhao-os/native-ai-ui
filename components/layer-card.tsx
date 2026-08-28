@@ -27,14 +27,14 @@ export default function LayerCard({ lang: propLang }: { lang?: "en" | "zh" }) {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-[13px] font-semibold text-ink">
-                {zh ? "Tether 边缘工作节点" : "Tether Edge Worker"}
+                {zh ? "Harness 边缘工作节点" : "Harness Edge Worker"}
               </h3>
               <span className="rounded-chip bg-green-tint px-1.5 py-0.2 font-mono text-[9.5px] font-medium text-green">
                 {zh ? "健康" : "Healthy"}
               </span>
             </div>
             <span className="font-mono text-[10.5px] text-ink-3">
-              worker-tether-session-prod • us-east-1
+              worker-harness-session-prod • us-east-1
             </span>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * AGENT INBOX — dual-queue delivery semantics
  *
- * Mirrors Tether's IInbox: NextTurn messages open their own
+ * Mirrors Harness's IInbox: NextTurn messages open their own
  * turn; NextStep messages are consumed at the step boundary.
  * Followup wakes the driver, Steer wakes at the boundary,
  * Inject slides in silently. The demo scripts all four.

@@ -5356,7 +5356,7 @@
       "name": "turn-lifecycle",
       "type": "registry:component",
       "title": "Turn Lifecycle",
-      "description": "turn/step bracket event timeline from the Tether agent loop.",
+      "description": "turn/step bracket event timeline from the Harness agent loop.",
       "files": [
         {
           "path": "components/turn-lifecycle.tsx",

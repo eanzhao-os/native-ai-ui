@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang-context";
 /* ─────────────────────────────────────────────────────────
  * HOOK PIPELINE — decision merge across hook points
  *
- * Mirrors Tether.Hooks: every tool call passes ToolPre
+ * Mirrors Harness.Hooks: every tool call passes ToolPre
  * hooks; each returns allow / ask / deny / block and the
  * most-restrictive decision wins (deny > ask > block > allow).
  * The demo walks one fs.write call through the pipeline.
@@ -85,7 +85,7 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
             6 points
           </span>
         </div>
-        <span className="font-mono text-[10.5px] text-ink-3">Tether.Hooks</span>
+        <span className="font-mono text-[10.5px] text-ink-3">Harness.Hooks</span>
       </div>
 
       {/* Hook points strip */}
