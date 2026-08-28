@@ -1,0 +1,4 @@
+interface:
+  display_name: "Native AI UI"
+  short_description: "Design trustworthy AI-native interfaces"
+  default_prompt: "Use $native-ai-ui to design an AI interface for my target platform."

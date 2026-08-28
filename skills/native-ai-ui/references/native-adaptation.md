@@ -1,6 +1,6 @@
 # Native Adaptation — SwiftUI, Compose, TUI
 
-How to carry the 19 Beautiful UI patterns onto native platforms while preserving
+How to carry the Native AI UI patterns onto native platforms while preserving
 their interaction model. Tokens translate 1:1 — see tokens.md for values;
 this file maps tokens to platform primitives and gives per-pattern notes.
 
@@ -21,6 +21,24 @@ this file maps tokens to platform primitives and gives per-pattern notes.
 On both platforms, define every token for light AND dark. The web tokens already
 solve the dark ramp — copy the hex values directly into asset catalogs / theme
 objects rather than re-deriving them.
+
+For TUI work, map the same semantics to named terminal styles such as
+`surface`, `ink-muted`, `accent`, `success`, `warning`, and `danger`.
+Define ANSI 16-color, ANSI 256-color, and monochrome fallbacks. Never rely on
+color alone.
+
+## Cross-Platform Pattern Map
+
+| Pattern | SwiftUI | Compose | TUI |
+| --- | --- | --- | --- |
+| Attachment Queue | `ProgressView` rows in `List` | `LinearProgressIndicator` rows | queued rows with percent and retry key |
+| Message Branches | `TabView` paging plus toolbar arrows | `HorizontalPager` plus icon buttons | `[1/3]` with previous/next keys |
+| Checkpoint Timeline | `DisclosureGroup` plus `confirmationDialog` | expandable list plus `AlertDialog` | numbered checkpoints plus typed confirmation |
+| Approval Card | `confirmationDialog` or focused sheet with destructive role | `AlertDialog` with explicit confirm/cancel | focused approval pane; type the shown scope for destructive commands |
+| Tool Progress | `ProgressView` plus expandable log disclosure | progress indicator plus expandable log | one live status line plus append-only detail log |
+| Diff Review | `List` or `Table` with selectable hunks | lazy list with selectable hunks | unified diff with accept/reject keys |
+| Agent Tree | `OutlineGroup` with status labels | expandable lazy tree | indented tree with stable row keys |
+| Workflow Run | `Grid` or `List` with task cancellation | lazy grid/list with task cancellation | queued/running/done/failed rows with retry and cancel keys |
 
 ## Pattern Mapping
 
@@ -52,6 +70,10 @@ objects rather than re-deriving them.
   with arrow symbol; last page swaps to arrow-up. Never auto-advance.
 - Compose: simple index state (or a pager locked to user-confirmed gestures).
 - Out-of-app approvals: actionable notifications mirroring the same options.
+- Destructive or privileged actions: show exact command, target, working directory,
+  and authority change. Use a destructive-role control, keep Cancel as the safe
+  default, block duplicate confirmation, and require typed scope for irreversible
+  terminal actions.
 
 ### Tool Chips
 - SwiftUI: `HStack` of small capsule buttons with symbols + status tint;
@@ -131,3 +153,15 @@ objects rather than re-deriving them.
 - Traces print progressively and settle to a one-line summary; diffs use
   green/red +/- lines; approvals are single-question prompts with numbered options.
 - Elapsed timers and spinners share one line, cleared on completion.
+- Model focus explicitly: only the focused approval consumes `y/n`, arrow keys,
+  or typed confirmation. Keep global help and cancel keys visible.
+- Use `Tab`/reverse-`Tab` or documented previous/next keys to move between
+  panes, `Enter` to inspect, `Esc` to cancel, and `Ctrl+C` to request
+  interruption. Never bind a single unmodified key to an irreversible action.
+- For dangerous commands, show the exact command and resolved targets. Read-only
+  work may run directly; destructive, privileged, costly, or externally visible
+  work always pauses for explicit approval. Irreversible scope requires typing the
+  displayed confirmation phrase.
+- Keep tool output append-only beneath one replaceable live status line. Settle to
+  exit status and duration; on failure keep partial output and offer inspect, retry,
+  or cancel. Reduced-motion mode replaces spinners with textual state labels.
