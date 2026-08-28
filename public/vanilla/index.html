@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Native AI UI — Vanilla ES Modules & Web Components</title>
+  <link rel="stylesheet" href="./tokens.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .brand-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent), #7c5cff);
+    }
+    .brand-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--accent-tint);
+      color: var(--accent-ink);
+      font-weight: 500;
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-ctrl {
+      padding: 6px 12px;
+      border-radius: var(--radius-control);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink-2);
+      font-size: 12.5px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background-color 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .btn-ctrl:hover {
+      background: var(--hover);
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    .main-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 36px 24px 80px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-width: 760px;
+    }
+    .hero-tags {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      color: var(--ink-3);
+    }
+    .hero-tag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--ink-2);
+    }
+    .hero h1 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+    }
+    .hero h1 span {
+      color: var(--accent-ink);
+    }
+    .hero p {
+      font-size: 14.5px;
+      color: var(--ink-2);
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .card:hover {
+      border-color: var(--line-strong);
+      box-shadow: var(--shadow-raised);
+    }
+    .card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .card-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+    .variant-chips {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .variant-chip {
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--inset);
+      font-size: 11px;
+      color: var(--ink-2);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all 0.1s;
+    }
+    .variant-chip:hover {
+      background: var(--hover);
+      color: var(--ink);
+    }
+    .variant-chip.active {
+      background: var(--accent-tint);
+      color: var(--accent-ink);
+      border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+      font-weight: 500;
+    }
+    .card-body {
+      padding: 24px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 170px;
+      background: var(--page);
+      overflow: hidden;
+    }
+    .card-footer {
+      padding: 10px 16px;
+      background: var(--inset);
+      border-top: 1px solid var(--line);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .code-text {
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+    }
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent-ink);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover {
+      text-decoration: underline;
+    }
+    .full-width {
+      grid-column: 1 / -1;
+    }
+    .cdn-section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .cdn-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .code-block {
+      background: var(--tooltip-bg, #111214);
+      color: var(--tooltip-fg, #f2f3f4);
+      border-radius: var(--radius-control);
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+    }
+    .code-block .hl-tag { color: #3d9aff; }
+    .code-block .hl-attr { color: #f68f3c; }
+    .code-block .hl-str { color: #3dbb72; }
+    .code-block .hl-comment { color: #6c6f75; }
+  </style>
+  <script type="module">
+    import { setGlobalLang, getGlobalLang } from "./esm/index.js";
+
+    // Setup Theme & Lang Toggles
+    const themeBtn = document.getElementById("theme-toggle");
+    const langBtn = document.getElementById("lang-toggle");
+    const heroTitle = document.getElementById("hero-title");
+    const heroDesc = document.getElementById("hero-desc");
+
+    function updateLanguageUI(lang) {
+      const isZh = lang === "zh";
+      if (langBtn) langBtn.textContent = isZh ? "🌐 中文版本" : "🌐 English";
+      if (heroTitle) {
+        heroTitle.innerHTML = isZh
+          ? `原生 <span>无框架 ES Modules</span> Web Components`
+          : `Native <span>Framework-Free</span> Web Components`;
+      }
+      if (heroDesc) {
+        heroDesc.textContent = isZh
+          ? "符合 W3C 标准的 Custom Elements v1 组件，无需构建，通过 <script type='module'> 在任意纯 HTML、Django/Rails/PHP 模板或 Vue/Svelte 前端中即插即用。"
+          : "W3C standard Custom Elements built with pure ES Modules. Zero dependencies, zero build step required. Works in plain HTML, Django, Rails, PHP, Vue, or Svelte.";
+      }
+    }
+
+    themeBtn?.addEventListener("click", () => {
+      const isDark = document.documentElement.classList.toggle("dark");
+      themeBtn.textContent = isDark ? "🌙 Dark" : "☀️ Light";
+    });
+
+    langBtn?.addEventListener("click", () => {
+      const current = getGlobalLang();
+      const next = current === "en" ? "zh" : "en";
+      setGlobalLang(next);
+      updateLanguageUI(next);
+    });
+
+    updateLanguageUI(getGlobalLang());
+
+    // Interactive Variant Switchers
+    window.setLoadingVariant = (variant, btn) => {
+      const el = document.getElementById("demo-loading");
+      if (el) el.setAttribute("variant", variant);
+      btn.parentElement.querySelectorAll(".variant-chip").forEach(c => c.classList.remove("active"));
+      btn.classList.add("active");
+    };
+
+    window.setThinkingVariant = (variant, btn) => {
+      const el = document.getElementById("demo-thinking");
+      if (el) el.setAttribute("variant", variant);
+      btn.parentElement.querySelectorAll(".variant-chip").forEach(c => c.classList.remove("active"));
+      btn.classList.add("active");
+    };
+
+    window.setPromptVariant = (variant, btn) => {
+      const el = document.getElementById("demo-prompt");
+      if (el) el.setAttribute("variant", variant);
+      btn.parentElement.querySelectorAll(".variant-chip").forEach(c => c.classList.remove("active"));
+      btn.classList.add("active");
+    };
+
+    window.copySnippet = (text, btn) => {
+      navigator.clipboard?.writeText(text).then(() => {
+        const prev = btn.textContent;
+        btn.textContent = "Copied!";
+        setTimeout(() => { btn.textContent = prev; }, 1500);
+      });
+    };
+  </script>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a href="../" class="brand">
+        <span class="brand-dot"></span>
+        <span>Native AI UI</span>
+        <span class="brand-badge">ESM / Web Components</span>
+      </a>
+      <div class="controls">
+        <button type="button" class="btn-ctrl" id="lang-toggle">🌐 English</button>
+        <button type="button" class="btn-ctrl" id="theme-toggle">🌙 Dark</button>
+        <a href="../" class="btn-ctrl" style="text-decoration: none;">← React Showcase</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="hero">
+      <div class="hero-tags">
+        <span class="hero-tag-pill">W3C Custom Elements</span>
+        <span class="hero-tag-pill">Zero Build</span>
+        <span class="hero-tag-pill">Light / Dark Sync</span>
+      </div>
+      <h1 id="hero-title">Native <span>Framework-Free</span> Web Components</h1>
+      <p id="hero-desc">
+        W3C standard Custom Elements built with pure ES Modules. Zero dependencies, zero build step required. Works in plain HTML, Django, Rails, PHP, Vue, or Svelte.
+      </p>
+    </div>
+
+    <div class="grid">
+      <!-- 1. Loading State -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-title">Loading State</span>
+            <span class="card-tag">&lt;nai-loading-state&gt;</span>
+          </div>
+          <div class="variant-chips">
+            <button class="variant-chip active" onclick="setLoadingVariant('Drive', this)">Drive</button>
+            <button class="variant-chip" onclick="setLoadingVariant('Dots', this)">Dots</button>
+            <button class="variant-chip" onclick="setLoadingVariant('Orbit', this)">Orbit</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <nai-loading-state id="demo-loading" variant="Drive"></nai-loading-state>
+        </div>
+        <div class="card-footer">
+          <span class="code-text">&lt;nai-loading-state variant="Drive"&gt;&lt;/nai-loading-state&gt;</span>
+          <button class="copy-btn" onclick="copySnippet('<nai-loading-state variant=\'Drive\'></nai-loading-state>', this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- 2. Thinking -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-title">Thinking State</span>
+            <span class="card-tag">&lt;nai-thinking&gt;</span>
+          </div>
+          <div class="variant-chips">
+            <button class="variant-chip active" onclick="setThinkingVariant('Steps', this)">Steps</button>
+            <button class="variant-chip" onclick="setThinkingVariant('Reasoning', this)">Reasoning</button>
+            <button class="variant-chip" onclick="setThinkingVariant('Search', this)">Search</button>
+            <button class="variant-chip" onclick="setThinkingVariant('Coding', this)">Coding</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <nai-thinking id="demo-thinking" variant="Steps"></nai-thinking>
+        </div>
+        <div class="card-footer">
+          <span class="code-text">&lt;nai-thinking variant="Steps"&gt;&lt;/nai-thinking&gt;</span>
+          <button class="copy-btn" onclick="copySnippet('<nai-thinking variant=\'Steps\'></nai-thinking>', this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- 3. Streaming Text -->
+      <div class="card full-width">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-title">Streaming Text</span>
+            <span class="card-tag">&lt;nai-streaming-text&gt;</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <nai-streaming-text></nai-streaming-text>
+        </div>
+        <div class="card-footer">
+          <span class="code-text">&lt;nai-streaming-text&gt;&lt;/nai-streaming-text&gt;</span>
+          <button class="copy-btn" onclick="copySnippet('<nai-streaming-text></nai-streaming-text>', this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- 4. Approval Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-title">Approval Card</span>
+            <span class="card-tag">&lt;nai-approval-card&gt;</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <nai-approval-card></nai-approval-card>
+        </div>
+        <div class="card-footer">
+          <span class="code-text">&lt;nai-approval-card&gt;&lt;/nai-approval-card&gt;</span>
+          <button class="copy-btn" onclick="copySnippet('<nai-approval-card></nai-approval-card>', this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- 5. Chat -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-title">Chat Panel</span>
+            <span class="card-tag">&lt;nai-chat&gt;</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <nai-chat></nai-chat>
+        </div>
+        <div class="card-footer">
+          <span class="code-text">&lt;nai-chat&gt;&lt;/nai-chat&gt;</span>
+          <button class="copy-btn" onclick="copySnippet('<nai-chat></nai-chat>', this)">Copy</button>
+        </div>
+      </div>
+
+      <!-- 6. Prompt Bar -->
+      <div class="card full-width">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-title">Prompt Bar</span>
+            <span class="card-tag">&lt;nai-prompt-bar&gt;</span>
+          </div>
+          <div class="variant-chips">
+            <button class="variant-chip active" onclick="setPromptVariant('Rounded', this)">Rounded</button>
+            <button class="variant-chip" onclick="setPromptVariant('Pill', this)">Pill</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 36px 24px;">
+          <nai-prompt-bar id="demo-prompt" variant="Rounded"></nai-prompt-bar>
+        </div>
+        <div class="card-footer">
+          <span class="code-text">&lt;nai-prompt-bar variant="Rounded"&gt;&lt;/nai-prompt-bar&gt;</span>
+          <button class="copy-btn" onclick="copySnippet('<nai-prompt-bar variant=\'Rounded\'></nai-prompt-bar>', this)">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CDN / Usage Section -->
+    <div class="cdn-section">
+      <h2>Quick Start (Zero Build)</h2>
+      <p style="color: var(--ink-2); font-size: 13.5px;">
+        Add the CSS tokens and ES module script to your HTML document header to use any component immediately:
+      </p>
+      <pre class="code-block"><code><span class="hl-comment">&lt;!-- 1. Include design tokens --&gt;</span>
+<span class="hl-tag">&lt;link</span> <span class="hl-attr">rel</span>=<span class="hl-str">"stylesheet"</span> <span class="hl-attr">href</span>=<span class="hl-str">"https://eanzhao-os.github.io/native-ai-ui/vanilla/tokens.css"</span><span class="hl-tag">&gt;</span>
+
+<span class="hl-comment">&lt;!-- 2. Load all Web Components via ES Module --&gt;</span>
+<span class="hl-tag">&lt;script</span> <span class="hl-attr">type</span>=<span class="hl-str">"module"</span> <span class="hl-attr">src</span>=<span class="hl-str">"https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"</span><span class="hl-tag">&gt;&lt;/script&gt;</span>
+
+<span class="hl-comment">&lt;!-- 3. Use standard custom tags anywhere --&gt;</span>
+<span class="hl-tag">&lt;nai-loading-state</span> <span class="hl-attr">variant</span>=<span class="hl-str">"Drive"</span> <span class="hl-attr">lang</span>=<span class="hl-str">"zh"</span><span class="hl-tag">&gt;&lt;/nai-loading-state&gt;</span>
+<span class="hl-tag">&lt;nai-thinking</span> <span class="hl-attr">variant</span>=<span class="hl-str">"Steps"</span><span class="hl-tag">&gt;&lt;/nai-thinking&gt;</span>
+<span class="hl-tag">&lt;nai-prompt-bar</span> <span class="hl-attr">variant</span>=<span class="hl-str">"Rounded"</span><span class="hl-tag">&gt;&lt;/nai-prompt-bar&gt;</span></code></pre>
+    </div>
+  </main>
+</body>
+</html>

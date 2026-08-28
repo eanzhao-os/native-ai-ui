@@ -574,6 +574,13 @@ function ShowcaseContent() {
                   />
                 </div>
                 <a
+                  href="./vanilla/"
+                  className="flex items-center gap-1.5 rounded-control border border-line bg-surface px-3.5 py-2.5 text-[12.5px] font-medium text-ink shadow-btn transition-colors hover:bg-hover cursor-pointer"
+                >
+                  <span className="size-1.5 rounded-full bg-accent" />
+                  <span>Vanilla ESM</span>
+                </a>
+                <a
                   href="https://github.com/eanzhao-os/native-ai-ui"
                   target="_blank"
                   rel="noreferrer"

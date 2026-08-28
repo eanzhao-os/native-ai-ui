@@ -1,21 +1,38 @@
-# AI-Native React Components
+# AI-Native React & Vanilla Components
 
-> 🌐 **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/)
+> 🌐 **React Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/)  
+> ⚡ **Vanilla ESM / Web Components Showcase**: [https://eanzhao-os.github.io/native-ai-ui/vanilla/](https://eanzhao-os.github.io/native-ai-ui/vanilla/)
 
 44 crafted primitives for AI-native interfaces — loading and thinking states, streaming
 text, attachment queues, approval flows, agent teams, message branches, turn lifecycles,
 dual-queue inboxes, hook pipelines, session telemetry, checkpoints, audio orb, tokenomics,
 cordis plugins, MCP servers, sandbox managers, LSP, artifacts, and Kumo-style primitives.
 
-Every component is a self-contained `.tsx` file with no shared runtime beyond React and
-a set of design tokens. Install one with the shadcn CLI and it arrives with its tokens,
-keyframes, the bilingual `lang-context` helper, and npm dependencies already wired in:
+Available both as **React 19 (`.tsx`)** components (via shadcn CLI) and **Zero-Dependency Vanilla Web Components (ES Modules)** (`<nai-*>` standard W3C Custom Elements).
+
+### React Installation (shadcn CLI)
+
+Every React component is a self-contained `.tsx` file with no shared runtime beyond React and
+a set of design tokens:
 
 ```bash
 npx shadcn@latest add https://raw.githubusercontent.com/eanzhao-os/native-ai-ui/main/public/r/records-table.json
 ```
 
-Requires a Tailwind CSS v4 project with a `components.json` (`npx shadcn@latest init`).
+### Vanilla ES Modules / Web Components (Zero Build)
+
+Load the design tokens and standard custom elements directly in plain HTML, Django, Rails, Vue, or Svelte:
+
+```html
+<link rel="stylesheet" href="https://eanzhao-os.github.io/native-ai-ui/vanilla/tokens.css">
+<script type="module" src="https://eanzhao-os.github.io/native-ai-ui/vanilla/index.js"></script>
+
+<!-- Use standard custom element tags -->
+<nai-loading-state variant="Drive" lang="zh"></nai-loading-state>
+<nai-thinking variant="Steps"></nai-thinking>
+<nai-streaming-text></nai-streaming-text>
+<nai-prompt-bar variant="Rounded"></nai-prompt-bar>
+```
 
 ## Components
 
