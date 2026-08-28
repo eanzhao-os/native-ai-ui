@@ -7,17 +7,45 @@ import { useLang } from "@/lib/lang-context";
  * KUMO-STYLE SENSITIVE INPUT & SECRET VAULT
  * ───────────────────────────────────────────────────────── */
 
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return true;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  return copied;
+}
+
 export default function SensitiveInput({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("sensitive-input", propLang);
   const zh = lang === "zh";
 
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [apiKey, setApiKey] = useState("dsk-live-9824f1a8c901e47d8b3a5c2e");
 
-  const handleCopy = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCopy = async () => {
+    setCopyError(false);
+    try {
+      if (!(await copyText(apiKey))) {
+        setCopyError(true);
+        return;
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+      setCopyError(true);
+    }
   };
 
   return (
@@ -52,12 +80,16 @@ export default function SensitiveInput({ lang: propLang }: { lang?: "en" | "zh" 
 
       {/* Sensitive Input Field */}
       <div className="mt-4">
-        <label className="mb-1.5 block text-[11.5px] font-medium text-ink-2">
+        <label
+          htmlFor="sensitive-api-token"
+          className="mb-1.5 block text-[11.5px] font-medium text-ink-2"
+        >
           {zh ? "DeepSeek API Token (生产环境)" : "DeepSeek API Token (Production)"}
         </label>
 
         <div className="flex items-center gap-2 rounded-control border border-line bg-field px-3 py-2 focus-within:border-accent focus-within:bg-surface focus-within:ring-2 focus-within:ring-accent/20 transition-all">
           <input
+            id="sensitive-api-token"
             type={revealed ? "text" : "password"}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
@@ -88,11 +120,18 @@ export default function SensitiveInput({ lang: propLang }: { lang?: "en" | "zh" 
             {/* Copy Button */}
             <button
               type="button"
+              aria-label={zh ? "复制令牌" : "Copy token"}
               onClick={handleCopy}
               className="flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-0.5 text-[10.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
             >
-              {copied ? (
-                <span className="text-green font-medium">{zh ? "已复制!" : "Copied!"}</span>
+              {copyError ? (
+                <span role="status" aria-live="polite" className="text-red font-medium">
+                  {zh ? "复制失败" : "Copy failed"}
+                </span>
+              ) : copied ? (
+                <span role="status" aria-live="polite" className="text-green font-medium">
+                  {zh ? "已复制!" : "Copied!"}
+                </span>
               ) : (
                 <>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

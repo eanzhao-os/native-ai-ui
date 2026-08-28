@@ -32,6 +32,10 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = globalLang;
+  }, [globalLang]);
+
   const setGlobalLang = (lang: Lang) => {
     setGlobalLangState(lang);
     try {

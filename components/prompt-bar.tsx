@@ -228,25 +228,18 @@ export default function PromptBar({ variant = "Rounded", lang: propLang }: { var
     if (!modelOpen) setModelHovered(null);
   }, [modelOpen]);
 
-  /* Build the shader with a pinned hue phase. createShader seeds its
-   * internal hueShift from Math.random(), which made the sweep a different
-   * colour on every reload — pin it so the rainbow is identical each time. */
+  /* Let Glimm own its hue seed; creating the shader must not replace the
+   * page-wide random source, even briefly. */
   const makeShader = () => {
     const canvas = glimmRef.current;
     if (!canvas) return null;
-    const random = Math.random;
-    Math.random = () => 0;
-    try {
-      return createShader({
-        canvas,
-        palette: RAINBOW,
-        direction: "ltr",
-        bandTight: 10,
-        swellAmount: 0.85,
-      });
-    } finally {
-      Math.random = random;
-    }
+    return createShader({
+      canvas,
+      palette: RAINBOW,
+      direction: "ltr",
+      bandTight: 10,
+      swellAmount: 0.85,
+    });
   };
 
   /* Glimm shader lives inside the composer, invisible at rest. Selecting
@@ -263,8 +256,7 @@ export default function PromptBar({ variant = "Rounded", lang: propLang }: { var
   const celebrate = () => {
     if (sweepingRef.current) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // Recreate the shader per sweep so uTime restarts at 0 — the hue phase
-    // (which drifts with time) is then identical on every trigger.
+    // Recreate the shader per sweep so its animation clock restarts at zero.
     shaderRef.current?.destroy();
     const shader = makeShader();
     shaderRef.current = shader;

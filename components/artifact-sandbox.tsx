@@ -23,6 +23,23 @@ export function MetricsWidget({ title, value, change }: Props) {
   );
 }`;
 
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return true;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  return copied;
+}
+
 export default function ArtifactSandbox({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("artifact-sandbox", propLang);
   const zh = lang === "zh";
@@ -30,10 +47,21 @@ export default function ArtifactSandbox({ lang: propLang }: { lang?: "en" | "zh"
   const [tab, setTab] = useState<"preview" | "code">("preview");
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
-  const handleCopy = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+  const handleCopy = async () => {
+    setCopyError(false);
+    try {
+      if (!(await copyText(SAMPLE_CODE))) {
+        setCopyError(true);
+        return;
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+      setCopyError(true);
+    }
   };
 
   return (
@@ -131,15 +159,22 @@ export default function ArtifactSandbox({ lang: propLang }: { lang?: "en" | "zh"
           {/* Copy Button */}
           <button
             type="button"
+            aria-label={zh ? "复制" : "Copy"}
             onClick={handleCopy}
             className="flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-1 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
           >
-            {copied ? (
+            {copyError ? (
+              <span role="status" aria-live="polite" className="text-red">
+                {zh ? "复制失败" : "Copy failed"}
+              </span>
+            ) : copied ? (
               <>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span className="text-green">{zh ? "已复制" : "Copied"}</span>
+                <span role="status" aria-live="polite" className="text-green">
+                  {zh ? "已复制" : "Copied"}
+                </span>
               </>
             ) : (
               <>

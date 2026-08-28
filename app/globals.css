@@ -146,6 +146,13 @@ body {
 
 /* ── Reduced motion: freeze decorative loops ───────────── */
 @media (prefers-reduced-motion: reduce) {
+  html:focus-within{scroll-behavior:auto}
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    scroll-behavior:auto !important;
+    transition-duration:.01ms !important;
+  }
   .pixel-grid > span{animation:none !important}
 }
 

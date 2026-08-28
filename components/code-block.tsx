@@ -37,11 +37,29 @@ const RAW = `export async function churnBatch() {
   return base.gallons;
 }`;
 
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return true;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  return copied;
+}
+
 export default function CodeBlock({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("code-block", propLang);
   const zh = lang === "zh";
   const [count, setCount] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const done = count >= LINES.length;
 
   useEffect(() => {
@@ -52,11 +70,19 @@ export default function CodeBlock({ lang: propLang }: { lang?: "en" | "zh" }) {
     return () => clearTimeout(t);
   }, [count, done]);
 
-  const copy = useCallback(() => {
-    navigator.clipboard.writeText(RAW).then(() => {
+  const copy = useCallback(async () => {
+    setCopyError(false);
+    try {
+      if (!(await copyText(RAW))) {
+        setCopyError(true);
+        return;
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    } catch {
+      setCopied(false);
+      setCopyError(true);
+    }
   }, []);
 
   return (
@@ -72,14 +98,26 @@ export default function CodeBlock({ lang: propLang }: { lang?: "en" | "zh" }) {
           onClick={copy}
           className={`flex h-6 items-center gap-1 rounded-[6px] px-1.5 text-[11.5px]
             font-medium transition-colors duration-100 hover:bg-hover
-            ${copied ? "text-green" : "text-ink-3 hover:text-ink"}`}
+            ${copyError ? "text-red" : copied ? "text-green" : "text-ink-3 hover:text-ink"}`}
         >
           {copied ? (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
           ) : (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
           )}
-          {copied ? (zh ? "已复制" : "Copied") : zh ? "复制" : "Copy"}
+          <span role="status" aria-live="polite">
+            {copyError
+              ? zh
+                ? "复制失败"
+                : "Copy failed"
+              : copied
+                ? zh
+                  ? "已复制"
+                  : "Copied"
+                : zh
+                  ? "复制"
+                  : "Copy"}
+          </span>
         </button>
       </div>
 
