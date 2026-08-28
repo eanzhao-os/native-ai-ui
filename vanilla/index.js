@@ -5,6 +5,7 @@
 export * from "./core/lang.js";
 export * from "./core/base-element.js";
 export * from "./core/icons.js";
+export * from "./core/styles.js";
 
 // Core Components
 export { NaiLoadingState } from "./components/loading-state.js";

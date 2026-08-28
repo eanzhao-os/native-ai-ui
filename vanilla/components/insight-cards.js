@@ -11,9 +11,9 @@ const ANOMALY_DATA = {
 };
 
 const ALLOCATION_SEGMENTS = [
-  { name: "VAN", label: "Vanilla", pct: 72.5, amount: "$51,785", color: "var(--orange, #ef720c)" },
-  { name: "CHOC", label: "Chocolate", pct: 22.8, amount: "$16,278", color: "var(--line-strong, #3a3c40)" },
-  { name: "MINT", label: "Mint", pct: 4.7, amount: "$3,357", color: "var(--line, #ecedef)" },
+  { name: "VAN", label: "Vanilla", pct: 72.5, amount: "$51,785", color: "var(--orange)" },
+  { name: "CHOC", label: "Chocolate", pct: 22.8, amount: "$16,278", color: "var(--line-strong)" },
+  { name: "MINT", label: "Mint", pct: 4.7, amount: "$3,357", color: "var(--line)" },
 ];
 
 export class NaiInsightCards extends NaiBaseElement {
@@ -84,7 +84,7 @@ export class NaiInsightCards extends NaiBaseElement {
     ctx.setLineDash([]);
 
     // Draw Mint series (orange)
-    ctx.strokeStyle = "#ef720c";
+    ctx.strokeStyle = "var(--orange, #ef720c)";
     ctx.lineWidth = 2.2;
     ctx.beginPath();
     for (let i = 0; i < count; i++) {
@@ -96,7 +96,7 @@ export class NaiInsightCards extends NaiBaseElement {
     ctx.stroke();
 
     // Draw Pistachio series (accent blue)
-    ctx.strokeStyle = "#0285ff";
+    ctx.strokeStyle = "var(--accent, #0285ff)";
     ctx.lineWidth = 2.2;
     ctx.beginPath();
     for (let i = 0; i < count; i++) {
@@ -170,7 +170,7 @@ export class NaiInsightCards extends NaiBaseElement {
     ctx.fill();
 
     // Draw Line
-    ctx.strokeStyle = "#e3474c";
+    ctx.strokeStyle = "var(--red, #e3474c)";
     ctx.lineWidth = 2.2;
     ctx.beginPath();
     for (let i = 0; i < count; i++) {
@@ -205,457 +205,256 @@ export class NaiInsightCards extends NaiBaseElement {
     const pagesMeta = [
       {
         prose: zh
-          ? '你的 <span class="entity-tag"><span class="entity-dot dot-orange"></span>@Creamery</span> 中表现最差的是 Rocky Road——下跌 <code class="mono-red">-6%</code>，合 <code class="mono-red">-$2,453.44</code>。'
-          : 'The worst performer in your <span class="entity-tag"><span class="entity-dot dot-orange"></span>@Creamery</span> is Rocky Road — down <code class="mono-red">-6%</code> or <code class="mono-red">-$2,453.44</code>.',
+          ? '你的 <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Creamery</span> 中表现最差的是 Rocky Road——下跌 <code class="font-mono text-[11.5px] text-red">-6%</code>，合 <code class="font-mono text-[11.5px] text-red">-$2,453.44</code>。'
+          : 'The worst performer in your <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Creamery</span> is Rocky Road — down <code class="font-mono text-[11.5px] text-red">-6%</code> or <code class="font-mono text-[11.5px] text-red">-$2,453.44</code>.',
         pill: zh ? "需要重新平衡口味组合吗？" : "Should I rebalance flavors?",
       },
       {
         prose: zh
-          ? '<span style="font-weight: 500; color: var(--ink);">12 月 13 日</span>的冷柜电费异常偏高——比你的平均水平高出 <code class="mono-red">+$1,834.66</code>。'
-          : 'Unusually high freezer bill on <span style="font-weight: 500; color: var(--ink);">Dec 13</span> — <code class="mono-red">+$1,834.66</code> above your average.',
+          ? '<span class="font-medium text-ink">12 月 13 日</span>的冷柜电费异常偏高——比你的平均水平高出 <code class="font-mono text-[11.5px] text-red">+$1,834.66</code>。'
+          : 'Unusually high freezer bill on <span class="font-medium text-ink">Dec 13</span> — <code class="font-mono text-[11.5px] text-red">+$1,834.66</code> above your average.',
         pill: zh ? "获取降低冷柜成本的建议" : "Get tips on cutting freezer costs",
       },
       {
         prose: zh
-          ? '你在 <span class="entity-tag"><span class="entity-dot dot-orange"></span>@Vanilla</span> 上投入过重——它占你库存的 <span style="font-weight: 500; color: var(--ink);">72.5%</span>。'
-          : 'You\'re heavily invested in <span class="entity-tag"><span class="entity-dot dot-orange"></span>@Vanilla</span> — it\'s <span style="font-weight: 500; color: var(--ink);">72.5%</span> of your case.',
+          ? '你在 <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Vanilla</span> 上投入过重——它占你库存的 <span class="font-medium text-ink">72.5%</span>。'
+          : 'You\'re heavily invested in <span class="inline-flex items-center gap-1 font-medium text-ink"><span class="size-2 rounded-full bg-orange"></span>@Vanilla</span> — it\'s <span class="font-medium text-ink">72.5%</span> of your case.',
         pill: zh ? "如果看季节性口味，会有什么变化？" : "If we look at seasonals, what changes?",
       },
     ];
 
     const currentMeta = pagesMeta[page];
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 360px;
-          min-height: 408px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-        }
-
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
-
-        .pager-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .pager-title {
-          display: flex;
-          align-items: baseline;
-          gap: 6px;
-        }
-
-        .title-text {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-
-        .title-count {
-          font-size: 13px;
-          color: var(--ink-3, #9a9da3);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .nav-buttons {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-        }
-
-        .nav-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          border-radius: 6px;
-          border: none;
-          background: transparent;
-          color: var(--ink-3, #9a9da3);
-          cursor: pointer;
-          transition: background-color 0.1s, color 0.1s;
-        }
-
-        .nav-btn:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-
-        .page-content {
-          animation: fade-up 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-
-        .prose-text {
-          margin-top: 6px;
-          font-size: 12.5px;
-          line-height: 1.5;
-          color: var(--ink-2, #62656b);
-        }
-
-        .entity-tag {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-        }
-
-        .entity-dot {
-          display: inline-block;
-          width: 9px;
-          height: 9px;
-          border-radius: 50%;
-        }
-
-        .dot-orange { background: var(--orange, #ef720c); }
-
-        .mono-red {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11.5px;
-          color: var(--red, #e3474c);
-        }
-
-        .mono-green {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11.5px;
-          color: var(--green, #189a4d);
-        }
-
-        .inner-card {
-          min-height: 278px;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          padding: 12px;
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          margin-top: 8px;
-        }
-
-        .chart-box {
-          margin-top: 8px;
-          overflow: hidden;
-          border-radius: var(--radius-control, 8px);
-          background: var(--inset, #f7f8f9);
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-        }
-
-        .chart-topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-bottom: 1px solid var(--line, #ecedef);
-          padding: 6px 10px;
-        }
-
-        .chart-topbar span {
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .snapshot-chip {
-          border-radius: 9999px;
-          background: var(--field, #f2f2f3);
-          padding: 2px 8px;
-          font-size: 10.5px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-        }
-
-        .canvas-stage {
-          position: relative;
-          height: 130px;
-          width: 100%;
-          cursor: crosshair;
-        }
-
-        canvas {
-          display: block;
-          width: 100%;
-          height: 130px;
-        }
-
-        .tooltip-box {
-          position: absolute;
-          top: 8px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: var(--tooltip-bg, #25272b);
-          color: var(--tooltip-fg, #f6f7f8);
-          border-radius: 6px;
-          padding: 4px 8px;
-          font-size: 10.5px;
-          pointer-events: none;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          white-space: nowrap;
-          z-index: 5;
-        }
-
-        .followup-pill {
-          margin-top: 8px;
-          border-radius: 9999px;
-          background: var(--surface, #fff);
-          padding: 6px 12px;
-          text-align: left;
-          font-size: 12px;
-          color: var(--ink, #1f2124);
-          border: none;
-          box-shadow: var(--shadow-btn, 0 0 0 1px var(--line-strong), 0 1px 2px rgba(0,0,0,0.05));
-          cursor: pointer;
-          transition: background-color 0.1s;
-        }
-
-        .followup-pill:hover {
-          background: var(--hover, #f4f5f6);
-        }
-
-        /* Allocation Card styles */
-        .alloc-bar {
-          display: flex;
-          height: 36px;
-          gap: 2px;
-          overflow: hidden;
-          border-radius: 9999px;
-          background: var(--field, #f2f2f3);
-          padding: 2px;
-          margin-top: 12px;
-        }
-
-        .alloc-segment {
-          position: relative;
-          height: 100%;
-          border-radius: 9999px;
-          border: none;
-          cursor: pointer;
-          transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .alloc-chips {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-top: 8px;
-        }
-
-        .alloc-chip {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: 9999px;
-          padding: 2px 8px;
-          font-size: 11px;
-          border: none;
-          background: transparent;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-        }
-
-        .alloc-chip.active {
-          background: var(--field, #f2f2f3);
-          color: var(--ink, #1f2124);
-        }
-
-        .alloc-desc-box {
-          margin-top: 12px;
-          min-height: 64px;
-          border-radius: var(--radius-control, 8px);
-          background: var(--inset, #f7f8f9);
-          padding: 8px 10px;
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-        }
-
-        @keyframes fade-up {
-          0% { opacity: 0; transform: translateY(8px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-      </style>
-
-      <div class="pager-header">
-        <div class="pager-title">
-          <span class="title-text">${zh ? "智能洞察" : "Insights"}</span>
-          <span class="title-count">3</span>
+    this.setHtml(`
+      <div class="flex w-full max-w-sm flex-col gap-2 font-sans">
+        {/* Pager Header */}
+        <div class="flex items-center justify-between">
+          <div class="flex items-baseline gap-1.5">
+            <span class="text-[13px] font-semibold text-ink">${zh ? "智能洞察" : "Insights"}</span>
+            <span class="text-[13px] text-ink-3 tabular-nums">3</span>
+          </div>
+          <div class="flex items-center gap-0.5">
+            <button
+              type="button"
+              id="btn-prev"
+              aria-label="${zh ? "上一条洞察" : "Previous insight"}"
+              class="flex size-6 items-center justify-center rounded-[6px] text-ink-3 hover:bg-hover hover:text-ink cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              id="btn-next"
+              aria-label="${zh ? "下一条洞察" : "Next insight"}"
+              class="flex size-6 items-center justify-center rounded-[6px] text-ink-3 hover:bg-hover hover:text-ink cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div class="nav-buttons">
-          <button type="button" class="nav-btn" id="btn-prev" aria-label="${zh ? "上一条洞察" : "Previous insight"}">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-          <button type="button" class="nav-btn" id="btn-next" aria-label="${zh ? "下一条洞察" : "Next insight"}">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>
-          </button>
-        </div>
-      </div>
 
-      <div class="page-content">
-        <p class="prose-text">${currentMeta.prose}</p>
+        {/* Dynamic prose + subcard */}
+        <div class="animate-fade-up">
+          <p class="text-[12.5px] leading-relaxed text-ink-2">
+            ${currentMeta.prose}
+          </p>
 
-        <!-- Subcard Rendering -->
-        <div class="inner-card">
-          ${
-            page === 0
-              ? `
-            <!-- Compare Card -->
-            <div style="display: flex; align-items: center; gap: 16px;">
-              <div style="flex: 1;">
-                <span style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2);">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--orange);"></span>
-                  Mint Chip
-                </span>
-                <span style="display: block; font-size: 17px; font-weight: 600; color: var(--red); font-variant-numeric: tabular-nums;">-4.41%</span>
-                <span class="mono-red">-$2,377.66</span>
-              </div>
-              <div style="flex: 1;">
-                <span style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2);">
-                  <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent);"></span>
-                  Pistachio
-                </span>
-                <span style="display: block; font-size: 17px; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums;">+1.15%</span>
-                <span class="mono-green">+$617.22</span>
-              </div>
-            </div>
-
-            <div class="chart-box">
-              <div class="chart-topbar">
-                <span>${zh ? "趋势快照" : "Trend snapshot"}</span>
-                <span class="snapshot-chip">${zh ? "快照" : "Snapshot"}</span>
-              </div>
-              <div class="canvas-stage" id="chart-stage-compare">
-                <canvas id="compare-canvas"></canvas>
-                ${
-                  this._hoverIndex !== null
-                    ? `
-                  <div class="tooltip-box">
-                    <div>Mint Chip: <strong>${COMPARE_DATA.mint[this._hoverIndex]}%</strong></div>
-                    <div>Pistachio: <strong>+${COMPARE_DATA.pistachio[this._hoverIndex]}%</strong></div>
-                  </div>
-                `
-                    : ""
-                }
-              </div>
-            </div>
-          `
-              : page === 1
-              ? `
-            <!-- Anomaly Card -->
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ink);">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-                ${zh ? "冷柜支出偏高" : "High freezer spend"}
-              </span>
-              <span class="snapshot-chip">${zh ? "快照" : "Snapshot"}</span>
-            </div>
-
-            <div class="chart-box">
-              <div class="chart-topbar">
-                <span>${this._anomalyMetric === "spend" ? "$2,112 阈值" : "82 kWh 阈值"}</span>
-                <div style="display: flex; background: var(--field); border-radius: 9999px; padding: 2px;">
-                  <button type="button" class="alloc-chip ${this._anomalyMetric === "spend" ? "active" : ""}" id="metric-spend">
-                    ${zh ? "支出" : "Spend"}
-                  </button>
-                  <button type="button" class="alloc-chip ${this._anomalyMetric === "usage" ? "active" : ""}" id="metric-usage">
-                    ${zh ? "用电" : "Usage"}
-                  </button>
+          <div class="mt-2 min-h-[278px] rounded-card bg-surface p-3 shadow-hairline">
+            ${
+              page === 0
+                ? `
+              {/* CompareCard */}
+              <div class="flex items-center gap-4">
+                <div class="flex-1">
+                  <span class="flex items-center gap-1.5 text-[11.5px] text-ink-2">
+                    <span class="size-2 rounded-full bg-orange"></span>
+                    Mint Chip
+                  </span>
+                  <span class="block text-[17px] font-semibold text-red tabular-nums">-4.41%</span>
+                  <span class="font-mono text-[11.5px] text-red">-$2,377.66</span>
+                </div>
+                <div class="flex-1">
+                  <span class="flex items-center gap-1.5 text-[11.5px] text-ink-2">
+                    <span class="size-2 rounded-full bg-accent"></span>
+                    Pistachio
+                  </span>
+                  <span class="block text-[17px] font-semibold text-green tabular-nums">+1.15%</span>
+                  <span class="font-mono text-[11.5px] text-green">+$617.22</span>
                 </div>
               </div>
-              <div class="canvas-stage" id="chart-stage-anomaly">
-                <canvas id="anomaly-canvas"></canvas>
-                ${
-                  this._hoverIndex !== null
-                    ? `
-                  <div class="tooltip-box">
-                    ${
-                      this._anomalyMetric === "spend"
-                        ? `支出: <strong>$${ANOMALY_DATA.spend[this._hoverIndex]}</strong>`
-                        : `用电: <strong>${ANOMALY_DATA.usage[this._hoverIndex]} kWh</strong>`
-                    }
-                  </div>
-                `
-                    : ""
-                }
+
+              <div class="mt-2 overflow-hidden rounded-control bg-inset shadow-hairline">
+                <div class="flex items-center justify-between border-b border-line px-2.5 py-1.5">
+                  <span class="text-[11px] text-ink-3">${zh ? "趋势快照" : "Trend snapshot"}</span>
+                  <span class="rounded-full bg-field px-2 py-0.5 text-[10.5px] font-medium text-ink-2">
+                    ${zh ? "快照" : "Snapshot"}
+                  </span>
+                </div>
+                <div class="relative h-[130px] w-full cursor-crosshair" id="chart-stage-compare">
+                  <canvas id="compare-canvas" class="block size-full"></canvas>
+                  ${
+                    this._hoverIndex !== null
+                      ? `
+                    <div class="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-[6px] bg-ink px-2 py-1 text-[10.5px] text-canvas shadow-raised whitespace-nowrap">
+                      <div>Mint Chip: <strong>${COMPARE_DATA.mint[this._hoverIndex]}%</strong></div>
+                      <div>Pistachio: <strong>+${COMPARE_DATA.pistachio[this._hoverIndex]}%</strong></div>
+                    </div>
+                  `
+                      : ""
+                  }
+                </div>
               </div>
-            </div>
+            `
+                : page === 1
+                ? `
+              {/* AnomalyCard */}
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-1.5 text-[12px] font-medium text-ink">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-red" aria-hidden="true">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                  </svg>
+                  ${zh ? "冷柜支出偏高" : "High freezer spend"}
+                </span>
+                <span class="rounded-full bg-field px-2 py-0.5 text-[10.5px] font-medium text-ink-2">
+                  ${zh ? "快照" : "Snapshot"}
+                </span>
+              </div>
 
-            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 8px;">
-              <span style="font-size: 17px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;">$2,112 ${zh ? "已支出" : "spent"}</span>
-              <span class="mono-red">+$1,834.66</span>
-              <span style="font-size: 11px; color: var(--ink-3);">${zh ? "较 3 个月均值" : "vs 3 months"}</span>
-            </div>
-          `
-              : `
-            <!-- Allocation Card -->
-            <div>
-              <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ink);">
-                <span style="display: flex; width: 14px; height: 14px; align-items: center; justify-content: center; border-radius: 50%; background: var(--orange); color: #fff; font-size: 8px; font-weight: 700;">V</span>
-                Vanilla ${zh ? "口味配置" : "allocation"}
-              </span>
-              <span style="display: block; margin-top: 4px; font-size: 20px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums;">
-                ${ALLOCATION_SEGMENTS.find((s) => s.name === this._allocSelected)?.amount}
-              </span>
-
-              <div class="alloc-bar">
-                ${ALLOCATION_SEGMENTS.map((s) => {
-                  const isSel = s.name === this._allocSelected;
-                  return `
+              <div class="mt-2 overflow-hidden rounded-control bg-inset shadow-hairline">
+                <div class="flex items-center justify-between border-b border-line px-2.5 py-1.5">
+                  <span class="text-[11px] text-ink-3">
+                    ${this._anomalyMetric === "spend" ? (zh ? "$2,112 阈值" : "$2,112 threshold") : (zh ? "82 kWh 阈值" : "82 kWh threshold")}
+                  </span>
+                  <div class="flex rounded-full bg-field p-0.5">
                     <button
                       type="button"
-                      class="alloc-segment"
-                      data-name="${s.name}"
-                      style="width: ${s.pct}%; background: ${s.color}; opacity: ${isSel ? 1 : 0.58}; box-shadow: ${isSel ? "inset 0 0 0 1px rgba(255,255,255,0.3)" : "none"};"
-                    ></button>
-                  `;
-                }).join("")}
-              </div>
-
-              <div class="alloc-chips">
-                ${ALLOCATION_SEGMENTS.map((s) => {
-                  const isSel = s.name === this._allocSelected;
-                  return `
-                    <button type="button" class="alloc-chip ${isSel ? "active" : ""}" data-name="${s.name}">
-                      <span style="width: 6px; height: 6px; border-radius: 50%; background: ${s.color};"></span>
-                      <span>${s.name} ${s.pct}%</span>
+                      id="metric-spend"
+                      class="rounded-full px-2 py-0.5 text-[11px] cursor-pointer ${
+                        this._anomalyMetric === "spend" ? "bg-surface font-medium text-ink shadow-xs" : "text-ink-2"
+                      }"
+                    >
+                      ${zh ? "支出" : "Spend"}
                     </button>
-                  `;
-                }).join("")}
-              </div>
-
-              <div class="alloc-desc-box">
-                <span style="display: block; font-size: 11.5px; font-weight: 500; color: var(--orange);">
-                  ${ALLOCATION_SEGMENTS.find((s) => s.name === this._allocSelected)?.label}
-                </span>
-                <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.5; color: var(--ink-3);">
+                    <button
+                      type="button"
+                      id="metric-usage"
+                      class="rounded-full px-2 py-0.5 text-[11px] cursor-pointer ${
+                        this._anomalyMetric === "usage" ? "bg-surface font-medium text-ink shadow-xs" : "text-ink-2"
+                      }"
+                    >
+                      ${zh ? "用电" : "Usage"}
+                    </button>
+                  </div>
+                </div>
+                <div class="relative h-[130px] w-full cursor-crosshair" id="chart-stage-anomaly">
+                  <canvas id="anomaly-canvas" class="block size-full"></canvas>
                   ${
-                    zh
-                      ? "当前库存价值的贡献快照。切换分段即可查看对应分组，卡片位置保持不变。"
-                      : "Contribution snapshot across current inventory value. Segment selection changes inspected group without moving card."
+                    this._hoverIndex !== null
+                      ? `
+                    <div class="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-[6px] bg-ink px-2 py-1 text-[10.5px] text-canvas shadow-raised whitespace-nowrap">
+                      ${
+                        this._anomalyMetric === "spend"
+                          ? `${zh ? "支出" : "Spend"}: <strong>$${ANOMALY_DATA.spend[this._hoverIndex]}</strong>`
+                          : `${zh ? "用电" : "Usage"}: <strong>${ANOMALY_DATA.usage[this._hoverIndex]} kWh</strong>`
+                      }
+                    </div>
+                  `
+                      : ""
                   }
-                </span>
+                </div>
               </div>
-            </div>
-          `
-          }
-        </div>
 
-        <button type="button" class="followup-pill">
-          ${currentMeta.pill}
-        </button>
+              <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-[17px] font-semibold text-ink tabular-nums">$2,112 ${zh ? "已支出" : "spent"}</span>
+                <span class="font-mono text-[11.5px] text-red">+$1,834.66</span>
+                <span class="text-[11px] text-ink-3">${zh ? "较 3 个月均值" : "vs 3 months"}</span>
+              </div>
+            `
+                : `
+              {/* AllocationCard */}
+              <div>
+                <span class="flex items-center gap-1.5 text-[12px] font-medium text-ink">
+                  <span class="flex size-3.5 items-center justify-center rounded-full bg-orange text-[8px] font-bold text-white">V</span>
+                  Vanilla ${zh ? "口味配置" : "allocation"}
+                </span>
+                <span class="mt-1 block text-[20px] font-semibold text-ink tabular-nums">
+                  ${ALLOCATION_SEGMENTS.find((s) => s.name === this._allocSelected)?.amount}
+                </span>
+
+                <div class="mt-3 flex h-9 gap-0.5 overflow-hidden rounded-full bg-field p-0.5">
+                  ${ALLOCATION_SEGMENTS.map((s) => {
+                    const isSel = s.name === this._allocSelected;
+                    return `
+                      <button
+                        type="button"
+                        class="alloc-segment relative h-full rounded-full transition-opacity duration-300 cursor-pointer"
+                        data-name="${s.name}"
+                        style="width: ${s.pct}%; background: ${s.color}; opacity: ${isSel ? 1 : 0.58}; box-shadow: ${
+                      isSel ? "inset 0 0 0 1px rgba(255,255,255,0.3)" : "none"
+                    };"
+                      ></button>
+                    `;
+                  }).join("")}
+                </div>
+
+                <div class="mt-2 flex items-center gap-1.5">
+                  ${ALLOCATION_SEGMENTS.map((s) => {
+                    const isSel = s.name === this._allocSelected;
+                    return `
+                      <button
+                        type="button"
+                        class="alloc-chip flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] cursor-pointer ${
+                          isSel ? "bg-field font-medium text-ink" : "text-ink-2"
+                        }"
+                        data-name="${s.name}"
+                      >
+                        <span class="size-1.5 rounded-full" style="background: ${s.color};"></span>
+                        <span>${s.name} ${s.pct}%</span>
+                      </button>
+                    `;
+                  }).join("")}
+                </div>
+
+                <div class="mt-3 min-h-[64px] rounded-control bg-inset p-2.5 shadow-hairline">
+                  <span class="block text-[11.5px] font-medium text-orange">
+                    ${ALLOCATION_SEGMENTS.find((s) => s.name === this._allocSelected)?.label}
+                  </span>
+                  <span class="mt-1 block text-[11px] leading-relaxed text-ink-3">
+                    ${
+                      zh
+                        ? "当前库存价值的贡献快照。切换分段即可查看对应分组，卡片位置保持不变。"
+                        : "Contribution snapshot across current inventory value. Segment selection changes inspected group without moving card."
+                    }
+                  </span>
+                </div>
+              </div>
+            `
+            }
+          </div>
+
+          <button
+            type="button"
+            class="mt-2 w-fit rounded-full bg-surface px-3 py-1.5 text-left text-[12px] text-ink shadow-btn hover:bg-hover cursor-pointer"
+          >
+            ${currentMeta.pill}
+          </button>
+        </div>
       </div>
-    `;
+    `);
 
     // Event handlers
-    this.shadowRoot.querySelector("#btn-prev")?.addEventListener("click", () => this.setPage(-1));
-    this.shadowRoot.querySelector("#btn-next")?.addEventListener("click", () => this.setPage(1));
+    this.shadowRoot?.querySelector("#btn-prev")?.addEventListener("click", () => this.setPage(-1));
+    this.shadowRoot?.querySelector("#btn-next")?.addEventListener("click", () => this.setPage(1));
 
     if (page === 0) {
-      const canvas = this.shadowRoot.querySelector("#compare-canvas");
+      const canvas = this.shadowRoot?.querySelector("#compare-canvas");
       this._drawCompareChart(canvas);
 
-      const stage = this.shadowRoot.querySelector("#chart-stage-compare");
+      const stage = this.shadowRoot?.querySelector("#chart-stage-compare");
       if (stage) {
         stage.addEventListener("pointermove", (e) => {
           const rect = stage.getBoundingClientRect();
@@ -672,13 +471,13 @@ export class NaiInsightCards extends NaiBaseElement {
         });
       }
     } else if (page === 1) {
-      const canvas = this.shadowRoot.querySelector("#anomaly-canvas");
+      const canvas = this.shadowRoot?.querySelector("#anomaly-canvas");
       this._drawAnomalyChart(canvas);
 
-      this.shadowRoot.querySelector("#metric-spend")?.addEventListener("click", () => this.setAnomalyMetric("spend"));
-      this.shadowRoot.querySelector("#metric-usage")?.addEventListener("click", () => this.setAnomalyMetric("usage"));
+      this.shadowRoot?.querySelector("#metric-spend")?.addEventListener("click", () => this.setAnomalyMetric("spend"));
+      this.shadowRoot?.querySelector("#metric-usage")?.addEventListener("click", () => this.setAnomalyMetric("usage"));
 
-      const stage = this.shadowRoot.querySelector("#chart-stage-anomaly");
+      const stage = this.shadowRoot?.querySelector("#chart-stage-anomaly");
       if (stage) {
         stage.addEventListener("pointermove", (e) => {
           const rect = stage.getBoundingClientRect();
@@ -695,7 +494,7 @@ export class NaiInsightCards extends NaiBaseElement {
         });
       }
     } else if (page === 2) {
-      this.shadowRoot.querySelectorAll(".alloc-segment, .alloc-chip").forEach((btn) => {
+      this.shadowRoot?.querySelectorAll(".alloc-segment, .alloc-chip").forEach((btn) => {
         btn.addEventListener("click", () => {
           const name = btn.getAttribute("data-name");
           if (name) this.setAllocSelected(name);

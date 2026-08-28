@@ -70,373 +70,117 @@ export class NaiAgentTeams extends NaiBaseElement {
     const activeCount = MEMBERS.filter((m) => PHASE_SCRIPT[m.id][tick] === "active").length;
     const doneCount = TASK_SCRIPT[tick].filter((s) => s === "completed").length;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .container {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 0 0 1px var(--line));
-          box-sizing: border-box;
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 12px;
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .pulse-accent {
-          display: flex;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--accent, #0285ff);
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        .header-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .team-tag {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 2px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .task-counter {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-        .roster-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 6px;
-        }
-        .member-card {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 8px 10px;
-          transition: background-color 0.3s, border-color 0.3s;
-        }
-        .member-card.lead {
-          border-color: var(--line-strong, #e0e2e5);
-          background: var(--inset, #f7f8f9);
-        }
-        .member-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-        .avatar {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          flex-shrink: 0;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          font-weight: 600;
-          background: var(--field, #f2f2f3);
-          color: var(--ink-2, #62656b);
-        }
-        .avatar.lead {
-          background: var(--ink, #1f2124);
-          color: var(--surface, #fff);
-        }
-        .member-info {
-          min-width: 0;
-        }
-        .name-row {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .member-name {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .model-chip {
-          border-radius: var(--radius-chip, 6px);
-          background: var(--field, #f2f2f3);
-          padding: 0 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .member-role {
-          display: block;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .phase-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-size: 10px;
-          font-weight: 500;
-          flex-shrink: 0;
-        }
-        .phase-badge.active {
-          background: var(--green-tint, #e8f5ed);
-          color: var(--green, #189a4d);
-        }
-        .phase-badge.provisioning {
-          background: var(--orange-tint, #fdf1e5);
-          color: var(--orange, #ef720c);
-        }
-        .phase-badge.failed {
-          background: var(--red-tint, #fcecec);
-          color: var(--red, #e3474c);
-        }
-        .badge-dot {
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-        }
-        .badge-dot.active { background: var(--green, #189a4d); }
-        .badge-dot.provisioning { background: var(--orange, #ef720c); animation: pulse 1.5s infinite; }
-        .badge-dot.failed { background: var(--red, #e3474c); }
-        .dag-section {
-          margin-top: 16px;
-        }
-        .dag-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 6px;
-          padding: 0 2px;
-        }
-        .dag-title {
-          font-size: 10.5px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--ink-3, #9a9da3);
-        }
-        .dag-meta {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .tasks-list {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .task-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 8px 10px;
-          transition: all 0.3s;
-          animation: fade-up 300ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-        .task-item.in_progress {
-          border-color: rgba(2, 133, 255, 0.4);
-          background: var(--accent-tint, #e9f3ff);
-        }
-        .task-item.completed {
-          border-color: var(--line, #ecedef);
-          background: var(--surface, #fff);
-          opacity: 0.75;
-        }
-        .task-icon {
-          display: flex;
-          width: 16px;
-          height: 16px;
-          flex-shrink: 0;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-        .task-icon.completed {
-          background: var(--green-tint, #e8f5ed);
-          color: var(--green, #189a4d);
-        }
-        .task-icon.in_progress {
-          background: var(--accent-tint, #e9f3ff);
-        }
-        .task-icon.pending {
-          border: 1.5px solid var(--line-strong, #e0e2e5);
-          background: var(--surface, #fff);
-        }
-        .task-content {
-          min-width: 0;
-          flex: 1;
-        }
-        .task-title-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .task-title {
-          font-size: 11.5px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .task-title.completed {
-          color: var(--ink-2, #62656b);
-          text-decoration: line-through;
-          text-decoration-color: var(--line-strong, #e0e2e5);
-        }
-        .rev-chip {
-          border-radius: var(--radius-chip, 6px);
-          background: var(--field, #f2f2f3);
-          padding: 0 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-          flex-shrink: 0;
-        }
-        .task-meta-row {
-          margin-top: 2px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .assignee-tag {
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-        .deps-tag {
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-        .scope-tag {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          border-radius: var(--radius-chip, 6px);
-          background: var(--inset, #f7f8f9);
-          padding: 0 4px;
-          border: 1px solid var(--line, #ecedef);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .blocked-tag {
-          color: var(--orange, #ef720c);
-        }
-        .footer {
-          margin-top: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 12px;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .footer-tech {
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .spin {
-          animation: spin 1.2s linear infinite;
-        }
-        @keyframes fade-up {
-          0% { opacity: 0; transform: translateY(6px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-      </style>
+    const renderPhaseBadge = (phase) => {
+      if (phase === "active") {
+        return `
+          <span class="flex items-center gap-1 rounded-chip bg-green-tint px-1.5 py-px text-[10px] font-medium text-green">
+            <span class="size-1 rounded-full bg-green"></span>
+            ${zh ? "已激活" : "active"}
+          </span>
+        `;
+      }
+      if (phase === "provisioning") {
+        return `
+          <span class="flex items-center gap-1 rounded-chip bg-orange-tint px-1.5 py-px text-[10px] font-medium text-orange">
+            <span class="size-1 rounded-full bg-orange animate-pulse"></span>
+            ${zh ? "供给中" : "provisioning"}
+          </span>
+        `;
+      }
+      return `
+        <span class="flex items-center gap-1 rounded-chip bg-red-tint px-1.5 py-px text-[10px] font-medium text-red">
+          <span class="size-1 rounded-full bg-red"></span>
+          ${zh ? "失败" : "failed"}
+        </span>
+      `;
+    };
 
-      <div class="container">
+    const renderTaskIcon = (state) => {
+      if (state === "completed") {
+        return `
+          <span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-green-tint text-green">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+        `;
+      }
+      if (state === "in_progress") {
+        return `
+          <span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-accent-tint">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" class="animate-spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" />
+            </svg>
+          </span>
+        `;
+      }
+      return `
+        <span class="flex size-4 shrink-0 items-center justify-center rounded-full border-[1.5px] border-line-strong bg-surface"></span>
+      `;
+    };
+
+    const html = `
+      <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
-        <div class="header">
-          <div class="header-left">
-            <span class="pulse-accent"></span>
-            <h3 class="header-title">${zh ? "智能体团队" : "Agent Team"}</h3>
-            <span class="team-tag">team/provider-migration</span>
+        <div class="flex items-center justify-between pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex size-2 rounded-full bg-accent animate-pulse"></span>
+            <h3 class="text-[13px] font-semibold text-ink">
+              ${zh ? "智能体团队" : "Agent Team"}
+            </h3>
+            <span class="rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
+              team/provider-migration
+            </span>
           </div>
-          <span class="task-counter">${doneCount}/${TASKS.length} ${zh ? "任务" : "tasks"}</span>
+          <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
+            ${doneCount}/${TASKS.length} ${zh ? "任务" : "tasks"}
+          </span>
         </div>
 
         <!-- Roster -->
-        <div class="roster-grid">
+        <div class="grid grid-cols-2 gap-1.5">
           ${MEMBERS.map((m) => {
             const phase = PHASE_SCRIPT[m.id][tick];
             const isLead = m.id === "lead";
-            let phaseLabel = phase === "active" ? (zh ? "已激活" : "active") : phase === "provisioning" ? (zh ? "供给中" : "provisioning") : (zh ? "失败" : "failed");
-
             return `
-              <div class="member-card ${isLead ? "lead" : ""}">
-                <div class="member-left">
-                  <span class="avatar ${isLead ? "lead" : ""}">${m.name.slice(0, 2)}</span>
-                  <div class="member-info">
-                    <div class="name-row">
-                      <span class="member-name">${m.name}</span>
-                      <span class="model-chip">${m.model}</span>
+              <div
+                class="member-card flex items-center justify-between gap-2 rounded-control border px-2.5 py-2 transition-colors duration-300 ${
+                  isLead ? "border-line-strong bg-inset" : "border-line bg-surface"
+                }"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    class="flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold ${
+                      isLead ? "bg-ink text-canvas" : "bg-field text-ink-2"
+                    }"
+                  >
+                    ${m.name.slice(0, 2)}
+                  </span>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1">
+                      <span class="truncate font-mono text-[11px] font-medium text-ink">${m.name}</span>
+                      <span class="rounded-chip bg-field px-1 font-mono text-[9px] text-ink-3">${m.model}</span>
                     </div>
-                    <span class="member-role">${zh ? m.roleZh : m.roleEn} · ${m.provider}</span>
+                    <span class="block truncate text-[10px] text-ink-3">
+                      ${zh ? m.roleZh : m.roleEn} · ${m.provider}
+                    </span>
                   </div>
                 </div>
-                <span class="phase-badge ${phase}">
-                  <span class="badge-dot ${phase}"></span>
-                  ${phaseLabel}
-                </span>
+                ${renderPhaseBadge(phase)}
               </div>
             `;
           }).join("")}
         </div>
 
         <!-- Shared task DAG -->
-        <div class="dag-section">
-          <div class="dag-header">
-            <span class="dag-title">${zh ? "共享任务 DAG" : "Shared task DAG"}</span>
-            <span class="dag-meta">CAS revisions</span>
+        <div class="mt-4">
+          <div class="mb-1.5 flex items-center justify-between px-0.5">
+            <span class="text-[10.5px] font-semibold uppercase tracking-wider text-ink-3">
+              ${zh ? "共享任务 DAG" : "Shared task DAG"}
+            </span>
+            <span class="font-mono text-[9.5px] text-ink-3">CAS revisions</span>
           </div>
-
-          <div class="tasks-list">
+          <div class="flex flex-col gap-1.5">
             ${TASKS.map((task, i) => {
               const state = TASK_SCRIPT[tick][i];
               const blocked = task.dependsOn.some((d) => {
@@ -445,27 +189,42 @@ export class NaiAgentTeams extends NaiBaseElement {
               });
               const assignee = memberById(task.assignee);
               const revision = 1 + TASK_SCRIPT.slice(0, tick + 1).filter((s) => s[i] !== TASK_SCRIPT[0][i]).length;
-
-              let iconSvg = "";
-              if (state === "completed") {
-                iconSvg = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-              } else if (state === "in_progress") {
-                iconSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink, #0170dd)" stroke-width="2.6" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round"/></svg>`;
-              }
-
               return `
-                <div class="task-item ${state}">
-                  <span class="task-icon ${state}">${iconSvg}</span>
-                  <div class="task-content">
-                    <div class="task-title-row">
-                      <span class="task-title ${state === "completed" ? "completed" : ""}">${zh ? task.titleZh : task.titleEn}</span>
-                      <span class="rev-chip">r${revision}</span>
+                <div
+                  class="task-item flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${
+                    state === "in_progress"
+                      ? "border-accent/40 bg-accent-tint/30"
+                      : state === "completed"
+                      ? "border-line bg-surface opacity-75"
+                      : "border-line bg-surface"
+                  }"
+                  style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;"
+                >
+                  ${renderTaskIcon(state)}
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="truncate text-[11.5px] font-medium ${
+                        state === "completed" ? "text-ink-2 line-through decoration-line-strong" : "text-ink"
+                      }">
+                        ${zh ? task.titleZh : task.titleEn}
+                      </span>
+                      <span class="shrink-0 rounded-chip bg-field px-1 font-mono text-[9px] tabular-nums text-ink-3">
+                        r${revision}
+                      </span>
                     </div>
-                    <div class="task-meta-row">
-                      ${assignee ? `<span class="assignee-tag">@${assignee.name}</span>` : ""}
-                      ${task.dependsOn.length > 0 ? `<span class="deps-tag">deps: ${task.dependsOn.join(", ")}</span>` : ""}
-                      ${task.scopes.map((s) => `<span class="scope-tag">${s}</span>`).join("")}
-                      ${blocked && state === "pending" ? `<span class="blocked-tag">${zh ? "被阻塞" : "blocked"}</span>` : ""}
+                    <div class="mt-0.5 flex items-center gap-2 text-[10px] text-ink-3">
+                      ${assignee ? `<span class="font-mono">@${assignee.name}</span>` : ""}
+                      ${task.dependsOn.length > 0 ? `<span class="font-mono">deps: ${task.dependsOn.join(", ")}</span>` : ""}
+                      ${task.scopes
+                        .map(
+                          (s) => `
+                        <span class="truncate font-mono rounded-chip bg-inset px-1 border border-line/60">
+                          ${s}
+                        </span>
+                      `
+                        )
+                        .join("")}
+                      ${blocked && state === "pending" ? `<span class="text-orange">${zh ? "被阻塞" : "blocked"}</span>` : ""}
                     </div>
                   </div>
                 </div>
@@ -475,12 +234,16 @@ export class NaiAgentTeams extends NaiBaseElement {
         </div>
 
         <!-- Footer -->
-        <div class="footer">
-          <span>${zh ? `${activeCount}/4 成员已激活 · 事件溯源名册` : `${activeCount}/4 members active · event-sourced roster`}</span>
-          <span class="footer-tech">Harness.AgentTeams</span>
+        <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
+          <span>
+            ${zh ? `${activeCount}/4 成员已激活 · 事件溯源名册` : `${activeCount}/4 members active · event-sourced roster`}
+          </span>
+          <span class="font-mono">Harness.AgentTeams</span>
         </div>
       </div>
     `;
+
+    this.setHtml(html);
   }
 }
 

@@ -56,297 +56,82 @@ export class NaiAgentInbox extends NaiBaseElement {
     const phase = this._phase;
 
     const nextTurn = phase >= 1 && phase < 5 ? [FOLLOWUP] : [];
-    const nextStep = phase === 2 ? [STEER] : phase === 3 ? [STEER, INJECT] : [];
+    const nextStep =
+      phase === 2 ? [STEER] : phase === 3 ? [STEER, INJECT] : [];
     const idleFlicker = phase === 5;
     const turnNo = phase >= 5 ? 3 : 2;
     const stepNo = phase >= 4 ? 2 : 1;
 
-    const deliveryMethods = [
-      { name: "Send", descEn: "owns send", descZh: "独占发送", kind: "send" },
-      { name: "Followup", descEn: "→ turn+wake", descZh: "→ 下轮+唤醒", kind: "followup" },
-      { name: "Steer", descEn: "→ step+wake", descZh: "→ 边界+唤醒", kind: "steer" },
-      { name: "Inject", descEn: "→ step, silent", descZh: "→ 边界,静默", kind: "inject" },
-    ];
+    const extraCss = `
+      .border-accent\\/40 { border-color: color-mix(in srgb, var(--accent, #0285ff) 40%, transparent); }
+      .bg-accent-tint\\/40 { background-color: color-mix(in srgb, var(--accent-tint, #e9f3ff) 40%, transparent); }
+      .border-orange\\/40 { border-color: color-mix(in srgb, var(--orange, #ef720c) 40%, transparent); }
+      .bg-orange-tint\\/40 { background-color: color-mix(in srgb, var(--orange-tint, #fdf1e5) 40%, transparent); }
+      .border-green\\/40 { border-color: color-mix(in srgb, var(--green, #189a4d) 40%, transparent); }
+      .bg-green-tint\\/40 { background-color: color-mix(in srgb, var(--green-tint, #e8f5ed) 40%, transparent); }
+      .bg-inset\\/40 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 40%, transparent); }
+      .bg-inset\\/50 { background-color: color-mix(in srgb, var(--inset, #f7f8f9) 50%, transparent); }
+      .ring-2 { box-shadow: 0 0 0 2px var(--ring-color, currentColor); }
+      .ring-accent\\/40 { --ring-color: color-mix(in srgb, var(--accent, #0285ff) 40%, transparent); }
+      .size-1 { width: 4px; height: 4px; }
+      .size-2 { width: 8px; height: 8px; }
+      .tracking-wider { letter-spacing: 0.05em; }
+    `;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        * { box-sizing: border-box; }
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 2px #1018280a, 0 2px 6px #10182808);
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 12px;
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          flex-shrink: 0;
-          transition: background-color 0.3s;
-          background: ${idleFlicker ? "var(--ink-3, #9a9da3)" : "var(--accent, #0285ff)"};
-          ${!idleFlicker ? "animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;" : ""}
-        }
-        .title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .state-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 2px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .turn-step {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-        .lanes-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-        }
-        .lane {
-          display: flex;
-          min-height: 118px;
-          flex-direction: column;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 8px;
-        }
-        .lane-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 4px 6px 4px;
-        }
-        .lane-name {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--ink-3, #9a9da3);
-        }
-        .lane-desc {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .lane-content {
-          display: flex;
-          flex: 1;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .empty-placeholder {
-          display: flex;
-          flex: 1;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-chip, 6px);
-          border: 1px dashed var(--line, #ecedef);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .msg-box {
-          border-radius: var(--radius-chip, 6px);
-          padding: 6px 8px;
-          animation: pop-in 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-        .msg-followup {
-          border: 1px solid var(--accent, #0285ff);
-          border-color: rgba(2, 133, 255, 0.4);
-          background: var(--accent-tint, #e9f3ff);
-        }
-        .msg-steer {
-          border: 1px solid var(--orange, #ef720c);
-          border-color: rgba(239, 114, 12, 0.4);
-          background: var(--orange-tint, #fdf1e5);
-        }
-        .msg-inject {
-          border: 1px dashed var(--line-strong, #e0e2e5);
-          background: var(--surface, #fff);
-        }
-        .msg-header {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .msg-dot {
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          flex-shrink: 0;
-        }
-        .msg-tag {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          font-weight: 500;
-        }
-        .msg-text {
-          margin: 2px 0 0 0;
-          font-size: 10.5px;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .claim-indicator {
-          margin-top: 8px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          padding: 8px 10px;
-          transition: all 0.5s;
-        }
-        .claim-active {
-          border-color: rgba(24, 154, 77, 0.4);
-          background: var(--green-tint, #e8f5ed);
-        }
-        .claim-inactive {
-          border-color: var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-        }
-        .claim-text {
-          min-width: 0;
-          flex: 1;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-size: 11px;
-          color: var(--ink-2, #62656b);
-        }
-        .claim-badge {
-          flex-shrink: 0;
-          border-radius: var(--radius-chip, 6px);
-          background: var(--green-tint, #e8f5ed);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-weight: 500;
-          color: var(--green, #189a4d);
-          animation: pop-in 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
-        }
-
-        .methods-grid {
-          margin-top: 12px;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 6px;
-        }
-        .method-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2px;
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          padding: 6px 4px;
-          transition: all 0.3s;
-        }
-        .method-send { border-color: var(--line, #ecedef); background: var(--field, #f2f2f3); color: var(--ink-2, #62656b); }
-        .method-followup { border-color: rgba(2, 133, 255, 0.4); background: var(--accent-tint, #e9f3ff); color: var(--accent-ink, #0170dd); }
-        .method-steer { border-color: rgba(239, 114, 12, 0.4); background: var(--orange-tint, #fdf1e5); color: var(--orange, #ef720c); }
-        .method-inject { border: 1px dashed var(--line-strong, #e0e2e5); background: var(--surface, #fff); color: var(--ink-3, #9a9da3); }
-
-        .method-flash {
-          outline: 2px solid var(--accent, #0285ff);
-          transform: scale(1.05);
-        }
-        .method-name {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          font-weight: 600;
-        }
-        .method-desc {
-          font-size: 8.5px;
-          opacity: 0.8;
-        }
-
-        .footer {
-          margin-top: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 12px;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .footer-mono {
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-
-        @keyframes pop-in {
-          0% { opacity: 0; transform: scale(0.95); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes pulse {
-          50% { opacity: 0.5; }
-        }
-      </style>
-
-      <div class="card">
-        <div class="header">
-          <div class="header-left">
-            <span class="status-dot"></span>
-            <h3 class="title">${zh ? "双队列收件箱" : "Agent Inbox"}</h3>
-            <span class="state-chip">${idleFlicker ? (zh ? "空闲" : "idle") : zh ? "运行中" : "running"}</span>
+    this.setHtml(`
+      <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
+        {/* Header — driver state */}
+        <div class="flex items-center justify-between pb-3">
+          <div class="flex items-center gap-2">
+            <span
+              class="flex size-2 rounded-full transition-colors duration-300 ${
+                idleFlicker ? "bg-ink-3" : "bg-accent animate-pulse"
+              }"
+            ></span>
+            <h3 class="text-[13px] font-semibold text-ink">
+              ${zh ? "双队列收件箱" : "Agent Inbox"}
+            </h3>
+            <span class="rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
+              ${idleFlicker ? (zh ? "空闲" : "idle") : zh ? "运行中" : "running"}
+            </span>
           </div>
-          <span class="turn-step">turn ${turnNo} · step ${stepNo}</span>
+          <span class="font-mono text-[10.5px] tabular-nums text-ink-3">
+            turn ${turnNo} · step ${stepNo}
+          </span>
         </div>
 
-        <div class="lanes-grid">
-          <!-- NextTurn lane -->
-          <div class="lane">
-            <div class="lane-header">
-              <span class="lane-name">NextTurn</span>
-              <span class="lane-desc">${zh ? "各开一轮" : "own turn"}</span>
+        {/* Queue lanes */}
+        <div class="grid grid-cols-2 gap-2">
+          {/* NextTurn lane */}
+          <div class="lane flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
+            <div class="flex items-center justify-between px-1 pb-1.5">
+              <span class="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
+                NextTurn
+              </span>
+              <span class="font-mono text-[9px] text-ink-3">
+                ${zh ? "各开一轮" : "own turn"}
+              </span>
             </div>
-            <div class="lane-content">
+            <div class="flex flex-1 flex-col gap-1">
               ${
                 nextTurn.length === 0
-                  ? `<span class="empty-placeholder">${zh ? "空" : "empty"}</span>`
+                  ? `<span class="flex flex-1 items-center justify-center rounded-chip border border-dashed border-line text-[10px] text-ink-3">${
+                      zh ? "空" : "empty"
+                    }</span>`
                   : nextTurn
                       .map(
                         (m) => `
-                    <div class="msg-box msg-followup">
-                      <div class="msg-header">
-                        <span class="msg-dot" style="background: var(--accent, #0285ff);"></span>
-                        <span class="msg-tag" style="color: var(--accent-ink, #0170dd);">FollowupAsync</span>
+                    <div
+                      class="rounded-chip border border-accent/40 bg-accent-tint/40 px-2 py-1.5"
+                      style="animation: pop-in 260ms cubic-bezier(0.23,1,0.32,1) both;"
+                    >
+                      <div class="flex items-center gap-1">
+                        <span class="size-1 rounded-full bg-accent"></span>
+                        <span class="font-mono text-[9px] font-medium text-accent-ink">FollowupAsync</span>
                       </div>
-                      <p class="msg-text">${zh ? m.textZh : m.textEn}</p>
+                      <p class="mt-0.5 truncate text-[10.5px] text-ink">
+                        ${zh ? m.textZh : m.textEn}
+                      </p>
                     </div>
                   `
                       )
@@ -355,31 +140,46 @@ export class NaiAgentInbox extends NaiBaseElement {
             </div>
           </div>
 
-          <!-- NextStep lane -->
-          <div class="lane">
-            <div class="lane-header">
-              <span class="lane-name">NextStep</span>
-              <span class="lane-desc">${zh ? "步骤边界消费" : "step edge"}</span>
+          {/* NextStep lane */}
+          <div class="lane flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
+            <div class="flex items-center justify-between px-1 pb-1.5">
+              <span class="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
+                NextStep
+              </span>
+              <span class="font-mono text-[9px] text-ink-3">
+                ${zh ? "步骤边界消费" : "step edge"}
+              </span>
             </div>
-            <div class="lane-content">
+            <div class="flex flex-1 flex-col gap-1">
               ${
                 nextStep.length === 0
-                  ? `<span class="empty-placeholder">${zh ? "空" : "empty"}</span>`
+                  ? `<span class="flex flex-1 items-center justify-center rounded-chip border border-dashed border-line text-[10px] text-ink-3">${
+                      zh ? "空" : "empty"
+                    }</span>`
                   : nextStep
                       .map(
                         (m) => `
-                    <div class="msg-box ${m.kind === "inject" ? "msg-inject" : "msg-steer"}">
-                      <div class="msg-header">
-                        <span class="msg-dot" style="background: ${
-                          m.kind === "inject" ? "var(--ink-3, #9a9da3)" : "var(--orange, #ef720c)"
-                        };"></span>
-                        <span class="msg-tag" style="color: ${
-                          m.kind === "inject" ? "var(--ink-3, #9a9da3)" : "var(--orange, #ef720c)"
-                        };">
+                    <div
+                      class="rounded-chip px-2 py-1.5 ${
+                        m.kind === "inject"
+                          ? "border border-dashed border-line-strong bg-surface"
+                          : "border border-orange/40 bg-orange-tint/40"
+                      }"
+                      style="animation: pop-in 260ms cubic-bezier(0.23,1,0.32,1) both;"
+                    >
+                      <div class="flex items-center gap-1">
+                        <span class="size-1 rounded-full ${
+                          m.kind === "inject" ? "bg-ink-3" : "bg-orange"
+                        }"></span>
+                        <span class="font-mono text-[9px] font-medium ${
+                          m.kind === "inject" ? "text-ink-3" : "text-orange"
+                        }">
                           ${m.kind === "inject" ? "InjectAsync" : "SteerAsync"}
                         </span>
                       </div>
-                      <p class="msg-text">${zh ? m.textZh : m.textEn}</p>
+                      <p class="mt-0.5 truncate text-[10.5px] text-ink">
+                        ${zh ? m.textZh : m.textEn}
+                      </p>
                     </div>
                   `
                       )
@@ -389,14 +189,18 @@ export class NaiAgentInbox extends NaiBaseElement {
           </div>
         </div>
 
-        <!-- Step boundary claim indicator -->
-        <div class="claim-indicator ${phase >= 4 ? "claim-active" : "claim-inactive"}">
+        {/* Step boundary claim indicator */}
+        <div
+          class="mt-2 flex items-center gap-2 rounded-control border px-2.5 py-2 transition-all duration-500 ${
+            phase >= 4 ? "border-green/40 bg-green-tint/40" : "border-line bg-inset/40"
+          }"
+        >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${
-            phase >= 4 ? "var(--green, #189a4d)" : "var(--ink-3, #9a9da3)"
-          }" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+            phase >= 4 ? "var(--green)" : "var(--ink-3)"
+          }" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
             <path d="M4 4v16M4 12h10m0 0-4-4m4 4-4 4" transform="translate(2 0)" />
           </svg>
-          <span class="claim-text">
+          <span class="min-w-0 flex-1 truncate text-[11px] text-ink-2">
             ${
               phase >= 4
                 ? zh
@@ -407,27 +211,48 @@ export class NaiAgentInbox extends NaiBaseElement {
                 : "awaiting step boundary…"
             }
           </span>
-          ${phase >= 4 ? `<span class="claim-badge">claimed ×2</span>` : ""}
+          ${
+            phase >= 4
+              ? `
+            <span
+              class="shrink-0 rounded-chip bg-green-tint px-1.5 py-px font-mono text-[9.5px] font-medium text-green"
+              style="animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;"
+            >
+              claimed ×2
+            </span>
+          `
+              : ""
+          }
         </div>
 
-        <!-- Delivery methods -->
-        <div class="methods-grid">
-          ${deliveryMethods
+        {/* Delivery methods */}
+        <div class="mt-3 grid grid-cols-4 gap-1.5">
+          ${[
+            { name: "Send", descEn: "owns send", descZh: "独占发送", style: "border-line bg-field text-ink-2" },
+            { name: "Followup", descEn: "→ turn+wake", descZh: "→ 下轮+唤醒", style: "border-accent/40 bg-accent-tint/40 text-accent-ink" },
+            { name: "Steer", descEn: "→ step+wake", descZh: "→ 边界+唤醒", style: "border-orange/40 bg-orange-tint/40 text-orange" },
+            { name: "Inject", descEn: "→ step, silent", descZh: "→ 边界,静默", style: "border-dashed border-line-strong bg-surface text-ink-3" },
+          ]
             .map((b, i) => {
               const flash =
                 (i === 1 && phase === 1) || (i === 2 && phase === 2) || (i === 3 && phase === 3);
               return `
-              <div class="method-card method-${b.kind} ${flash ? "method-flash" : ""}">
-                <span class="method-name">${b.name}</span>
-                <span class="method-desc">${zh ? b.descZh : b.descEn}</span>
+              <div
+                class="method-card flex flex-col items-center gap-0.5 rounded-chip border px-1 py-1.5 transition-all duration-300 ${b.style} ${
+                  flash ? "ring-2 ring-accent/40 scale-105" : ""
+                }"
+                ${b.name === "Inject" ? 'style="border-style: dashed;"' : ""}
+              >
+                <span class="font-mono text-[10px] font-semibold">${b.name}</span>
+                <span class="text-[8.5px] opacity-80">${zh ? b.descZh : b.descEn}</span>
               </div>
             `;
             })
             .join("")}
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
+        {/* Footer */}
+        <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>
             ${
               phase >= 5
@@ -439,10 +264,10 @@ export class NaiAgentInbox extends NaiBaseElement {
                 : "Every mutation folds into a splice event"
             }
           </span>
-          <span class="footer-mono">agent/inbox/spliced</span>
+          <span class="font-mono">agent/inbox/spliced</span>
         </div>
       </div>
-    `;
+    `, extraCss);
   }
 }
 

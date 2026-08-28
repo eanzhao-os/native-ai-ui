@@ -97,6 +97,9 @@ export class NaiPermissionPresetCard extends NaiBaseElement {
 
   render() {
     const zh = this.isZh;
+    const selectedPreset = this._selectedPreset;
+    const isReplaying = this._isReplaying;
+    const replayVerified = this._replayVerified;
 
     const renderIcon = (icon) => {
       if (icon === "shield") {
@@ -120,307 +123,69 @@ export class NaiPermissionPresetCard extends NaiBaseElement {
       `;
     };
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 576px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        * { box-sizing: border-box; }
-        .card {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 1px 2px #1018280a, 0 2px 6px #10182808);
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 14px;
-          border-bottom: 1px solid var(--line, #ecedef);
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .icon-box {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-control, 8px);
-          background: var(--orange-tint, #fdf1e5);
-          color: var(--orange, #ef720c);
-        }
-        .title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .sub-text {
-          margin: 2px 0 0 0;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .audit-chip {
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 2px 8px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-2, #62656b);
-        }
-
-        .presets-grid {
-          margin-top: 14px;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
-        }
-        @media (max-width: 640px) {
-          .presets-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        .preset-tile {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          padding: 10px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .preset-selected {
-          border-color: var(--accent, #0285ff);
-          background: rgba(233, 243, 255, 0.3);
-          box-shadow: 0 1px 2px rgba(2, 133, 255, 0.1);
-          outline: 1px solid var(--accent, #0285ff);
-        }
-        .preset-unselected {
-          background: rgba(247, 248, 249, 0.4);
-        }
-        .preset-unselected:hover {
-          border-color: var(--line-strong, #e0e2e5);
-          background: rgba(244, 245, 246, 0.3);
-        }
-
-        .preset-top {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 4px;
-        }
-        .preset-icon {
-          display: flex;
-          width: 16px;
-          height: 16px;
-          align-items: center;
-          justify-content: center;
-        }
-        .preset-icon-selected { color: var(--accent-ink, #0170dd); }
-        .preset-icon-unselected { color: var(--ink-2, #62656b); }
-
-        .preset-name {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .preset-desc {
-          margin: 0;
-          font-size: 10.5px;
-          line-height: 1.35;
-          color: var(--ink-2, #62656b);
-        }
-
-        .preset-meta {
-          margin-top: 10px;
-          border-top: 1px solid rgba(236, 237, 239, 0.6);
-          padding-top: 8px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-        }
-        .meta-line {
-          display: flex;
-          justify-content: space-between;
-          color: var(--ink-3, #9a9da3);
-        }
-        .meta-line-val {
-          color: var(--ink, #1f2124);
-          font-weight: 500;
-        }
-
-        .audit-box {
-          margin-top: 16px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: rgba(247, 248, 249, 0.5);
-          padding: 12px;
-        }
-        .audit-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 8px;
-          border-bottom: 1px solid rgba(236, 237, 239, 0.6);
-        }
-        .audit-header-left {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .audit-title {
-          font-size: 11.5px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-        }
-        .valid-tag {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-          color: var(--green, #189a4d);
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-        }
-        .btn-replay {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: var(--radius-chip, 6px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 2px 8px;
-          font-size: 10.5px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .btn-replay:hover:not(:disabled) {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .btn-replay:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .audit-list {
-          margin-top: 8px;
-          display: flex;
-          flex-direction: column;
-        }
-        .audit-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 6px 0;
-          border-bottom: 1px solid rgba(236, 237, 239, 0.4);
-          font-size: 11px;
-        }
-        .audit-row:last-child {
-          border-bottom: none;
-        }
-        .audit-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-        .status-badge {
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9px;
-          font-weight: 500;
-        }
-        .badge-approved { background: var(--green-tint, #e8f5ed); color: var(--green, #189a4d); }
-        .badge-denied { background: var(--red-tint, #fcecec); color: var(--red, #e3474c); }
-        .badge-auto { background: var(--accent-tint, #e9f3ff); color: var(--accent-ink, #0170dd); }
-
-        .audit-target {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 200px;
-        }
-        .audit-right {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-shrink: 0;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .hash-tag {
-          border-radius: 4px;
-          background: var(--field, #f2f2f3);
-          padding: 1px 4px;
-        }
-      </style>
-
-      <div class="card">
-        <div class="header">
-          <div class="header-left">
-            <span class="icon-box">
+    const html = `
+      <div class="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3.5 border-b border-line">
+          <div class="flex items-center gap-2">
+            <span class="flex size-6 items-center justify-center rounded-control bg-orange-tint text-orange">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </span>
             <div>
-              <h3 class="title">${zh ? "权限预设与审计重放" : "Permission Presets & Auditing"}</h3>
-              <p class="sub-text">${zh ? "Harness 权限 Bundle 与持久化不可变事实" : "Harness authorization bundle & durable facts"}</p>
+              <h3 class="text-[13px] font-semibold text-ink">
+                ${zh ? "权限预设与审计重放" : "Permission Presets & Auditing"}
+              </h3>
+              <p class="text-[11px] text-ink-3">
+                ${zh ? "Harness 权限 Bundle 与持久化不可变事实" : "Harness authorization bundle & durable facts"}
+              </p>
             </div>
           </div>
-          <span class="audit-chip">${zh ? "Exactly-Once 审计" : "Exactly-Once Audit"}</span>
+
+          <span class="rounded-chip border border-line bg-inset px-2 py-0.5 font-mono text-[10px] text-ink-2">
+            ${zh ? "Exactly-Once 审计" : "Exactly-Once Audit"}
+          </span>
         </div>
 
-        <div class="presets-grid">
+        <!-- Preset Selector Grid -->
+        <div class="mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-2">
           ${PRESETS.map((p) => {
-            const isSelected = this._selectedPreset === p.id;
+            const isSelected = selectedPreset === p.id;
             return `
               <div
-                class="preset-tile ${isSelected ? "preset-selected" : "preset-unselected"}"
                 data-preset="${p.id}"
+                class="preset-tile preset-item flex flex-col justify-between rounded-control border p-2.5 transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-accent bg-accent-tint/30 shadow-sm ring-1 ring-accent"
+                    : "border-line bg-inset/40 hover:border-line-strong hover:bg-hover/30"
+                }"
               >
                 <div>
-                  <div class="preset-top">
-                    <span class="preset-icon ${isSelected ? "preset-icon-selected" : "preset-icon-unselected"}">
+                  <div class="flex items-center gap-1.5 mb-1">
+                    <span class="flex size-4 items-center justify-center ${isSelected ? "text-accent-ink" : "text-ink-2"}">
                       ${renderIcon(p.icon)}
                     </span>
-                    <span class="preset-name">${zh ? p.nameZh : p.nameEn}</span>
+                    <span class="text-[12px] font-semibold text-ink">
+                      ${zh ? p.nameZh : p.nameEn}
+                    </span>
                   </div>
-                  <p class="preset-desc">${zh ? p.descZh : p.descEn}</p>
+                  <p class="text-[10.5px] text-ink-2 leading-tight">
+                    ${zh ? p.descZh : p.descEn}
+                  </p>
                 </div>
 
-                <div class="preset-meta">
-                  <div class="meta-line">
+                <div class="mt-2.5 flex flex-col gap-1 border-t border-line/60 pt-2 font-mono text-[9.5px]">
+                  <div class="flex justify-between text-ink-3">
                     <span>${zh ? "沙盒:" : "Sandbox:"}</span>
-                    <span class="meta-line-val">${p.sandbox}</span>
+                    <span class="text-ink font-medium">${p.sandbox}</span>
                   </div>
-                  <div class="meta-line">
+                  <div class="flex justify-between text-ink-3">
                     <span>${zh ? "审批:" : "Approval:"}</span>
-                    <span class="meta-line-val">${zh ? p.approvalZh : p.approvalEn}</span>
+                    <span class="text-ink font-medium">
+                      ${zh ? p.approvalZh : p.approvalEn}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -428,64 +193,71 @@ export class NaiPermissionPresetCard extends NaiBaseElement {
           }).join("")}
         </div>
 
-        <div class="audit-box">
-          <div class="audit-header">
-            <div class="audit-header-left">
-              <span class="audit-title">${zh ? "可重放审计流水 (Audit Trail)" : "Replayable Audit Trail"}</span>
+        <!-- Exactly-Once Audit Trail -->
+        <div class="mt-4 rounded-control border border-line bg-inset/50 p-3">
+          <div class="flex items-center justify-between pb-2 border-b border-line/60">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11.5px] font-semibold text-ink">
+                ${zh ? "可重放审计流水 (Audit Trail)" : "Replayable Audit Trail"}
+              </span>
               ${
-                this._replayVerified
-                  ? `<span class="valid-tag">${zh ? "✓ 校验通过" : "✓ Validated"}</span>`
+                replayVerified
+                  ? `
+                <span class="flex items-center gap-0.5 text-green font-mono text-[10px]">
+                  ${zh ? "✓ 校验通过" : "✓ Validated"}
+                </span>
+              `
                   : ""
               }
             </div>
             <button
               type="button"
               id="btn-replay-audit"
-              class="btn-replay"
-              ${this._isReplaying ? "disabled" : ""}
+              ${isReplaying ? "disabled" : ""}
+              class="flex items-center gap-1 rounded-chip border border-line bg-surface px-2 py-0.5 text-[10.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
             >
-              ${
-                this._isReplaying
-                  ? zh
-                    ? "正在重放校验..."
-                    : "Verifying..."
-                  : zh
-                  ? "重放审计"
-                  : "Replay Audit"
-              }
+              ${isReplaying ? (zh ? "正在重放校验..." : "Verifying...") : zh ? "重放审计" : "Replay Audit"}
             </button>
           </div>
 
-          <div class="audit-list">
-            ${SAMPLE_AUDIT.map((item) => {
-              const badgeClass =
-                item.statusEn === "Approved"
-                  ? "badge-approved"
-                  : item.statusEn === "Denied"
-                  ? "badge-denied"
-                  : "badge-auto";
-              return `
-                <div class="audit-row">
-                  <div class="audit-left">
-                    <span class="status-badge ${badgeClass}">${zh ? item.statusZh : item.statusEn}</span>
-                    <span class="audit-target">${item.action}: ${item.target}</span>
-                  </div>
-                  <div class="audit-right">
-                    <span>${item.timestamp}</span>
-                    <span class="hash-tag">${item.hash}</span>
-                  </div>
+          <div class="mt-2 flex flex-col divide-y divide-line/40">
+            ${SAMPLE_AUDIT.map(
+              (item) => `
+              <div class="flex items-center justify-between py-1.5 text-[11px]">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    class="rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${
+                      item.statusEn === "Approved"
+                        ? "bg-green-tint text-green"
+                        : item.statusEn === "Denied"
+                        ? "bg-red-tint text-red"
+                        : "bg-accent-tint text-accent-ink"
+                    }"
+                  >
+                    ${zh ? item.statusZh : item.statusEn}
+                  </span>
+                  <span class="font-mono text-[11px] font-medium text-ink truncate max-w-[200px]">
+                    ${item.action}: ${item.target}
+                  </span>
                 </div>
-              `;
-            }).join("")}
+                <div class="flex items-center gap-2 shrink-0 font-mono text-[10px] text-ink-3">
+                  <span>${item.timestamp}</span>
+                  <span class="rounded bg-field px-1 py-0.2">${item.hash}</span>
+                </div>
+              </div>
+            `
+            ).join("")}
           </div>
         </div>
       </div>
     `;
 
-    this.shadowRoot.querySelectorAll("[data-preset]").forEach((el) => {
+    this.setHtml(html);
+
+    this.shadowRoot.querySelectorAll(".preset-item").forEach((el) => {
       el.addEventListener("click", () => {
         const id = el.getAttribute("data-preset");
-        this.handleSelectPreset(id);
+        if (id) this.handleSelectPreset(id);
       });
     });
 

@@ -104,378 +104,183 @@ export class NaiMemoryInspector extends NaiBaseElement {
       return true;
     });
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 512px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-        }
-        .container {
-          width: 100%;
-          border-radius: var(--radius-card, 10px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--surface, #fff);
-          padding: 20px;
-          box-shadow: var(--shadow-card, 0 0 0 1px var(--line));
-          box-sizing: border-box;
-        }
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding-bottom: 12px;
-        }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .icon-bulb {
-          display: flex;
-          width: 20px;
-          height: 20px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-        .header-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--ink, #1f2124);
-          margin: 0;
-        }
-        .header-count {
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .toolbar {
-          margin-top: 8px;
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-        }
-        .tabs {
-          display: flex;
-          border-radius: var(--radius-control, 8px);
-          background: var(--field, #f2f2f3);
-          padding: 2px;
-          font-size: 11px;
-        }
-        .tab-btn {
-          border-radius: var(--radius-chip, 6px);
-          border: none;
-          background: transparent;
-          padding: 2px 8px;
-          font-weight: 500;
-          color: var(--ink-3, #9a9da3);
-          cursor: pointer;
-          transition: background-color 0.1s, color 0.1s;
-        }
-        .tab-btn:hover {
-          color: var(--ink-2, #62656b);
-        }
-        .tab-btn.active {
-          background: var(--surface, #fff);
-          color: var(--ink, #1f2124);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-        }
-        .search-input {
-          width: 144px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--field, #f2f2f3);
-          padding: 4px 8px;
-          font-family: inherit;
-          font-size: 11px;
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-          transition: border-color 0.12s, background-color 0.12s;
-        }
-        .search-input:focus {
-          outline: none;
-          border-color: var(--accent, #0285ff);
-          background: var(--surface, #fff);
-        }
-        .memories-list {
-          margin-top: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .memory-card {
-          position: relative;
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 10px;
-          border-radius: var(--radius-control, 8px);
-          border: 1px solid var(--line, #ecedef);
-          background: var(--inset, #f7f8f9);
-          padding: 12px;
-          transition: border-color 0.15s, background-color 0.15s;
-        }
-        .memory-card:hover {
-          border-color: var(--line-strong, #e0e2e5);
-          background: var(--hover, #f4f5f6);
-        }
-        .card-content {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          flex: 1;
-        }
-        .card-meta-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 4px;
-        }
-        .cat-chip {
-          border-radius: var(--radius-chip, 6px);
-          padding: 1px 6px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          font-weight: 500;
-        }
-        .cat-preference {
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-        .cat-rule {
-          background: var(--orange-tint, #fdf1e5);
-          color: var(--orange, #ef720c);
-        }
-        .cat-fact {
-          background: var(--green-tint, #e8f5ed);
-          color: var(--green, #189a4d);
-        }
-        .pin-tag {
-          display: flex;
-          align-items: center;
-          gap: 2px;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 9.5px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .conf-meta {
-          margin-left: auto;
-          font-family: var(--font-mono, ui-monospace, monospace);
-          font-size: 10px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-        .memory-text {
-          margin: 0;
-          font-size: 12px;
-          line-height: 1.4;
-          color: var(--ink, #1f2124);
-        }
-        .actions-col {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          opacity: 0.8;
-          transition: opacity 0.15s;
-        }
-        .memory-card:hover .actions-col {
-          opacity: 1;
-        }
-        .icon-action-btn {
-          display: flex;
-          width: 24px;
-          height: 24px;
-          align-items: center;
-          justify-content: center;
-          border-radius: var(--radius-chip, 6px);
-          border: none;
-          background: transparent;
-          color: var(--ink-3, #9a9da3);
-          cursor: pointer;
-          transition: background-color 0.1s, color 0.1s;
-        }
-        .icon-action-btn:hover {
-          background: var(--hover, #f4f5f6);
-          color: var(--ink, #1f2124);
-        }
-        .icon-action-btn.pinned {
-          color: var(--accent-ink, #0170dd);
-        }
-        .icon-action-btn.delete:hover {
-          background: var(--red-tint, #fcecec);
-          color: var(--red, #e3474c);
-        }
-        .empty-box {
-          border-radius: var(--radius-control, 8px);
-          border: 1px dashed var(--line, #ecedef);
-          padding: 24px;
-          text-align: center;
-          font-size: 12px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .footer {
-          margin-top: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-top: 1px solid var(--line, #ecedef);
-          padding-top: 12px;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-        }
-        .btn-add-fact {
-          border: none;
-          background: transparent;
-          color: var(--accent-ink, #0170dd);
-          font-weight: 500;
-          cursor: pointer;
-        }
-        .btn-add-fact:hover {
-          text-decoration: underline;
-        }
-      </style>
-
-      <div class="container">
+    const html = `
+      <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
         <!-- Header -->
-        <div class="header">
-          <div class="header-left">
-            <span class="icon-bulb">
+        <div class="flex items-center justify-between pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex size-5 items-center justify-center rounded-full bg-accent-tint text-accent-ink">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z" />
                 <path d="M9 21h6" />
               </svg>
             </span>
-            <h3 class="header-title">${zh ? "智能体长期记忆看板" : "Agent Long-Term Memory"}</h3>
+            <h3 class="text-[13px] font-semibold text-ink">
+              ${zh ? "智能体长期记忆看板" : "Agent Long-Term Memory"}
+            </h3>
           </div>
-          <span class="header-count">
+
+          <span class="font-mono text-[11px] text-ink-3">
             ${memories.length} ${zh ? "条已存记忆" : memories.length === 1 ? "stored fact" : "stored facts"}
           </span>
         </div>
 
         <!-- Filter Tabs & Search -->
-        <div class="toolbar">
-          <div class="tabs">
-            ${["all", "preference", "rule", "fact"]
-              .map((tab) => {
-                const isActive = filter === tab;
-                let tabLabel = "";
-                if (tab === "all") tabLabel = zh ? "全部" : "All";
-                else if (tab === "preference") tabLabel = zh ? "偏好" : "Prefs";
-                else if (tab === "rule") tabLabel = zh ? "规范" : "Rules";
-                else if (tab === "fact") tabLabel = zh ? "事实" : "Facts";
-
-                return `
-                  <button
-                    type="button"
-                    class="tab-btn ${isActive ? "active" : ""}"
-                    data-tab="${tab}"
-                  >
-                    ${tabLabel}
-                  </button>
-                `;
-              })
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex rounded-control bg-field p-0.5 text-[11px]">
+            ${(["all", "preference", "rule", "fact"])
+              .map(
+                (tab) => `
+              <button
+                type="button"
+                data-tab="${tab}"
+                class="tab-btn rounded-chip px-2 py-0.5 font-medium capitalize transition-colors cursor-pointer ${
+                  filter === tab ? "bg-surface text-ink shadow-sm" : "text-ink-3 hover:text-ink-2"
+                }"
+              >
+                ${
+                  tab === "all"
+                    ? zh
+                      ? "全部"
+                      : "All"
+                    : tab === "preference"
+                    ? zh
+                      ? "偏好"
+                      : "Prefs"
+                    : tab === "rule"
+                    ? zh
+                      ? "规范"
+                      : "Rules"
+                    : zh
+                    ? "事实"
+                    : "Facts"
+                }
+              </button>
+            `
+              )
               .join("")}
           </div>
 
-          <div>
+          <div class="relative">
             <input
               type="text"
-              class="search-input"
               placeholder="${zh ? "搜索记忆..." : "Search memory..."}"
               value="${query}"
+              class="search-input w-36 rounded-control border border-line bg-field px-2 py-1 text-[11px] text-ink placeholder:text-ink-3 focus:border-accent focus:bg-surface focus:outline-none transition-colors"
             />
           </div>
         </div>
 
-        <!-- Memories List -->
-        <div class="memories-list">
+        <!-- Memory Cards List -->
+        <div class="mt-3 flex flex-col gap-2">
           ${
             filtered.length === 0
               ? `
-            <div class="empty-box">
+            <div class="rounded-control border border-dashed border-line p-6 text-center text-[12px] text-ink-3">
               ${zh ? "当前筛选条件下无记忆项。" : "No memories match the current filter."}
             </div>
           `
               : filtered
-                  .map((item) => {
-                    let catLabel = "";
-                    if (item.category === "preference") catLabel = zh ? "偏好" : "preference";
-                    else if (item.category === "rule") catLabel = zh ? "规范" : "rule";
-                    else catLabel = zh ? "事实" : "fact";
+                  .map(
+                    (item) => `
+            <div
+              class="group relative flex items-start justify-between gap-2.5 rounded-control border border-line bg-inset/40 p-3 hover:border-line-strong hover:bg-hover/30 transition-all"
+            >
+              <div class="flex flex-col min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span
+                    class="rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium capitalize ${
+                      item.category === "preference"
+                        ? "bg-accent-tint text-accent-ink"
+                        : item.category === "rule"
+                        ? "bg-orange-tint text-orange"
+                        : "bg-green-tint text-green"
+                    }"
+                  >
+                    ${
+                      item.category === "preference"
+                        ? zh
+                          ? "偏好"
+                          : "preference"
+                        : item.category === "rule"
+                        ? zh
+                          ? "规范"
+                          : "rule"
+                        : zh
+                        ? "事实"
+                        : "fact"
+                    }
+                  </span>
+                  ${
+                    item.pinned
+                      ? `
+                    <span class="flex items-center gap-0.5 font-mono text-[9.5px] text-ink-3">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 3a1 1 0 0 1 .71.29l4 4A1 1 0 0 1 21 9l-6.5 6.5-.5 4.5a1 1 0 0 1-1.7.7L9 17.4 4.7 21.7a1 1 0 0 1-1.4-1.4L7.6 16l-3.3-3.3a1 1 0 0 1 .7-1.7l4.5-.5L15 4a1 1 0 0 1 1-1z" />
+                      </svg>
+                      ${zh ? "已置顶" : "Pinned"}
+                    </span>
+                  `
+                      : ""
+                  }
+                  <span class="font-mono text-[10px] text-ink-3 tabular-nums ml-auto">
+                    ${item.confidence}% ${zh ? "置信" : "conf"} • ${zh ? item.updatedAtZh : item.updatedAtEn}
+                  </span>
+                </div>
+                <p class="text-[12px] text-ink leading-snug">
+                  ${zh ? item.textZh : item.textEn}
+                </p>
+              </div>
 
-                    return `
-                  <div class="memory-card">
-                    <div class="card-content">
-                      <div class="card-meta-row">
-                        <span class="cat-chip cat-${item.category}">
-                          ${catLabel}
-                        </span>
-                        ${
-                          item.pinned
-                            ? `
-                          <span class="pin-tag">
-                            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M16 3a1 1 0 0 1 .71.29l4 4A1 1 0 0 1 21 9l-6.5 6.5-.5 4.5a1 1 0 0 1-1.7.7L9 17.4 4.7 21.7a1 1 0 0 1-1.4-1.4L7.6 16l-3.3-3.3a1 1 0 0 1 .7-1.7l4.5-.5L15 4a1 1 0 0 1 1-1z" />
-                            </svg>
-                            ${zh ? "已置顶" : "Pinned"}
-                          </span>
-                        `
-                            : ""
-                        }
-                        <span class="conf-meta">
-                          ${item.confidence}% ${zh ? "置信" : "conf"} • ${zh ? item.updatedAtZh : item.updatedAtEn}
-                        </span>
-                      </div>
-                      <p class="memory-text">${zh ? item.textZh : item.textEn}</p>
-                    </div>
-
-                    <div class="actions-col">
-                      <button
-                        type="button"
-                        class="icon-action-btn pin ${item.pinned ? "pinned" : ""}"
-                        data-id="${item.id}"
-                        title="${item.pinned ? (zh ? "取消置顶" : "Unpin") : zh ? "置顶到 Prompt" : "Pin to prompt"}"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <line x1="12" y1="17" x2="12" y2="22" />
-                          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        class="icon-action-btn delete"
-                        data-id="${item.id}"
-                        title="${zh ? "遗忘此记忆" : "Forget this memory"}"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                `;
-                  })
+              <!-- Actions -->
+              <div class="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  data-id="${item.id}"
+                  title="${item.pinned ? (zh ? "取消置顶" : "Unpin") : zh ? "置顶到 Prompt" : "Pin to prompt"}"
+                  class="icon-action-btn pin btn-pin flex size-6 items-center justify-center rounded-chip text-ink-3 hover:bg-hover hover:text-ink transition-colors cursor-pointer ${
+                    item.pinned ? "text-accent-ink" : ""
+                  }"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="17" x2="12" y2="22" />
+                    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A2 2 0 0 1 15 10.77V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.77a2 2 0 0 1-1.11 1.79l-1.78.89A2 2 0 0 0 5 15.24Z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  data-id="${item.id}"
+                  title="${zh ? "遗忘此记忆" : "Forget this memory"}"
+                  class="icon-action-btn delete btn-delete flex size-6 items-center justify-center rounded-chip text-ink-3 hover:bg-red-tint hover:text-red transition-colors cursor-pointer"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `
+                  )
                   .join("")
           }
         </div>
 
         <!-- Footer -->
-        <div class="footer">
+        <div class="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
           <span>${zh ? "已在当前 Agent 会话中实时同步" : "Synced across current agent sessions"}</span>
-          <button type="button" class="btn-add-fact" id="btn-add-fact">
+          <button
+            type="button"
+            id="btn-add-fact"
+            class="text-accent-ink hover:underline font-medium cursor-pointer"
+          >
             ${zh ? "+ 添加事实" : "+ Add Fact"}
           </button>
         </div>
       </div>
     `;
+
+    this.setHtml(html);
 
     this.shadowRoot.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -489,14 +294,14 @@ export class NaiMemoryInspector extends NaiBaseElement {
       this.setQuery(e.target.value);
     });
 
-    this.shadowRoot.querySelectorAll(".icon-action-btn.pin").forEach((btn) => {
+    this.shadowRoot.querySelectorAll(".btn-pin").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
         if (id) this.handleTogglePin(id);
       });
     });
 
-    this.shadowRoot.querySelectorAll(".icon-action-btn.delete").forEach((btn) => {
+    this.shadowRoot.querySelectorAll(".btn-delete").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
         if (id) this.handleDelete(id);

@@ -1,10 +1,10 @@
 import { NaiBaseElement } from "../core/base-element.js";
 
 const STRENGTH = {
-  strong: { labelEn: "Very strong", labelZh: "非常强", color: "var(--green, #189a4d)", rank: 3 },
-  weak: { labelEn: "Weak", labelZh: "较弱", color: "var(--orange, #ef720c)", rank: 2 },
-  veryweak: { labelEn: "Very weak", labelZh: "非常弱", color: "var(--red, #e3474c)", rank: 1 },
-  none: { labelEn: "No communication", labelZh: "无沟通", color: "var(--ink-3, #9a9da3)", rank: 0 },
+  strong: { labelEn: "Very strong", labelZh: "非常强", color: "var(--green)", rank: 3 },
+  weak: { labelEn: "Weak", labelZh: "较弱", color: "var(--orange)", rank: 2 },
+  veryweak: { labelEn: "Very weak", labelZh: "非常弱", color: "var(--red)", rank: 1 },
+  none: { labelEn: "No communication", labelZh: "无沟通", color: "var(--ink-3)", rank: 0 },
 };
 
 const TAG_COLORS = {
@@ -110,303 +110,13 @@ export class NaiRecordsTable extends NaiBaseElement {
       (rows.reduce((sum, row) => sum + STRENGTH[row.strength].rank, 0) / rows.length / 3) * 100
     );
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-        }
-
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
-
-        .records-shell {
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-card, 0 1px 3px rgba(0,0,0,0.06));
-          border: 1px solid var(--line, #ecedef);
-          overflow: hidden;
-        }
-
-        .records-scroll {
-          overflow: auto;
-          max-height: 480px;
-          outline: none;
-        }
-
-        table.records-table {
-          width: 100%;
-          min-width: 760px;
-          border-collapse: separate;
-          border-spacing: 0;
-          text-align: left;
-        }
-
-        col.records-company-col { width: 240px; }
-        col.records-category-col { width: 220px; }
-        col.records-last-col { width: 140px; }
-        col.records-strength-col { width: 160px; }
-        col.records-link-col { width: 180px; }
-
-        th.records-header-cell {
-          position: sticky;
-          top: 0;
-          z-index: 2;
-          background: var(--inset, #f7f8f9);
-          border-bottom: 1px solid var(--line, #ecedef);
-          border-right: 1px solid var(--line, #ecedef);
-          padding: 0;
-          font-size: 11.5px;
-          font-weight: 500;
-          color: var(--ink-2, #62656b);
-        }
-
-        th.records-header-cell:last-child {
-          border-right: none;
-        }
-
-        .records-sticky-cell {
-          position: sticky;
-          left: 0;
-          z-index: 3;
-          background: var(--surface, #fff);
-        }
-
-        th.records-sticky-cell {
-          z-index: 4;
-          background: var(--inset, #f7f8f9);
-        }
-
-        .records-header-button {
-          display: flex;
-          width: 100%;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          border: none;
-          background: transparent;
-          font-size: 11.5px;
-          font-weight: 500;
-          color: inherit;
-          cursor: pointer;
-          text-align: left;
-        }
-
-        .records-header-button:hover {
-          background: var(--hover, #f4f5f6);
-        }
-
-        .records-company-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-        }
-
-        .records-sort-icon {
-          display: inline-flex;
-          margin-left: auto;
-          color: var(--ink-3, #9a9da3);
-          transition: transform 0.15s ease;
-        }
-
-        .records-row {
-          transition: background-color 0.1s ease;
-        }
-
-        .records-row:hover td {
-          background-color: var(--hover, #f4f5f6);
-        }
-
-        .records-row.is-selected td {
-          background-color: var(--accent-tint, #e9f3ff);
-        }
-
-        td.records-cell {
-          padding: 8px 12px;
-          border-bottom: 1px solid var(--line, #ecedef);
-          border-right: 1px solid var(--line, #ecedef);
-          font-size: 12.5px;
-          color: var(--ink, #1f2124);
-          background: var(--surface, #fff);
-        }
-
-        td.records-cell:last-child {
-          border-right: none;
-        }
-
-        .records-company-cell {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          white-space: nowrap;
-        }
-
-        .records-company-mark {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 20px;
-          height: 20px;
-          border-radius: var(--radius-chip, 6px);
-          background: var(--field, #f2f2f3);
-          font-size: 10.5px;
-          font-weight: 600;
-          color: var(--ink-2, #62656b);
-          flex-shrink: 0;
-        }
-
-        .records-company-name {
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          text-decoration: none;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .records-company-name.has-link:hover {
-          color: var(--accent, #0285ff);
-          text-decoration: underline;
-        }
-
-        .records-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-          align-items: center;
-        }
-
-        .records-tag {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 1px 6px;
-          border-radius: 9999px;
-          font-size: 11px;
-          font-weight: 500;
-          background: var(--inset, #f7f8f9);
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          color: var(--ink-2, #62656b);
-        }
-
-        .records-tag-dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-        }
-
-        .records-strength {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          color: var(--ink-2, #62656b);
-        }
-
-        .records-strength-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-        }
-
-        .records-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 12px;
-          color: var(--accent, #0285ff);
-          text-decoration: none;
-        }
-
-        .records-link:hover {
-          text-decoration: underline;
-        }
-
-        .records-muted {
-          color: var(--ink-3, #9a9da3);
-        }
-
-        /* Checkbox styling */
-        .records-checkbox {
-          display: inline-flex;
-          align-items: center;
-          cursor: pointer;
-          user-select: none;
-        }
-
-        .records-checkbox input {
-          position: absolute;
-          opacity: 0;
-          width: 0;
-          height: 0;
-        }
-
-        .records-checkbox-box {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 14px;
-          height: 14px;
-          border-radius: 3.5px;
-          border: 1.5px solid var(--line-strong, #e0e2e5);
-          background: var(--surface, #fff);
-          transition: background-color 0.12s, border-color 0.12s;
-        }
-
-        .records-checkbox-box.is-active {
-          border-color: var(--accent, #0285ff);
-          background: var(--accent, #0285ff);
-          color: #fff;
-        }
-
-        .records-checkbox-dash {
-          width: 8px;
-          height: 2px;
-          background: #fff;
-          border-radius: 1px;
-        }
-
-        /* Footer Calculation Row */
-        tfoot tr.records-calculation-row td {
-          position: sticky;
-          bottom: 0;
-          z-index: 2;
-          background: var(--inset, #f7f8f9);
-          border-top: 1px solid var(--line-strong, #e0e2e5);
-          border-bottom: none;
-          font-size: 11.5px;
-          color: var(--ink-2, #62656b);
-        }
-
-        tfoot tr.records-calculation-row td.records-sticky-cell {
-          z-index: 4;
-          background: var(--inset, #f7f8f9);
-        }
-
-        .records-add-calculation {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          border: none;
-          background: transparent;
-          padding: 2px 6px;
-          font-size: 11.5px;
-          color: var(--accent, #0285ff);
-          cursor: pointer;
-          border-radius: var(--radius-chip, 6px);
-        }
-
-        .records-add-calculation:hover {
-          background: var(--hover, #f4f5f6);
-        }
-      </style>
-
+    this.setHtml(`
       <div class="records-shell">
-        <div class="records-scroll" tabindex="0" aria-label="${zh ? "公司表格" : "Companies table"}">
+        <div class="records-scroll" tabindex="0" aria-label="${
+          zh
+            ? "公司表格。横向与纵向滚动以查看所有列与记录。"
+            : "Companies table. Scroll horizontally and vertically to view all columns and records."
+        }">
           <table class="records-table">
             <colgroup>
               <col class="records-company-col" />
@@ -419,53 +129,79 @@ export class NaiRecordsTable extends NaiBaseElement {
               <tr>
                 <th class="records-header-cell records-sticky-cell">
                   <div class="records-company-header">
-                    <label class="records-checkbox" id="check-all-label">
+                    <label class="records-checkbox" title="${zh ? "全选公司" : "Select all companies"}">
+                      <input type="checkbox" id="check-all-input" ${allSelected ? "checked" : ""} aria-label="${
+      zh ? "全选公司" : "Select all companies"
+    }" />
                       <span class="records-checkbox-box ${allSelected || partiallySelected ? "is-active" : ""}">
                         ${
                           partiallySelected
                             ? '<span class="records-checkbox-dash"></span>'
                             : allSelected
-                            ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+                            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>'
                             : ""
                         }
                       </span>
                     </label>
-                    <button type="button" class="records-header-button" id="sort-name">
-                      <span>${zh ? "公司" : "Company"}</span>
-                      <span class="records-sort-icon" style="transform: ${sort.key === "name" && sort.dir === -1 ? "rotate(180deg)" : "none"}; opacity: ${sort.key === "name" ? 1 : 0.3}">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-                      </span>
-                    </button>
+                    <span>${zh ? "公司" : "Company"}</span>
                   </div>
                 </th>
+
                 <th class="records-header-cell">
-                  <button type="button" class="records-header-button">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m20.6 13.4-8.6 8.6-8-8V4h10l6.6 6.6a2 2 0 0 1 0 2.8zM7 7h.01"/></svg>
-                    <span>${zh ? "分类" : "Categories"}</span>
+                  <button type="button" class="records-header-button" id="btn-sort-categories">
+                    <span class="records-header-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m20.6 13.4-8.6 8.6-8-8V4h10l6.6 6.6a2 2 0 0 1 0 2.8zM7 7h.01" />
+                      </svg>
+                    </span>
+                    <span class="truncate">${zh ? "分类" : "Categories"}</span>
                   </button>
                 </th>
+
                 <th class="records-header-cell">
                   <button type="button" class="records-header-button" id="sort-last">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18M3 12h12M3 19h7M18 15v6m-3-3h6"/></svg>
-                    <span>${zh ? "最近互动" : "Last interaction"}</span>
-                    <span class="records-sort-icon" style="transform: ${sort.key === "last" && sort.dir === -1 ? "rotate(180deg)" : "none"}; opacity: ${sort.key === "last" ? 1 : 0.3}">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                    <span class="records-header-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 5h18M3 12h12M3 19h7M18 15v6m-3-3h6" />
+                      </svg>
+                    </span>
+                    <span class="truncate">${zh ? "最近互动" : "Last interaction"}</span>
+                    <span class="records-sort ${sort.key === "last" ? "is-visible" : ""}" style="${
+      sort.key === "last" && sort.dir === -1 ? "transform: rotate(180deg);" : ""
+    }">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12l7 7 7-7" />
+                      </svg>
                     </span>
                   </button>
                 </th>
+
                 <th class="records-header-cell">
-                  <button type="button" class="records-header-button" id="sort-strength">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.9z"/></svg>
-                    <span>${zh ? "联系强度" : "Connection strength"}</span>
-                    <span class="records-sort-icon" style="transform: ${sort.key === "strength" && sort.dir === -1 ? "rotate(180deg)" : "none"}; opacity: ${sort.key === "strength" ? 1 : 0.3}">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                  <button type="button" class="records-header-button" id="btn-sort-strength">
+                    <span class="records-header-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.9z" />
+                      </svg>
+                    </span>
+                    <span class="truncate">${zh ? "联系强度" : "Connection strength"}</span>
+                    <span class="records-sort ${sort.key === "strength" ? "is-visible" : ""}" style="${
+      sort.key === "strength" && sort.dir === -1 ? "transform: rotate(180deg);" : ""
+    }">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12l7 7 7-7" />
+                      </svg>
                     </span>
                   </button>
                 </th>
+
                 <th class="records-header-cell">
-                  <button type="button" class="records-header-button">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
-                    <span>${zh ? "链接" : "Links"}</span>
+                  <button type="button" class="records-header-button" id="btn-sort-links">
+                    <span class="records-header-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" />
+                      </svg>
+                    </span>
+                    <span class="truncate">${zh ? "链接" : "Links"}</span>
                   </button>
                 </th>
               </tr>
@@ -475,34 +211,44 @@ export class NaiRecordsTable extends NaiBaseElement {
                 .map((row) => {
                   const isSelected = this._selected.has(row.id);
                   const strength = STRENGTH[row.strength];
+                  const websiteUrl = row.website ? `https://${row.website}` : "#";
                   return `
-                    <tr class="records-row ${isSelected ? "is-selected" : ""}" data-row-id="${row.id}">
-                      <td class="records-cell records-sticky-cell">
-                        <div class="records-company-cell">
-                          <label class="records-checkbox row-check" data-id="${row.id}">
-                            <span class="records-checkbox-box ${isSelected ? "is-active" : ""}">
-                              ${isSelected ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ""}
-                            </span>
-                          </label>
-                          <span class="records-company-mark">${row.name.slice(0, 1).toUpperCase()}</span>
-                          <a href="${row.website ? `https://${row.website}` : "#"}" target="_blank" rel="noreferrer" class="records-company-name ${row.website ? "has-link" : ""}">
-                            ${row.name}
-                          </a>
-                        </div>
+                    <tr class="records-row ${isSelected ? "is-selected" : ""}">
+                      <td class="records-cell records-sticky-cell records-company-cell">
+                        <label class="records-checkbox" title="${zh ? `选择 ${row.name}` : `Select ${row.name}`}">
+                          <input type="checkbox" class="row-check row-checkbox" data-id="${row.id}" ${
+                    isSelected ? "checked" : ""
+                  } aria-label="${zh ? `选择 ${row.name}` : `Select ${row.name}`}" />
+                          <span class="records-checkbox-box ${isSelected ? "is-active" : ""}">
+                            ${
+                              isSelected
+                                ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>'
+                                : ""
+                            }
+                          </span>
+                        </label>
+                        <span class="records-company-mark">${row.name.slice(0, 1).toUpperCase()}</span>
+                        <a href="${websiteUrl}" class="records-company-name ${row.website ? "has-link" : ""}" ${
+                    !row.website ? 'onclick="event.preventDefault()"' : ""
+                  }>
+                          ${row.name}
+                        </a>
                       </td>
                       <td class="records-cell">
                         <div class="records-tags">
                           ${row.tags
+                            .slice(0, 4)
                             .map((tag) => {
                               const color = TAG_COLORS[tag] || "#7f858d";
                               return `
-                                <span class="records-tag">
-                                  <span class="records-tag-dot" style="background: ${color}"></span>
-                                  <span>${tag}</span>
+                                <span class="records-tag" style="--tag-color: ${color};">
+                                  <span class="records-tag-dot" style="background: ${color};"></span>
+                                  ${tag}
                                 </span>
                               `;
                             })
                             .join("")}
+                          ${row.tags.length > 4 ? `<span class="records-more-tag">+${row.tags.length - 4}</span>` : ""}
                         </div>
                       </td>
                       <td class="records-cell ${row.lastEn === "No contact" ? "records-muted" : ""}">
@@ -510,17 +256,19 @@ export class NaiRecordsTable extends NaiBaseElement {
                       </td>
                       <td class="records-cell">
                         <span class="records-strength">
-                          <span class="records-strength-dot" style="background: ${strength.color}"></span>
-                          <span>${zh ? strength.labelZh : strength.labelEn}</span>
+                          <span class="records-strength-dot" style="background: ${strength.color};"></span>
+                          ${zh ? strength.labelZh : strength.labelEn}
                         </span>
                       </td>
                       <td class="records-cell">
                         ${
                           row.website
                             ? `<a class="records-link" href="https://${row.website}" target="_blank" rel="noreferrer">
-                                <span>${row.website}</span>
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 5h5v5M19 5l-8 8"/></svg>
-                               </a>`
+                                ${row.website}
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                  <path d="M14 5h5v5M19 5l-8 8" />
+                                </svg>
+                              </a>`
                             : '<span class="records-muted">—</span>'
                         }
                       </td>
@@ -531,48 +279,47 @@ export class NaiRecordsTable extends NaiBaseElement {
             </tbody>
             <tfoot>
               <tr class="records-calculation-row">
-                <td class="records-cell records-sticky-cell">
-                  <strong>${rows.length}</strong> ${zh ? "条记录" : "count"}
+                <td class="records-cell records-sticky-cell records-calculation-label">
+                  <span class="records-calculation-number">${rows.length}</span> ${zh ? "条记录" : "count"}
                 </td>
                 <td class="records-cell">
                   <button type="button" class="records-add-calculation">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                    <span>${zh ? "添加计算" : "Add calculation"}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    ${zh ? "添加计算" : "Add calculation"}
                   </button>
                 </td>
                 <td class="records-cell records-muted">—</td>
                 <td class="records-cell">
-                  <span class="records-strength">
-                    <span class="records-strength-dot" style="background: var(--orange, #ef720c)"></span>
-                    <span>${zh ? `平均 ${averagePct}%` : `${averagePct}% average`}</span>
+                  <span class="records-average">
+                    <span class="records-strength-dot" style="background: var(--orange);"></span>
+                    ${zh ? `平均 ${averagePct}%` : `${averagePct}% average`}
                   </span>
                 </td>
                 <td class="records-cell">
-                  <span class="records-muted">${rows.filter((r) => r.website).length} ${zh ? "个链接" : "links"}</span>
+                  <span class="records-muted">${rows.filter((row) => row.website).length} ${zh ? "个链接" : "links"}</span>
                 </td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
-    `;
+    `);
 
-    this.shadowRoot.querySelector("#check-all-label")?.addEventListener("click", (e) => {
-      e.stopPropagation();
+    this.shadowRoot?.querySelector("#check-all-input")?.addEventListener("change", () => {
       this.toggleAll(allSelected, visibleRows);
     });
 
-    this.shadowRoot.querySelectorAll(".row-check").forEach((el) => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const id = el.getAttribute("data-id");
+    this.shadowRoot?.querySelectorAll(".row-checkbox").forEach((cb) => {
+      cb.addEventListener("change", (e) => {
+        const id = cb.getAttribute("data-id");
         if (id) this.toggleRow(id);
       });
     });
 
-    this.shadowRoot.querySelector("#sort-name")?.addEventListener("click", () => this.toggleSort("name"));
-    this.shadowRoot.querySelector("#sort-last")?.addEventListener("click", () => this.toggleSort("last"));
-    this.shadowRoot.querySelector("#sort-strength")?.addEventListener("click", () => this.toggleSort("strength"));
+    this.shadowRoot?.querySelector("#sort-last")?.addEventListener("click", () => this.toggleSort("last"));
+    this.shadowRoot?.querySelector("#btn-sort-strength")?.addEventListener("click", () => this.toggleSort("strength"));
   }
 }
 

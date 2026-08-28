@@ -47,225 +47,86 @@ export class NaiFilterTable extends NaiBaseElement {
     const zh = this.isZh;
     const currentFilter = this._filter;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 100%;
-          max-width: 440px;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-        }
-
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
-
-        .filter-chips {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          overflow-x: auto;
-          padding: 4px 0 8px 0;
-          scrollbar-width: none;
-        }
-
-        .filter-chips::-webkit-scrollbar {
-          display: none;
-        }
-
-        .chip-btn {
-          display: flex;
-          height: 26px;
-          flex-shrink: 0;
-          align-items: center;
-          gap: 6px;
-          border-radius: 9999px;
-          border: none;
-          padding: 0 10px;
-          font-size: 12px;
-          font-weight: 500;
-          cursor: pointer;
-          background: transparent;
-          color: var(--ink-2, #62656b);
-          transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
-        }
-
-        .chip-btn:hover {
-          background: var(--hover, #f4f5f6);
-        }
-
-        .chip-btn.active {
-          background: var(--surface, #fff);
-          color: var(--ink, #1f2124);
-          box-shadow: var(--shadow-btn, 0 0 0 1px var(--line-strong), 0 1px 2px rgba(0,0,0,0.05));
-        }
-
-        .chip-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-        }
-
-        .chip-count {
-          border-radius: 4px;
-          padding: 0 4px;
-          font-size: 10.5px;
-          font-variant-numeric: tabular-nums;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .chip-btn.active .chip-count {
-          background: var(--field, #f2f2f3);
-          color: var(--ink-2, #62656b);
-        }
-
-        .table-card {
-          overflow-x: auto;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          box-shadow: var(--shadow-card, 0 1px 3px rgba(0,0,0,0.06));
-          border: 1px solid var(--line, #ecedef);
-          scrollbar-width: none;
-        }
-
-        .table-card::-webkit-scrollbar {
-          display: none;
-        }
-
-        .table-inner {
-          min-width: 420px;
-        }
-
-        .header-row {
-          display: grid;
-          grid-template-columns: 1.3fr 0.6fr 0.95fr 0.9fr;
-          border-bottom: 1px solid var(--line, #ecedef);
-          padding: 8px 12px;
-          font-size: 11.5px;
-          font-weight: 500;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .row-wrapper {
-          display: grid;
-          transition: grid-template-rows 300ms cubic-bezier(0.23, 1, 0.32, 1), opacity 300ms cubic-bezier(0.23, 1, 0.32, 1);
-        }
-
-        .row-wrapper.hidden {
-          grid-template-rows: 0fr;
-          opacity: 0;
-        }
-
-        .row-wrapper.visible {
-          grid-template-rows: 1fr;
-          opacity: 1;
-        }
-
-        .row-inner {
-          overflow: hidden;
-        }
-
-        .row-content {
-          display: grid;
-          grid-template-columns: 1.3fr 0.6fr 0.95fr 0.9fr;
-          align-items: center;
-          border-bottom: 1px solid var(--line, #ecedef);
-          padding: 8px 12px;
-          font-size: 12px;
-          transition: background-color 0.1s ease;
-        }
-
-        .row-wrapper:last-child .row-content {
-          border-bottom: none;
-        }
-
-        .row-content:hover {
-          background: var(--hover, #f4f5f6);
-        }
-
-        .task-name {
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          padding-right: 8px;
-        }
-
-        .task-date {
-          color: var(--ink-2, #62656b);
-          font-variant-numeric: tabular-nums;
-        }
-
-        .status-pill {
-          display: inline-flex;
-          height: 20px;
-          align-items: center;
-          border-radius: 5px;
-          padding: 0 6px;
-          font-size: 11px;
-          font-weight: 500;
-        }
-
-        .task-owner {
-          color: var(--ink-2, #62656b);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      </style>
-
-      <div class="filter-chips">
-        ${FILTERS.map((f) => {
-          const active = currentFilter === f.key;
-          return `
-            <button
-              type="button"
-              class="chip-btn ${active ? "active" : ""}"
-              data-key="${f.key}"
-              aria-pressed="${active}"
-            >
-              ${f.dot ? `<span class="chip-dot" style="background: ${f.dot}"></span>` : ""}
-              <span>${zh ? f.labelZh : f.labelEn}</span>
-              <span class="chip-count">${f.count}</span>
-            </button>
-          `;
-        }).join("")}
-      </div>
-
-      <div class="table-card" role="region" tabindex="0" aria-label="${zh ? "可滚动任务表格" : "Scrollable task table"}">
-        <div class="table-inner">
-          <div class="header-row">
-            ${HEADERS.map((h) => `<span>${zh ? h.zh : h.en}</span>`).join("")}
-          </div>
-
-          ${ROWS.map((row) => {
-            const shown = currentFilter === "all" || row.status === currentFilter;
-            const pill = PILLS[row.status];
+    this.setHtml(`
+      <div class="w-full max-w-105">
+        {/* filter chips */}
+        <div
+          class="-mx-1 mb-1 flex items-center gap-1 overflow-x-auto px-1 py-1"
+          style="scrollbar-width: none;"
+        >
+          ${FILTERS.map((f) => {
+            const active = currentFilter === f.key;
             return `
-              <div class="row-wrapper ${shown ? "visible" : "hidden"}">
-                <div class="row-inner">
-                  <div class="row-content">
-                    <span class="task-name">${zh ? row.taskZh : row.taskEn}</span>
-                    <span class="task-date">${zh ? row.dateZh : row.dateEn}</span>
-                    <span>
-                      <span class="status-pill" style="color: ${pill.color}; background: color-mix(in srgb, ${pill.color} 13%, transparent);">
-                        ${zh ? pill.labelZh : pill.labelEn}
-                      </span>
-                    </span>
-                    <span class="task-owner">${zh ? row.ownerZh : row.ownerEn}</span>
-                  </div>
-                </div>
-              </div>
+              <button
+                type="button"
+                aria-pressed="${active}"
+                data-key="${f.key}"
+                class="chip-btn flex h-6.5 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium transition-[background-color,box-shadow,color] duration-200 cursor-pointer ${
+                  active ? "bg-surface text-ink shadow-btn" : "text-ink-2 hover:bg-hover"
+                }"
+              >
+                ${f.dot ? `<span class="size-1.5 rounded-full" style="background: ${f.dot}"></span>` : ""}
+                ${zh ? f.labelZh : f.labelEn}
+                <span
+                  class="rounded-[4px] px-1 text-[10.5px] tabular-nums ${
+                    active ? "bg-field text-ink-2" : "text-ink-3"
+                  }"
+                >
+                  ${f.count}
+                </span>
+              </button>
             `;
           }).join("")}
         </div>
-      </div>
-    `;
 
-    this.shadowRoot.querySelectorAll(".chip-btn").forEach((btn) => {
+        {/* table */}
+        <div
+          aria-label="Scrollable task table"
+          class="overflow-x-auto rounded-card bg-surface shadow-card"
+          role="region"
+          tabindex="0"
+          style="scrollbar-width: none;"
+        >
+          <div class="min-w-[420px]">
+            <div class="grid grid-cols-[1.3fr_0.6fr_0.95fr_0.9fr] border-b border-line px-3 py-2 text-[11.5px] font-medium text-ink-3">
+              ${HEADERS.map((h) => `<span>${zh ? h.zh : h.en}</span>`).join("")}
+            </div>
+            ${ROWS.map((row) => {
+              const shown = currentFilter === "all" || row.status === currentFilter;
+              const pill = PILLS[row.status];
+              return `
+                <div
+                  class="row-wrapper ${shown ? "visible" : ""} grid transition-[grid-template-rows,opacity] duration-300"
+                  style="grid-template-rows: ${shown ? "1fr" : "0fr"}; opacity: ${
+                shown ? 1 : 0
+              }; transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);"
+                >
+                  <div class="overflow-hidden">
+                    <div
+                      class="grid grid-cols-[1.3fr_0.6fr_0.95fr_0.9fr] items-center border-b border-line px-3 py-2 text-[12px] transition-colors duration-100 last:border-0 hover:bg-hover"
+                    >
+                      <span class="truncate font-medium text-ink">${zh ? row.taskZh : row.taskEn}</span>
+                      <span class="text-ink-2 tabular-nums">${zh ? row.dateZh : row.dateEn}</span>
+                      <span>
+                        <span
+                          class="inline-flex h-5 items-center rounded-[5px] px-1.5 text-[11px] font-medium"
+                          style="color: ${pill.color}; background: color-mix(in srgb, ${pill.color} 13%, transparent);"
+                        >
+                          ${zh ? pill.labelZh : pill.labelEn}
+                        </span>
+                      </span>
+                      <span class="truncate text-ink-2">${zh ? row.ownerZh : row.ownerEn}</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      </div>
+    `);
+
+    this.shadowRoot?.querySelectorAll("[data-key]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const key = btn.getAttribute("data-key");
         if (key) this.setFilter(key);

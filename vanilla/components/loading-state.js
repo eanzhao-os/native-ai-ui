@@ -62,74 +62,36 @@ export class NaiLoadingState extends NaiBaseElement {
     const displayLabel = zh && rawLabel === "Churning" ? "搅拌中" : rawLabel;
     const { delays, dur, round } = PATTERNS[this.variant] ?? PATTERNS.Drive;
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: inline-flex;
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-        }
-        .container {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: var(--ink, #1f2124);
-        }
-        .pixel-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 4px);
-          gap: 1.5px;
-        }
-        .pixel {
-          width: 4px;
-          height: 4px;
-          background: var(--ink, #1f2124);
-          border-radius: ${round ? "50%" : "1px"};
-        }
-        .label {
-          font-size: 13px;
-          font-weight: 500;
-          color: transparent;
-          -webkit-background-clip: text;
-          background-clip: text;
-          background-image: linear-gradient(90deg, var(--ink-3, #9a9da3) 35%, var(--ink, #1f2124) 50%, var(--ink-3, #9a9da3) 65%);
-          background-size: 200% 100%;
-          animation: shimmer-text 1.4s linear infinite;
-        }
-        .elapsed-timer {
-          font-family: var(--font-mono, ui-monospace, "SF Mono", monospace);
-          font-size: 12px;
-          color: var(--ink-3, #9a9da3);
-          font-variant-numeric: tabular-nums;
-        }
-        @keyframes shimmer-text {
-          0% { background-position: 150%; }
-          100% { background-position: -50%; }
-        }
-        @keyframes pixel-on {
-          0%, 100% { opacity: 0.15; }
-          18%, 42% { opacity: 1; }
-          62% { opacity: 0.15; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .label { animation: none; color: var(--ink-2, #62656b); }
-          .pixel { animation: none !important; opacity: 0.15 !important; }
-        }
-      </style>
-      <div class="container">
-        <span aria-hidden="true" class="pixel-grid">
+    this.setHtml(`
+      <div class="flex w-fit items-center gap-2.5">
+        <span aria-hidden="true" class="pixel-grid grid" style="grid-template-columns: repeat(3, 4px); gap: 1.5px;">
           ${delays
-            .map((d) => `
-              <span
-                class="pixel"
-                style="opacity: ${d === null ? "0.07" : "0.15"}; animation: ${d === null ? "none" : `pixel-on ${dur}ms ease-in-out ${d}ms infinite`};"
-              ></span>
-            `)
+            .map(
+              (d) => `
+            <span
+              class="pixel size-1 bg-ink ${round ? "rounded-full" : "rounded-[1px]"}"
+              style="
+                opacity: ${d === null ? "0.07" : "0.15"};
+                animation: ${d === null ? "none" : `pixel-on ${dur}ms ease-in-out ${d}ms infinite`};
+              "
+            ></span>
+          `
+            )
             .join("")}
         </span>
-        <span class="label">${displayLabel}</span>
-        <span class="elapsed-timer">${this._formatElapsed()}</span>
+        <span
+          class="label text-[13px] font-medium text-transparent"
+          style="
+            background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shimmer-text 1.4s linear infinite;
+          "
+        >${displayLabel}</span>
+        <span class="elapsed-timer font-mono text-[12px] text-ink-3 tabular-nums">${this._formatElapsed()}</span>
       </div>
-    `;
+    `);
   }
 }
 

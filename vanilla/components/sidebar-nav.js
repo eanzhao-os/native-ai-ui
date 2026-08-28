@@ -11,13 +11,13 @@ const ITEMS = [
 function getNavIcon(kind) {
   const map = {
     activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2" />',
-    tasks: '<path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />',
-    spaces: '<path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" />',
-    dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />',
-    analytics: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />',
+    tasks: '<g><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></g>',
+    spaces: '<g><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5M2 12l10 5 10-5" /></g>',
+    dashboard: '<g><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></g>',
+    analytics: '<g><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></g>',
   };
   return `
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       ${map[kind] || ""}
     </svg>
   `;
@@ -77,343 +77,153 @@ export class NaiSidebarNav extends NaiBaseElement {
     const zh = this.isZh;
     const active = this._active;
     const badge = this._badge;
+    const query = this._query;
 
     const sections = [
       { key: "Workspace", label: zh ? "工作区" : "Workspace" },
       { key: "Objects", label: zh ? "对象" : "Objects" },
     ];
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          width: 240px;
-          border-radius: var(--radius-card, 10px);
-          background: var(--surface, #fff);
-          padding: 8px;
-          box-shadow: var(--shadow-raised, 0 2px 10px rgba(0,0,0,0.06), 0 0 0 1px var(--line));
-          font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif);
-          color: var(--ink, #1f2124);
-          box-sizing: border-box;
-          user-select: none;
-        }
-
-        *, *::before, *::after {
-          box-sizing: border-box;
-        }
-
-        .workspace-btn {
-          display: flex;
-          width: 100%;
-          align-items: center;
-          gap: 10px;
-          border-radius: var(--radius-control, 8px);
-          border: none;
-          background: transparent;
-          padding: 6px;
-          text-align: left;
-          cursor: pointer;
-          margin-bottom: 8px;
-          transition: background-color 0.1s, transform 0.1s;
-        }
-
-        .workspace-btn:hover {
-          background: var(--hover, #f4f5f6);
-        }
-
-        .workspace-avatar {
-          display: flex;
-          width: 32px;
-          height: 32px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 8px;
-          background: var(--ink, #1f2124);
-          color: var(--surface, #fff);
-          font-size: 13px;
-          font-weight: 600;
-          flex-shrink: 0;
-        }
-
-        .workspace-info {
-          min-width: 0;
-          flex: 1;
-        }
-
-        .ws-title {
-          display: block;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          line-height: 1.2;
-        }
-
-        .ws-sub {
-          display: block;
-          font-size: 11px;
-          color: var(--ink-3, #9a9da3);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          line-height: 1.2;
-          margin-top: 2px;
-        }
-
-        .search-box {
-          display: flex;
-          height: 32px;
-          align-items: center;
-          gap: 8px;
-          border-radius: var(--radius-control, 8px);
-          background: var(--inset, #f7f8f9);
-          padding: 0 10px;
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          margin-bottom: 6px;
-        }
-
-        .search-input {
-          min-width: 0;
-          flex: 1;
-          border: none;
-          background: transparent;
-          font-size: 12.5px;
-          color: var(--ink, #1f2124);
-          outline: none;
-        }
-
-        .search-input::placeholder {
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .kbd-chip {
-          display: flex;
-          width: 18px;
-          height: 18px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 5px;
-          background: var(--surface, #fff);
-          font-size: 10px;
-          color: var(--ink-3, #9a9da3);
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-          font-family: var(--font-mono, ui-monospace, monospace);
-        }
-
-        .btn-new-task {
-          display: flex;
-          width: 100%;
-          align-items: center;
-          justify-content: space-between;
-          border-radius: var(--radius-control, 8px);
-          border: none;
-          background: transparent;
-          padding: 6px 8px;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--accent-ink, #0170dd);
-          cursor: pointer;
-          margin-bottom: 8px;
-          transition: background-color 0.1s;
-        }
-
-        .btn-new-task:hover {
-          background: var(--accent-tint, #e9f3ff);
-        }
-
-        .plus-dot {
-          display: flex;
-          width: 16px;
-          height: 16px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          background: var(--accent, #0285ff);
-          color: #fff;
-        }
-
-        .nav-list-container {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .nav-indicator {
-          position: absolute;
-          left: 0;
-          right: 0;
-          border-radius: 7px;
-          background: var(--hover, #f4f5f6);
-          pointer-events: none;
-          transition: top 220ms cubic-bezier(0.23, 1, 0.32, 1), height 220ms cubic-bezier(0.23, 1, 0.32, 1), opacity 150ms ease;
-          opacity: 0;
-        }
-
-        .section-header {
-          padding: 4px 8px;
-          font-size: 10.5px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: var(--ink-3, #9a9da3);
-        }
-
-        .nav-item-btn {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          width: 100%;
-          align-items: center;
-          gap: 8px;
-          border-radius: 7px;
-          border: none;
-          background: transparent;
-          padding: 6px 8px;
-          text-align: left;
-          cursor: pointer;
-          transition: color 0.15s;
-        }
-
-        .nav-item-btn .item-icon {
-          color: var(--ink-3, #9a9da3);
-          display: flex;
-        }
-
-        .nav-item-btn.active .item-icon {
-          color: var(--ink, #1f2124);
-        }
-
-        .nav-item-btn .item-label {
-          min-width: 0;
-          flex: 1;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-size: 13px;
-          color: var(--ink-2, #62656b);
-        }
-
-        .nav-item-btn.active .item-label {
-          font-weight: 500;
-          color: var(--ink, #1f2124);
-        }
-
-        .count-badge {
-          display: flex;
-          height: 18px;
-          min-width: 18px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 9999px;
-          padding: 0 4px;
-          font-size: 10.5px;
-          font-weight: 600;
-          font-variant-numeric: tabular-nums;
-          background: var(--accent-tint, #e9f3ff);
-          color: var(--accent-ink, #0170dd);
-        }
-
-        .nav-item-btn.active .count-badge {
-          background: var(--surface, #fff);
-          color: var(--ink-2, #62656b);
-          box-shadow: var(--shadow-hairline, 0 0 0 1px var(--line));
-        }
-
-        .plus-action-btn {
-          display: flex;
-          width: 18px;
-          height: 18px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 5px;
-          color: var(--ink-3, #9a9da3);
-          opacity: 0;
-          transition: opacity 0.1s, background-color 0.1s;
-        }
-
-        .nav-item-btn:hover .plus-action-btn {
-          opacity: 1;
-        }
-
-        .plus-action-btn:hover {
-          background: color-mix(in srgb, var(--line, #ecedef) 70%, transparent);
-          color: var(--ink-2, #62656b);
-        }
-      </style>
-
-      <button type="button" class="workspace-btn">
-        <span class="workspace-avatar">C</span>
-        <div class="workspace-info">
-          <span class="ws-title">Creamery Ops</span>
-          <span class="ws-sub">${zh ? "生产工作区" : "Production Workspace"}</span>
-        </div>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2">
-          <path d="M7 15l5 5 5-5M7 9l5-5 5 5" />
-        </svg>
-      </button>
-
-      <div class="search-box">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M21 21l-4.3-4.3" />
-        </svg>
-        <input class="search-input" placeholder="${zh ? "快速搜索" : "Quick search"}" value="${this._query}" />
-        <kbd class="kbd-chip">/</kbd>
-      </div>
-
-      <button type="button" class="btn-new-task" id="btn-new-task">
-        <span>${zh ? "新建任务" : "New task"}</span>
-        <span class="plus-dot">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            <path d="M12 5v14M5 12h14" />
+    this.setHtml(`
+      <div class="w-60 rounded-card bg-surface p-2 shadow-raised">
+        {/* workspace row */}
+        <button
+          type="button"
+          class="mb-2 flex w-full items-center gap-2.5 rounded-control p-1.5 text-left transition-[background-color,transform] duration-100 hover:bg-hover active:scale-[0.96] cursor-pointer"
+        >
+          <span class="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-ink text-[13px] font-semibold text-surface">
+            C
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[13px] font-medium leading-tight text-ink">Creamery Ops</span>
+            <span class="block truncate text-[11px] leading-tight text-ink-3">${zh ? "生产工作区" : "Production Workspace"}</span>
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 15l5 5 5-5M7 9l5-5 5 5" />
           </svg>
-        </span>
-      </button>
+        </button>
 
-      <div class="nav-list-container" id="nav-list-container">
-        <span class="nav-indicator" id="nav-indicator"></span>
+        {/* quick search */}
+        <label class="mb-1 flex h-8 items-center gap-2 rounded-control bg-inset px-2.5 shadow-hairline">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+          <input
+            id="sidebar-search-input"
+            value="${query}"
+            placeholder="${zh ? "快速搜索" : "Quick search"}"
+            class="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3"
+          />
+          <kbd class="flex size-4.5 items-center justify-center rounded-[5px] bg-surface text-[10px] text-ink-3 shadow-hairline font-mono">
+            /
+          </kbd>
+        </label>
 
-        ${sections
-          .map(
-            (sec) => `
-          <div>
-            <div class="section-header">${sec.label}</div>
-            <div style="display: flex; flex-direction: column; gap: 1px;">
-              ${ITEMS.filter((item) => item.section === sec.key)
-                .map((item) => {
-                  const isActive = item.key === active;
-                  return `
-                  <button
-                    type="button"
-                    class="nav-item-btn ${isActive ? "active" : ""}"
-                    data-key="${item.key}"
-                  >
-                    <span class="item-icon">${getNavIcon(item.key)}</span>
-                    <span class="item-label">${zh ? item.labelZh : item.labelEn}</span>
-                    ${item.count ? `<span class="count-badge">${badge}</span>` : ""}
-                    ${
-                      item.plus
-                        ? `<span class="plus-action-btn"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>`
-                        : ""
-                    }
-                  </button>
-                `;
-                })
-                .join("")}
+        {/* accent action */}
+        <button
+          type="button"
+          id="btn-new-task"
+          class="mb-2 flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-[13px] font-medium text-accent-ink transition-[background-color,transform] duration-100 hover:bg-accent-tint active:scale-[0.96] cursor-pointer"
+        >
+          <span class="min-w-0 flex-1 truncate text-left">${zh ? "新建任务" : "New task"}</span>
+          <span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-accent text-white">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+        </button>
+
+        {/* items */}
+        <div
+          id="nav-list-container"
+          class="relative flex flex-col gap-2"
+        >
+          <span
+            id="nav-indicator"
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-x-0 rounded-[7px] bg-hover"
+            style="
+              top: 0px;
+              height: 0px;
+              opacity: 0;
+              transition: top 220ms cubic-bezier(0.23,1,0.32,1), height 220ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease;
+            "
+          ></span>
+
+          ${sections
+            .map(
+              (section) => `
+            <div>
+              <div class="px-2 pb-1 pt-1 text-[10.5px] font-medium uppercase tracking-[0.08em] text-ink-3">
+                ${section.label}
+              </div>
+              <div class="flex flex-col gap-px">
+                ${ITEMS.filter((item) => item.section === section.key)
+                  .map((item) => {
+                    const isActive = item.key === active;
+                    return `
+                    <button
+                      type="button"
+                      data-key="${item.key}"
+                      aria-current="${isActive ? "page" : "false"}"
+                      class="group relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-[color,transform] duration-150 active:scale-[0.96] cursor-pointer"
+                    >
+                      <span class="${isActive ? "text-ink" : "text-ink-3"}">
+                        ${getNavIcon(item.key)}
+                      </span>
+                      <span
+                        class="min-w-0 flex-1 truncate text-[13px] transition-colors duration-150 ${
+                          isActive ? "font-medium text-ink" : "text-ink-2"
+                        }"
+                      >
+                        ${zh ? item.labelZh : item.labelEn}
+                      </span>
+                      ${
+                        item.count
+                          ? `
+                        <span
+                          class="flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums ${
+                            isActive ? "bg-surface text-ink-2 shadow-hairline" : "bg-accent-tint text-accent-ink"
+                          }"
+                          style="animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;"
+                        >
+                          ${badge}
+                        </span>
+                      `
+                          : ""
+                      }
+                      ${
+                        item.plus
+                          ? `
+                        <span
+                          class="flex size-4.5 items-center justify-center rounded-[5px] text-ink-3 opacity-0 transition-[background-color,color,opacity] duration-100 group-hover:opacity-100 hover:bg-line/70 hover:text-ink-2 ${
+                            isActive ? "opacity-100" : ""
+                          }"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                        </span>
+                      `
+                          : ""
+                      }
+                    </button>
+                  `;
+                  })
+                  .join("")}
+              </div>
             </div>
-          </div>
-        `
-          )
-          .join("")}
+          `
+            )
+            .join("")}
+        </div>
       </div>
-    `;
+    `);
 
-    this.shadowRoot.querySelector("#btn-new-task")?.addEventListener("click", () => this.addNewTask());
+    this.shadowRoot?.querySelector("#btn-new-task")?.addEventListener("click", () => this.addNewTask());
 
-    this.shadowRoot.querySelectorAll(".nav-item-btn").forEach((btn) => {
+    this.shadowRoot?.querySelectorAll("[data-key]").forEach((btn) => {
       const key = btn.getAttribute("data-key");
       btn.addEventListener("mouseenter", () => this.setHovered(key));
       btn.addEventListener("click", () => {
@@ -421,11 +231,11 @@ export class NaiSidebarNav extends NaiBaseElement {
       });
     });
 
-    this.shadowRoot.querySelector("#nav-list-container")?.addEventListener("mouseleave", () => {
+    this.shadowRoot?.querySelector("#nav-list-container")?.addEventListener("mouseleave", () => {
       this.setHovered(null);
     });
 
-    const searchInput = this.shadowRoot.querySelector(".search-input");
+    const searchInput = this.shadowRoot?.querySelector("#sidebar-search-input");
     searchInput?.addEventListener("input", (e) => {
       this._query = e.target.value;
     });
