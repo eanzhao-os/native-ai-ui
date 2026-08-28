@@ -1,0 +1,200 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "insight-cards",
+  "title": "Insight Cards",
+  "description": "Carousel of embedded mini-visualizations; autoplay yields as soon as a person interacts.",
+  "dependencies": [
+    "liveline"
+  ],
+  "files": [
+    {
+      "path": "components/insight-cards.tsx",
+      "content": "\"use client\";\n\nimport { Liveline, type LivelinePoint, type LivelineSeries } from \"liveline\";\nimport { useEffect, useMemo, useState } from \"react\";\nimport { useLang } from \"@/lib/lang-context\";\n\n/* ─────────────────────────────────────────────────────────\n * INSIGHT CARDS\n * Embedded mini-visualizations in an \"Insights N ‹ ›\"\n * carousel. Autoplay yields as soon as a person uses it.\n * ───────────────────────────────────────────────────────── */\n\nconst EASE = \"cubic-bezier(0.16, 1, 0.3, 1)\";\n\nconst formatPercent = (v: number) => `${v > 0 ? \"+\" : \"\"}${v.toFixed(2)}%`;\nconst formatMoney = (v: number) => `$${Math.round(v).toLocaleString(\"en-US\")}`;\nconst SNAPSHOT_END = Math.floor(Date.now() / 1000);\n\nfunction makePoints(values: number[], gap = 6): LivelinePoint[] {\n  return values.map((value, index) => ({\n    time: SNAPSHOT_END - (values.length - 1 - index) * gap,\n    value,\n  }));\n}\n\nfunction useDarkMode() {\n  const [dark, setDark] = useState(false);\n\n  useEffect(() => {\n    const root = document.documentElement;\n    const update = () => setDark(root.classList.contains(\"dark\"));\n    update();\n    const observer = new MutationObserver(update);\n    observer.observe(root, { attributes: true, attributeFilter: [\"class\"] });\n    return () => observer.disconnect();\n  }, []);\n\n  return dark;\n}\n\n/* chart series colors follow the theme tokens (light/dark pairs) */\nconst SERIES_COLORS = {\n  orange: { light: \"#ef720c\", dark: \"#f68f3c\" },\n  accent: { light: \"#0285ff\", dark: \"#3d9aff\" },\n  red: { light: \"#e3474c\", dark: \"#ee5c61\" },\n} as const;\n\nconst seriesColor = (key: keyof typeof SERIES_COLORS, dark: boolean) =>\n  dark ? SERIES_COLORS[key].dark : SERIES_COLORS[key].light;\n\n/* inline @entity mention */\nfunction Entity({ name, tone }: { name: string; tone: string }) {\n  return (\n    <span className=\"inline-flex items-center gap-1 align-baseline font-medium text-ink\">\n      <span className={`inline-block size-2.5 rounded-full ${tone}`} />\n      @{name}\n    </span>\n  );\n}\n\nfunction Mono({ children, tone }: { children: React.ReactNode; tone: \"red\" | \"green\" }) {\n  return (\n    <code className={`font-mono text-[11.5px] ${tone === \"red\" ? \"text-red\" : \"text-green\"}`}>\n      {children}\n    </code>\n  );\n}\n\nfunction chartIndexFromPointer(event: React.PointerEvent<HTMLDivElement>, pointCount: number) {\n  const rect = event.currentTarget.getBoundingClientRect();\n  const progress = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));\n  return Math.round(progress * (pointCount - 1));\n}\n\nfunction ChartTooltip({ zh, rows }: { zh: boolean; rows: { label: string; value: string; color: string }[] }) {\n  return (\n    <div className=\"insight-chart-tooltip\">\n      <span className=\"insight-chart-tooltip-time\">{zh ? \"今天 12:00\" : \"Today, 12:00\"}</span>\n      {rows.map((row) => (\n        <div key={row.label} className=\"insight-chart-tooltip-row\">\n          <span className=\"insight-chart-tooltip-label\"><span className=\"insight-chart-tooltip-dot\" style={{ background: row.color }} />{row.label}</span>\n          <strong>{row.value}</strong>\n        </div>\n      ))}\n    </div>\n  );\n}\n\n/* 1 — return comparison: 2 series, legend + big deltas + line chart */\nfunction CompareCard({ zh }: { zh: boolean }) {\n  const dark = useDarkMode();\n  const [hoverIndex, setHoverIndex] = useState<number | null>(null);\n  const data = useMemo(\n    () => ({\n      mint: makePoints([-2.9, -3.4, -3.05, -3.86, -3.52, -4.1, -3.82, -4.41]),\n      pistachio: makePoints([0.22, 0.58, 0.42, 0.91, 0.76, 1.08, 0.96, 1.15]),\n    }),\n    [],\n  );\n\n  const latestMint = data.mint.at(-1)?.value ?? -4.41;\n  const latestPistachio = data.pistachio.at(-1)?.value ?? 1.15;\n  const series: LivelineSeries[] = useMemo(\n    () => [\n      {\n        id: \"mint\",\n        label: \"\",\n        data: data.mint,\n        value: latestMint,\n        color: seriesColor(\"orange\", dark),\n      },\n      {\n        id: \"pistachio\",\n        label: \"\",\n        data: data.pistachio,\n        value: latestPistachio,\n        color: seriesColor(\"accent\", dark),\n      },\n    ],\n    [data.mint, data.pistachio, latestMint, latestPistachio, dark],\n  );\n\n  return (\n    <div className=\"min-h-[278px] rounded-card bg-surface p-3 shadow-hairline\">\n      <div className=\"flex items-center gap-4\">\n        {[\n          {\n            name: \"Mint Chip\",\n            delta: formatPercent(latestMint),\n            sub: \"-$2,377.66\",\n            tone: \"red\",\n            dot: \"bg-orange\",\n          },\n          {\n            name: \"Pistachio\",\n            delta: formatPercent(latestPistachio),\n            sub: \"+$617.22\",\n            tone: \"green\",\n            dot: \"bg-accent\",\n          },\n        ].map((s) => (\n          <div key={s.name} className=\"flex-1\">\n            <span className=\"flex items-center gap-1.5 text-[11.5px] text-ink-2\">\n              <span className={`size-2 rounded-full ${s.dot}`} />\n              {s.name}\n            </span>\n            <span className={`block text-[17px] font-semibold tracking-[-0.01em] tabular-nums ${s.tone === \"red\" ? \"text-red\" : \"text-green\"}`}>\n              {s.delta}\n            </span>\n            <Mono tone={s.tone as \"red\" | \"green\"}>{s.sub}</Mono>\n          </div>\n        ))}\n      </div>\n      <div className=\"mt-2 overflow-hidden rounded-control bg-inset shadow-hairline\">\n        <div className=\"flex items-center justify-between border-b border-line px-2.5 py-1.5\">\n          <span className=\"text-[11px] text-ink-3 tabular-nums\">\n            {zh ? \"趋势快照\" : \"Trend snapshot\"}\n          </span>\n          <span className=\"rounded-full bg-field px-2 py-0.5 text-[10.5px] font-medium text-ink-2\">\n            {zh ? \"快照\" : \"Snapshot\"}\n          </span>\n        </div>\n        <div\n          className=\"insight-chart-stage relative h-[166px]\"\n          onPointerDown={(event) => setHoverIndex(chartIndexFromPointer(event, data.mint.length))}\n          onPointerMove={(event) => setHoverIndex(chartIndexFromPointer(event, data.mint.length))}\n          onPointerLeave={() => setHoverIndex(null)}\n          onPointerCancel={() => setHoverIndex(null)}\n          onPointerUp={() => setHoverIndex(null)}\n        >\n          <Liveline\n            data={[]}\n            value={0}\n            series={series}\n            theme={dark ? \"dark\" : \"light\"}\n            grid={false}\n            pulse={false}\n            window={42}\n            paused\n            scrub={false}\n            cursor=\"default\"\n            lineWidth={2.25}\n            padding={{ top: 24, right: 0, bottom: 22, left: 0 }}\n            formatValue={formatPercent}\n          />\n          {hoverIndex !== null && <>\n            <span className=\"insight-chart-cursor\" style={{ left: `${(hoverIndex / (data.mint.length - 1)) * 100}%` }} />\n            <span className=\"insight-chart-tooltip-anchor\" style={{ left: `${Math.min(Math.max((hoverIndex / (data.mint.length - 1)) * 100, 28), 72)}%` }}>\n              <ChartTooltip zh={zh} rows={[{ label: \"Mint Chip\", value: formatPercent(data.mint[hoverIndex].value), color: \"var(--orange)\" }, { label: \"Pistachio\", value: formatPercent(data.pistachio[hoverIndex].value), color: \"var(--accent)\" }]} />\n            </span>\n          </>}\n        </div>\n      </div>\n    </div>\n  );\n}\n\n/* 2 — anomaly: bars with threshold + big spent value */\nfunction AnomalyCard({ zh }: { zh: boolean }) {\n  const dark = useDarkMode();\n  const [metric, setMetric] = useState<\"spend\" | \"usage\">(\"spend\");\n  const [hoverIndex, setHoverIndex] = useState<number | null>(null);\n  const spend = useMemo(\n    () => makePoints([274, 289, 264, 307, 331, 1210, 1718, 2112], 7),\n    [],\n  );\n  const usage = useMemo(\n    () => makePoints([18, 19, 17, 21, 22, 58, 81, 96], 7),\n    [],\n  );\n\n  const data = metric === \"spend\" ? spend : usage;\n  const value = data.at(-1)?.value ?? (metric === \"spend\" ? 2112 : 96);\n  const threshold = metric === \"spend\" ? \"$2,112\" : \"82 kWh\";\n  const moneyLabel = formatMoney(spend.at(-1)?.value ?? 2112);\n\n  return (\n    <div className=\"min-h-[278px] rounded-card bg-surface p-3 shadow-hairline\">\n      <div className=\"flex items-center justify-between\">\n        <span className=\"flex items-center gap-1.5 text-[12px] font-medium text-ink\">\n          <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--red)\" strokeWidth=\"2.5\" strokeLinecap=\"round\" strokeLinejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\" /></svg>\n          {zh ? \"冷柜支出偏高\" : \"High freezer spend\"}\n        </span>\n        <span className=\"rounded-full bg-field px-2 py-0.5 text-[10.5px] font-medium text-ink-2\">\n          {zh ? \"快照\" : \"Snapshot\"}\n        </span>\n      </div>\n      <div className=\"mt-2 overflow-hidden rounded-control bg-inset shadow-hairline\">\n        <div className=\"flex items-center justify-between border-b border-line px-2.5 py-1.5\">\n          <span className=\"text-[11px] text-ink-3 tabular-nums\">\n            {hoverIndex !== null\n              ? metric === \"spend\"\n                ? formatMoney(data[hoverIndex].value)\n                : `${Math.round(data[hoverIndex].value)} kWh`\n              : zh ? `${threshold} 阈值` : `${threshold} threshold`}\n          </span>\n          <span className=\"flex rounded-full bg-field p-0.5\">\n            {([\"spend\", \"usage\"] as const).map((item) => (\n              <button\n                key={item}\n                type=\"button\"\n                aria-pressed={metric === item}\n                onClick={() => setMetric(item)}\n                className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.96] ${\n                  metric === item ? \"bg-surface text-ink shadow-btn\" : \"text-ink-3 hover:text-ink-2\"\n                }`}\n              >\n                {item === \"spend\" ? (zh ? \"支出\" : \"Spend\") : (zh ? \"用电\" : \"Usage\")}\n              </button>\n            ))}\n          </span>\n        </div>\n        <div\n          className=\"insight-chart-stage relative h-[166px]\"\n          onPointerDown={(event) => setHoverIndex(chartIndexFromPointer(event, data.length))}\n          onPointerMove={(event) => setHoverIndex(chartIndexFromPointer(event, data.length))}\n          onPointerLeave={() => setHoverIndex(null)}\n          onPointerCancel={() => setHoverIndex(null)}\n          onPointerUp={() => setHoverIndex(null)}\n        >\n          <Liveline\n            data={data}\n            value={value}\n            theme={dark ? \"dark\" : \"light\"}\n            color={seriesColor(\"red\", dark)}\n            grid\n            scrub={false}\n            fill={false}\n            pulse={false}\n            momentum={false}\n            paused\n            window={49}\n            lineWidth={2.25}\n            cursor=\"crosshair\"\n            padding={{ top: 18, right: 0, bottom: 22, left: 0 }}\n            formatValue={(v) => (metric === \"spend\" ? formatMoney(v) : `${Math.round(v)} kWh`)}\n          />\n          {hoverIndex !== null && <>\n            <span className=\"insight-chart-cursor\" style={{ left: `${(hoverIndex / (data.length - 1)) * 100}%` }} />\n            <span className=\"insight-chart-tooltip-anchor\" style={{ left: `${Math.min(Math.max((hoverIndex / (data.length - 1)) * 100, 28), 72)}%` }}>\n              <ChartTooltip zh={zh} rows={[{ label: metric === \"spend\" ? (zh ? \"支出\" : \"Spend\") : (zh ? \"用电\" : \"Usage\"), value: metric === \"spend\" ? formatMoney(data[hoverIndex].value) : `${Math.round(data[hoverIndex].value)} kWh`, color: \"var(--red)\" }]} />\n            </span>\n          </>}\n        </div>\n      </div>\n      <div className=\"mt-1.5 flex items-baseline gap-2\">\n        <span className=\"text-[17px] font-semibold tracking-[-0.01em] text-ink tabular-nums\">\n          {zh ? `${moneyLabel} 已支出` : `${moneyLabel} spent`}\n        </span>\n        <Mono tone=\"red\">+$1,834.66</Mono>\n        <span className=\"text-[11px] text-ink-3\">{zh ? \"较 3 个月均值\" : \"vs 3 months\"}</span>\n      </div>\n    </div>\n  );\n}\n\n/* 3 — allocation: hero number + segmented bar + legend */\nfunction AllocationCard({ zh }: { zh: boolean }) {\n  const segments = [\n    { name: \"VAN\", label: \"Vanilla\", pct: 72.5, amount: \"$51,785\", cls: \"bg-orange\", tone: \"text-orange\" },\n    { name: \"CHOC\", label: \"Chocolate\", pct: 22.8, amount: \"$16,278\", cls: \"bg-line-strong\", tone: \"text-ink-2\" },\n    { name: \"MINT\", label: \"Mint\", pct: 4.7, amount: \"$3,357\", cls: \"bg-line\", tone: \"text-ink-3\" },\n  ];\n  const [selected, setSelected] = useState(segments[0].name);\n  const active = segments.find((segment) => segment.name === selected) ?? segments[0];\n\n  return (\n    <div className=\"min-h-[278px] rounded-card bg-surface p-3 shadow-hairline\">\n      <span className=\"flex items-center gap-1.5 text-[12px] font-medium text-ink\">\n        <span className=\"flex size-3.5 items-center justify-center rounded-full bg-orange text-[8px] font-bold text-white\">\n          V\n        </span>\n        Vanilla {zh ? \"口味配置\" : \"allocation\"}\n      </span>\n      <span className=\"mt-1 block text-[20px] font-semibold tracking-[-0.01em] text-ink tabular-nums\">\n        {active.amount}\n      </span>\n      <div\n        className=\"mt-3 flex h-9 gap-0.5 overflow-hidden rounded-full bg-field p-0.5\"\n        role=\"group\"\n        aria-label={zh ? \"配置分段\" : \"Allocation segments\"}\n      >\n        {segments.map((s) => (\n          <button\n            key={s.name}\n            type=\"button\"\n            aria-pressed={selected === s.name}\n            aria-label={`${s.label}: ${s.pct}%`}\n            onClick={() => setSelected(s.name)}\n            className={`relative h-full overflow-hidden rounded-full ${s.cls} transition-[opacity,transform,box-shadow] duration-300 active:scale-[0.98]`}\n            style={{\n              width: `${s.pct}%`,\n              opacity: selected === s.name ? 1 : 0.58,\n              boxShadow: selected === s.name ? \"inset 0 0 0 1px rgba(255,255,255,0.22)\" : undefined,\n              transitionTimingFunction: EASE,\n            }}\n          >\n            <span\n              className=\"absolute inset-y-1 left-1 rounded-full bg-white/20 transition-[width,opacity] duration-500\"\n              style={{\n                width: selected === s.name ? \"calc(100% - 8px)\" : \"0%\",\n                opacity: selected === s.name ? 1 : 0,\n                transitionTimingFunction: EASE,\n              }}\n            />\n          </button>\n        ))}\n      </div>\n      <div className=\"mt-2 flex items-center gap-1.5\">\n        {segments.map((s) => (\n          <button\n            key={s.name}\n            type=\"button\"\n            aria-pressed={selected === s.name}\n            onClick={() => setSelected(s.name)}\n            className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] transition-[background-color,color,transform] duration-150 active:scale-[0.96] ${\n              selected === s.name ? \"bg-field text-ink\" : \"text-ink-2 hover:bg-hover hover:text-ink\"\n            }`}\n          >\n            <span className={`size-1.5 rounded-full ${s.cls}`} />\n            {s.name} <span className=\"tabular-nums\">{s.pct}%</span>\n          </button>\n        ))}\n      </div>\n      <div className=\"mt-3 min-h-16 rounded-control bg-inset px-2.5 py-2 shadow-hairline\">\n        <span className={`block text-[11.5px] font-medium ${active.tone}`}>{active.label}</span>\n        <span className=\"mt-1 block text-[11px] leading-relaxed text-ink-3\">\n          {zh\n            ? \"当前库存价值的贡献快照。切换分段即可查看对应分组，卡片位置保持不变。\"\n            : \"Contribution snapshot across current inventory value. Segment selection changes the inspected group without moving the card.\"}\n        </span>\n      </div>\n    </div>\n  );\n}\n\nconst PAGES = [\n  {\n    key: \"compare\",\n    proseEn: (\n      <>\n        The worst performer in your <Entity name=\"Creamery\" tone=\"bg-orange\" /> is\n        Rocky Road — down <Mono tone=\"red\">-6%</Mono> or <Mono tone=\"red\">-$2,453.44</Mono>.\n      </>\n    ),\n    proseZh: (\n      <>\n        你的 <Entity name=\"Creamery\" tone=\"bg-orange\" /> 中表现最差的是\n        Rocky Road——下跌 <Mono tone=\"red\">-6%</Mono>，合 <Mono tone=\"red\">-$2,453.44</Mono>。\n      </>\n    ),\n    Card: CompareCard,\n    pillEn: \"Should I rebalance flavors?\",\n    pillZh: \"需要重新平衡口味组合吗？\",\n  },\n  {\n    key: \"anomaly\",\n    proseEn: (\n      <>\n        Unusually high freezer bill on <span className=\"font-medium text-ink\">Dec 13</span> —{\" \"}\n        <Mono tone=\"red\">+$1,834.66</Mono> above your average.\n      </>\n    ),\n    proseZh: (\n      <>\n        <span className=\"font-medium text-ink\">12 月 13 日</span>的冷柜电费异常偏高——比你的平均水平高出{\" \"}\n        <Mono tone=\"red\">+$1,834.66</Mono>。\n      </>\n    ),\n    Card: AnomalyCard,\n    pillEn: \"Get tips on cutting freezer costs\",\n    pillZh: \"获取降低冷柜成本的建议\",\n  },\n  {\n    key: \"allocation\",\n    proseEn: (\n      <>\n        You&apos;re heavily invested in <Entity name=\"Vanilla\" tone=\"bg-orange\" /> — it&apos;s{\" \"}\n        <span className=\"font-medium text-ink\">72.5%</span> of your case.\n      </>\n    ),\n    proseZh: (\n      <>\n        你在 <Entity name=\"Vanilla\" tone=\"bg-orange\" /> 上投入过重——它占你库存的{\" \"}\n        <span className=\"font-medium text-ink\">72.5%</span>。\n      </>\n    ),\n    Card: AllocationCard,\n    pillEn: \"If we look at seasonals, what changes?\",\n    pillZh: \"如果看季节性口味，会有什么变化？\",\n  },\n];\n\nexport default function InsightCards({ lang: propLang }: { lang?: \"en\" | \"zh\" }) {\n  const lang = useLang(\"insight-cards\", propLang);\n  const zh = lang === \"zh\";\n  const [page, setPage] = useState(0);\n\n  const move = (direction: -1 | 1) => {\n    setPage((current) => (current + direction + PAGES.length) % PAGES.length);\n  };\n\n  const { proseEn, proseZh, Card, pillEn, pillZh } = PAGES[page];\n\n  return (\n    <div className=\"min-h-[408px] w-full max-w-86\">\n      {/* pager header */}\n      <div className=\"flex items-center justify-between\">\n        <span className=\"flex items-baseline gap-1.5\">\n          <span className=\"text-[13px] font-semibold text-ink\">{zh ? \"智能洞察\" : \"Insights\"}</span>\n          <span className=\"text-[13px] text-ink-3 tabular-nums\">{PAGES.length}</span>\n        </span>\n        <span className=\"flex items-center gap-0.5\">\n          {([\"M15 18l-6-6 6-6\", \"M9 6l6 6-6 6\"] as const).map((d, i) => (\n            <button\n              key={i}\n              aria-label={i === 0 ? (zh ? \"上一条洞察\" : \"Previous insight\") : (zh ? \"下一条洞察\" : \"Next insight\")}\n              onClick={() => move(i === 0 ? -1 : 1)}\n              className=\"flex size-6 items-center justify-center rounded-[6px] text-ink-3\n                transition-[background-color,color,transform] duration-100 hover:bg-hover\n                hover:text-ink active:scale-[0.96]\"\n            >\n              <svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.2\" strokeLinecap=\"round\" strokeLinejoin=\"round\">\n                <path d={d} />\n              </svg>\n            </button>\n          ))}\n        </span>\n      </div>\n\n      {/* page content — keyed so each page fades up on arrival */}\n      <div\n        key={page}\n        style={{ animation: \"fade-up 300ms cubic-bezier(0.23,1,0.32,1) both\" }}\n      >\n        <p className=\"mt-1.5 text-[12.5px] leading-relaxed text-ink-2\">{zh ? proseZh : proseEn}</p>\n        <div className=\"mt-2\">\n          <Card zh={zh} />\n        </div>\n        <button\n          className=\"mt-2 rounded-full bg-surface px-3 py-1.5 text-left text-[12px] text-ink\n            shadow-btn transition-colors duration-100 hover:bg-hover\"\n        >\n          {zh ? pillZh : pillEn}\n        </button>\n      </div>\n    </div>\n  );\n}\n",
+      "type": "registry:component",
+      "target": "components/insight-cards.tsx"
+    },
+    {
+      "path": "lib/lang-context.tsx",
+      "content": "\"use client\";\n\nimport React, { createContext, useContext, useEffect, useState } from \"react\";\n\nexport type Lang = \"en\" | \"zh\";\n\ninterface LangContextType {\n  globalLang: Lang;\n  setGlobalLang: (lang: Lang) => void;\n  componentLangs: Record<string, Lang>;\n  setComponentLang: (id: string, lang: Lang) => void;\n  getLang: (id?: string, override?: Lang) => Lang;\n}\n\nconst LangContext = createContext<LangContextType>({\n  globalLang: \"en\",\n  setGlobalLang: () => {},\n  componentLangs: {},\n  setComponentLang: () => {},\n  getLang: () => \"en\",\n});\n\nexport function LangProvider({ children }: { children: React.ReactNode }) {\n  const [globalLang, setGlobalLangState] = useState<Lang>(\"en\");\n  const [componentLangs, setComponentLangs] = useState<Record<string, Lang>>({});\n\n  // Restore the persisted global language on mount.\n  useEffect(() => {\n    try {\n      const stored = window.localStorage.getItem(\"nai-lang\");\n      if (stored === \"en\" || stored === \"zh\") setGlobalLangState(stored);\n    } catch {}\n  }, []);\n\n  useEffect(() => {\n    document.documentElement.lang = globalLang;\n  }, [globalLang]);\n\n  const setGlobalLang = (lang: Lang) => {\n    setGlobalLangState(lang);\n    try {\n      window.localStorage.setItem(\"nai-lang\", lang);\n    } catch {}\n  };\n\n  const setComponentLang = (id: string, lang: Lang) => {\n    setComponentLangs((prev) => ({ ...prev, [id]: lang }));\n  };\n\n  const getLang = (id?: string, override?: Lang): Lang => {\n    if (override) return override;\n    if (id && componentLangs[id]) return componentLangs[id];\n    return globalLang;\n  };\n\n  return (\n    <LangContext.Provider\n      value={{\n        globalLang,\n        setGlobalLang,\n        componentLangs,\n        setComponentLang,\n        getLang,\n      }}\n    >\n      {children}\n    </LangContext.Provider>\n  );\n}\n\nexport function useLang(id?: string, override?: Lang): Lang {\n  const ctx = useContext(LangContext);\n  return override ?? ctx.getLang(id);\n}\n\nexport function useLangContext() {\n  return useContext(LangContext);\n}\n",
+      "type": "registry:component",
+      "target": "lib/lang-context.tsx"
+    }
+  ],
+  "cssVars": {
+    "theme": {
+      "color-page": "var(--page)",
+      "color-canvas": "var(--canvas)",
+      "color-surface": "var(--surface)",
+      "color-inset": "var(--inset)",
+      "color-hover": "var(--hover)",
+      "color-hover-2": "var(--hover-2)",
+      "color-ink": "var(--ink)",
+      "color-ink-2": "var(--ink-2)",
+      "color-ink-3": "var(--ink-3)",
+      "color-line": "var(--line)",
+      "color-line-strong": "var(--line-strong)",
+      "color-field": "var(--field)",
+      "color-stripe": "var(--stripe)",
+      "color-stripe-bg": "var(--stripe-bg)",
+      "color-accent": "var(--accent)",
+      "color-accent-ink": "var(--accent-ink)",
+      "color-accent-tint": "var(--accent-tint)",
+      "color-green": "var(--green)",
+      "color-green-tint": "var(--green-tint)",
+      "color-orange": "var(--orange)",
+      "color-orange-tint": "var(--orange-tint)",
+      "color-red": "var(--red)",
+      "color-red-tint": "var(--red-tint)",
+      "color-tooltip-bg": "var(--tooltip-bg)",
+      "color-tooltip-fg": "var(--tooltip-fg)",
+      "color-tooltip-muted": "var(--tooltip-muted)",
+      "color-tooltip-border": "var(--tooltip-border)",
+      "shadow-hairline": "var(--shadow-hairline)",
+      "shadow-btn": "var(--shadow-btn)",
+      "shadow-card": "var(--shadow-card)",
+      "shadow-raised": "var(--shadow-raised)",
+      "shadow-overlay": "var(--shadow-overlay)",
+      "shadow-inset-field": "var(--shadow-inset-field)",
+      "radius-chip": "6px",
+      "radius-control": "8px",
+      "radius-card": "10px",
+      "ease-out-strong": "cubic-bezier(0.23, 1, 0.32, 1)",
+      "ease-link": "cubic-bezier(0.16, 1, 0.3, 1)"
+    },
+    "light": {
+      "page": "#fafafb",
+      "canvas": "#f1f2f3",
+      "surface": "#ffffff",
+      "inset": "#f7f8f9",
+      "hover": "#f4f5f6",
+      "hover-2": "#e7e9eb",
+      "ink": "#1f2124",
+      "ink-2": "#62656b",
+      "ink-3": "#9a9da3",
+      "line": "#ecedef",
+      "line-strong": "#e0e2e5",
+      "field": "#f2f2f3",
+      "stripe": "#49494913",
+      "stripe-bg": "#f5f5f5",
+      "accent": "#0285ff",
+      "accent-ink": "#0170dd",
+      "accent-tint": "#e9f3ff",
+      "green": "#189a4d",
+      "green-tint": "#e8f5ed",
+      "orange": "#ef720c",
+      "orange-tint": "#fdf1e5",
+      "red": "#e3474c",
+      "red-tint": "#fcecec",
+      "tooltip-bg": "#25272b",
+      "tooltip-fg": "#f6f7f8",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#3a3c40",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #1018280d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #1018280a, 0 2px 6px #10182808",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #0000000b",
+      "shadow-overlay": "0 0 0 1px var(--line), 0 8px 28px #0001",
+      "shadow-inset-field": "inset 0 1px 2px #0000001f"
+    },
+    "dark": {
+      "page": "#17181a",
+      "canvas": "#1c1d1f",
+      "surface": "#232427",
+      "inset": "#1f2022",
+      "hover": "#2a2b2e",
+      "hover-2": "#313236",
+      "ink": "#f2f3f4",
+      "ink-2": "#a5a8ad",
+      "ink-3": "#6c6f75",
+      "line": "#2e3033",
+      "line-strong": "#3a3c40",
+      "field": "#2b2c2f",
+      "stripe": "#ffffff0e",
+      "stripe-bg": "#1b1c1e",
+      "accent": "#3d9aff",
+      "accent-ink": "#7ec0ff",
+      "accent-tint": "#3d9aff29",
+      "green": "#3dbb72",
+      "green-tint": "#3dbb7224",
+      "orange": "#f68f3c",
+      "orange-tint": "#f68f3c24",
+      "red": "#ee5c61",
+      "red-tint": "#ee5c6124",
+      "tooltip-bg": "#111214",
+      "tooltip-fg": "#f2f3f4",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#2e3033",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #0000004d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #0003, 0 2px 6px #0003",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #00000038",
+      "shadow-overlay": "0 0 0 1px var(--line-strong), 0 8px 28px #00000057",
+      "shadow-inset-field": "inset 0 1px 2px #0006"
+    }
+  },
+  "css": {
+    "@layer components": {
+      ".insight-chart-stage": {
+        "overflow": "hidden"
+      },
+      ".insight-chart-cursor": {
+        "z-index": "4",
+        "background": "var(--ink)",
+        "opacity": ".26",
+        "pointer-events": "none",
+        "width": "1px",
+        "position": "absolute",
+        "top": "0",
+        "bottom": "0"
+      },
+      ".insight-chart-tooltip-anchor": {
+        "z-index": "5",
+        "pointer-events": "none",
+        "position": "absolute",
+        "top": "8px",
+        "transform": "translate(-50%)"
+      },
+      ".insight-chart-tooltip": {
+        "border": "1px solid var(--line-strong)",
+        "min-width": "154px",
+        "color": "var(--tooltip-fg)",
+        "background": "var(--tooltip-bg)",
+        "box-shadow": "var(--shadow-overlay)",
+        "border-radius": "10px",
+        "padding": "9px 10px",
+        "font-size": "12px"
+      },
+      ".insight-chart-tooltip-time": {
+        "color": "var(--tooltip-muted)",
+        "margin-bottom": "7px",
+        "font-size": "11px",
+        "display": "block"
+      },
+      ".insight-chart-tooltip-row": {
+        "justify-content": "space-between",
+        "align-items": "center",
+        "gap": "16px",
+        "line-height": "1.65",
+        "display": "flex"
+      },
+      ".insight-chart-tooltip-label": {
+        "color": "var(--tooltip-fg)",
+        "align-items": "center",
+        "gap": "7px",
+        "display": "inline-flex"
+      },
+      ".insight-chart-tooltip-row strong": {
+        "color": "var(--tooltip-muted)",
+        "font-variant-numeric": "tabular-nums",
+        "font-weight": "500"
+      },
+      ".insight-chart-tooltip-dot": {
+        "border-radius": "50%",
+        "flex": "0 0 8px",
+        "width": "8px",
+        "height": "8px"
+      }
+    }
+  },
+  "type": "registry:component"
+}

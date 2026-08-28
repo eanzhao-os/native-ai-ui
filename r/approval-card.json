@@ -1,0 +1,171 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "approval-card",
+  "title": "Approval Card",
+  "description": "Human-in-the-loop approval flow — one question at a time, with paged progress pills.",
+  "files": [
+    {
+      "path": "components/approval-card.tsx",
+      "content": "\"use client\";\n\nimport { useState } from \"react\";\nimport { useLang } from \"@/lib/lang-context\";\n\n/* ─────────────────────────────────────────────────────────\n * APPROVAL CARD (human-in-the-loop)\n * ───────────────────────────────────────────────────────── */\n\nconst QUESTIONS_EN = [\n  {\n    q: \"How many flavors should we launch?\",\n    type: \"radio\" as const,\n    options: [\"Three (core line)\", \"Five (full case)\", \"Just one hero\"],\n  },\n  {\n    q: \"Which mix-ins should we stock?\",\n    type: \"check\" as const,\n    options: [\"Chocolate chips\", \"Waffle bits\", \"Sprinkles\"],\n  },\n  {\n    q: \"Which market do we enter first?\",\n    type: \"radio\" as const,\n    options: [\"Food trucks\", \"Grocery freezers\", \"Scoop shops\"],\n  },\n];\n\nconst QUESTIONS_ZH = [\n  {\n    q: \"首批上线推出几款新口味？\",\n    type: \"radio\" as const,\n    options: [\"3 款 (核心经典线)\", \"5 款 (完整全品类)\", \"仅推 1 款爆品\"],\n  },\n  {\n    q: \"首批需要进货哪些混合配料？\",\n    type: \"check\" as const,\n    options: [\"黑巧碎粒\", \"华夫脆角碎片\", \"彩色糖针\"],\n  },\n  {\n    q: \"优先切入哪个试点销售渠道？\",\n    type: \"radio\" as const,\n    options: [\"流动餐车\", \"精品超市冷柜\", \"线下直营体验店\"],\n  },\n];\n\nexport default function ApprovalCard({ lang: propLang }: { lang?: \"en\" | \"zh\" }) {\n  const lang = useLang(\"approval-card\", propLang);\n  const zh = lang === \"zh\";\n\n  const QUESTIONS = zh ? QUESTIONS_ZH : QUESTIONS_EN;\n\n  const [qi, setQi] = useState(0);\n  const [answers, setAnswers] = useState<Record<number, number[]>>({});\n  const [custom, setCustom] = useState<Record<number, string>>({});\n  const [sent, setSent] = useState(false);\n  const [open, setOpen] = useState(true);\n  const question = QUESTIONS[qi];\n  const last = qi === QUESTIONS.length - 1;\n  const selected = answers[qi] ?? [];\n  const hasAnswer = selected.length > 0 || Boolean(custom[qi]?.trim());\n\n  const toggle = (index: number) => {\n    setAnswers((current) => {\n      const picked = current[qi] ?? [];\n      const next =\n        question.type === \"radio\"\n          ? [index]\n          : picked.includes(index)\n          ? picked.filter((item) => item !== index)\n          : [...picked, index];\n      return { ...current, [qi]: next };\n    });\n    if (question.type === \"radio\") {\n      setCustom((current) => ({ ...current, [qi]: \"\" }));\n      window.setTimeout(() => {\n        if (qi === QUESTIONS.length - 1) setSent(true);\n        else setQi((current) => Math.min(QUESTIONS.length - 1, current + 1));\n      }, 480);\n    }\n  };\n\n  const reset = () => {\n    setQi(0);\n    setAnswers({});\n    setCustom({});\n    setSent(false);\n    setOpen(true);\n  };\n\n  if (!open) {\n    return (\n      <button\n        type=\"button\"\n        onClick={() => setOpen(true)}\n        className=\"rounded-control bg-surface px-3 py-2 text-[12.5px] font-medium text-ink shadow-btn transition-colors duration-150 hover:bg-hover cursor-pointer\"\n      >\n        {zh ? \"打开审批流卡片\" : \"Open approval\"}\n      </button>\n    );\n  }\n\n  return (\n    <div className=\"flex min-h-[196px] w-full max-w-80 flex-col items-stretch\">\n      <div className=\"w-full self-start overflow-hidden rounded-card bg-surface shadow-card\">\n        {sent ? (\n          <div className=\"flex h-37 flex-col items-center justify-center gap-2\">\n            <span\n              className=\"flex size-6 items-center justify-center rounded-full bg-green text-white\"\n              style={{ animation: \"pop-in 300ms cubic-bezier(0.23,1,0.32,1) both\" }}\n            >\n              <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"3\" strokeLinecap=\"round\" strokeLinejoin=\"round\">\n                <path d=\"M20 6L9 17l-5-5\" />\n              </svg>\n            </span>\n            <span className=\"text-[13px] font-medium text-ink\" style={{ animation: \"fade-up 350ms cubic-bezier(0.23,1,0.32,1) 100ms both\" }}>\n              {zh ? \"审批决策已提交\" : \"Answers sent\"}\n            </span>\n            <button type=\"button\" onClick={reset} className=\"text-[12px] font-medium text-accent-ink hover:underline cursor-pointer\">\n              {zh ? \"重新填写\" : \"Start over\"}\n            </button>\n          </div>\n        ) : (\n          <div key={qi} className=\"primitive-card-pad\" style={{ animation: \"fade-up 350ms cubic-bezier(0.23,1,0.32,1) both\" }}>\n            <div className=\"flex items-start justify-between gap-3\">\n              <span className=\"text-[13px] font-medium text-ink\">{question.q}</span>\n              <button\n                type=\"button\"\n                aria-label=\"Dismiss\"\n                onClick={() => setOpen(false)}\n                className=\"primitive-icon-button shrink-0 text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink cursor-pointer\"\n              >\n                <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.2\" strokeLinecap=\"round\">\n                  <path d=\"M18 6L6 18M6 6l12 12\" />\n                </svg>\n              </button>\n            </div>\n            <div className=\"mt-2 flex flex-col gap-0.5\">\n              {question.options.map((option, i) => {\n                const on = selected.includes(i);\n                return (\n                  <button\n                    key={option}\n                    type=\"button\"\n                    aria-pressed={on}\n                    onClick={() => toggle(i)}\n                    className=\"-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1 text-left transition-colors duration-100 hover:bg-hover cursor-pointer\"\n                  >\n                    <span\n                      className={`flex size-4 shrink-0 items-center justify-center transition-colors duration-200\n                        ${question.type === \"radio\" ? \"rounded-full\" : \"rounded-[5px]\"}\n                        ${on ? \"bg-ink text-canvas\" : \"shadow-[inset_0_0_0_1.5px_var(--line-strong)] text-transparent\"}`}\n                    >\n                      {question.type === \"radio\" ? (\n                        <span className=\"size-1.5 rounded-full bg-canvas transition-transform duration-200\" style={{ transform: on ? \"scale(1)\" : \"scale(0)\" }} />\n                      ) : (\n                        <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"3\" strokeLinecap=\"round\" strokeLinejoin=\"round\"><path d=\"M20 6L9 17l-5-5\" /></svg>\n                      )}\n                    </span>\n                    <span className={`text-[13px] transition-colors duration-200 ${on ? \"text-ink\" : \"text-ink-2\"}`}>\n                      {option}\n                    </span>\n                  </button>\n                );\n              })}\n              <label className=\"-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1 transition-colors duration-100 focus-within:bg-hover hover:bg-hover\">\n                <span aria-hidden=\"true\" className=\"size-4 shrink-0\" />\n                <input\n                  value={custom[qi] ?? \"\"}\n                  onChange={(event) => {\n                    setCustom((current) => ({ ...current, [qi]: event.target.value }));\n                    if (question.type === \"radio\") setAnswers((current) => ({ ...current, [qi]: [] }));\n                  }}\n                  placeholder={zh ? \"输入其他自定义内容…\" : \"Type something…\"}\n                  aria-label=\"Custom answer\"\n                  className=\"min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3\"\n                />\n              </label>\n            </div>\n          </div>\n        )}\n\n        {/* footer */}\n        <div className=\"primitive-card-footer flex items-center justify-between\">\n          <span className=\"flex items-center gap-2\">\n            <button\n              type=\"button\"\n              aria-label=\"Previous\"\n              disabled={qi === 0 || sent}\n              onClick={() => setQi((current) => Math.max(0, current - 1))}\n              className=\"flex size-6 items-center justify-center rounded-[5px] text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 disabled:opacity-35 cursor-pointer\"\n            >\n              <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.2\" strokeLinecap=\"round\" strokeLinejoin=\"round\"><path d=\"M15 18l-6-6 6-6\" /></svg>\n            </button>\n            <span className=\"flex items-center gap-1\">\n              {QUESTIONS.map((_, i) => (\n                <button\n                  key={i}\n                  type=\"button\"\n                  aria-label={`Go to question ${i + 1}`}\n                  aria-current={i === qi && !sent ? \"step\" : undefined}\n                  disabled={sent}\n                  onClick={() => setQi(i)}\n                  className=\"rounded-full transition-all duration-300 disabled:cursor-default\"\n                  style={\n                    i === qi && !sent\n                      ? { width: 9, height: 9, border: \"2.5px solid var(--ink)\" }\n                      : sent || i < qi\n                        ? { width: 7, height: 7, background: \"var(--ink-3)\" }\n                        : { width: 7, height: 7, border: \"1.5px solid var(--ink-3)\" }\n                  }\n                />\n              ))}\n            </span>\n            <button\n              type=\"button\"\n              aria-label=\"Next\"\n              disabled={last || sent}\n              onClick={() => setQi((current) => Math.min(QUESTIONS.length - 1, current + 1))}\n              className=\"flex size-6 items-center justify-center rounded-[5px] text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 disabled:opacity-35 cursor-pointer\"\n            >\n              <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.2\" strokeLinecap=\"round\" strokeLinejoin=\"round\"><path d=\"M9 6l6 6-6 6\" /></svg>\n            </button>\n          </span>\n          {!sent && (\n            <button\n              type=\"button\"\n              aria-label={last ? \"Send answers\" : \"Next question\"}\n              disabled={!hasAnswer}\n              onClick={() => last ? setSent(true) : setQi((current) => current + 1)}\n              className=\"-mr-0.5 flex size-7 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.96] cursor-pointer\"\n              style={{\n                background: hasAnswer ? \"var(--ink)\" : \"var(--field)\",\n                color: hasAnswer ? \"var(--canvas)\" : \"var(--ink-3)\",\n                boxShadow: hasAnswer\n                  ? \"inset 0 1px 0 color-mix(in srgb, var(--surface) 22%, transparent)\"\n                  : \"var(--shadow-btn)\",\n              }}\n            >\n              <svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" strokeWidth=\"2.5\" strokeLinecap=\"round\" strokeLinejoin=\"round\">\n                <path d=\"M12 19V5M5 12l7-7 7 7\" />\n              </svg>\n            </button>\n          )}\n        </div>\n      </div>\n    </div>\n  );\n}\n",
+      "type": "registry:component",
+      "target": "components/approval-card.tsx"
+    },
+    {
+      "path": "lib/lang-context.tsx",
+      "content": "\"use client\";\n\nimport React, { createContext, useContext, useEffect, useState } from \"react\";\n\nexport type Lang = \"en\" | \"zh\";\n\ninterface LangContextType {\n  globalLang: Lang;\n  setGlobalLang: (lang: Lang) => void;\n  componentLangs: Record<string, Lang>;\n  setComponentLang: (id: string, lang: Lang) => void;\n  getLang: (id?: string, override?: Lang) => Lang;\n}\n\nconst LangContext = createContext<LangContextType>({\n  globalLang: \"en\",\n  setGlobalLang: () => {},\n  componentLangs: {},\n  setComponentLang: () => {},\n  getLang: () => \"en\",\n});\n\nexport function LangProvider({ children }: { children: React.ReactNode }) {\n  const [globalLang, setGlobalLangState] = useState<Lang>(\"en\");\n  const [componentLangs, setComponentLangs] = useState<Record<string, Lang>>({});\n\n  // Restore the persisted global language on mount.\n  useEffect(() => {\n    try {\n      const stored = window.localStorage.getItem(\"nai-lang\");\n      if (stored === \"en\" || stored === \"zh\") setGlobalLangState(stored);\n    } catch {}\n  }, []);\n\n  useEffect(() => {\n    document.documentElement.lang = globalLang;\n  }, [globalLang]);\n\n  const setGlobalLang = (lang: Lang) => {\n    setGlobalLangState(lang);\n    try {\n      window.localStorage.setItem(\"nai-lang\", lang);\n    } catch {}\n  };\n\n  const setComponentLang = (id: string, lang: Lang) => {\n    setComponentLangs((prev) => ({ ...prev, [id]: lang }));\n  };\n\n  const getLang = (id?: string, override?: Lang): Lang => {\n    if (override) return override;\n    if (id && componentLangs[id]) return componentLangs[id];\n    return globalLang;\n  };\n\n  return (\n    <LangContext.Provider\n      value={{\n        globalLang,\n        setGlobalLang,\n        componentLangs,\n        setComponentLang,\n        getLang,\n      }}\n    >\n      {children}\n    </LangContext.Provider>\n  );\n}\n\nexport function useLang(id?: string, override?: Lang): Lang {\n  const ctx = useContext(LangContext);\n  return override ?? ctx.getLang(id);\n}\n\nexport function useLangContext() {\n  return useContext(LangContext);\n}\n",
+      "type": "registry:component",
+      "target": "lib/lang-context.tsx"
+    }
+  ],
+  "cssVars": {
+    "theme": {
+      "color-page": "var(--page)",
+      "color-canvas": "var(--canvas)",
+      "color-surface": "var(--surface)",
+      "color-inset": "var(--inset)",
+      "color-hover": "var(--hover)",
+      "color-hover-2": "var(--hover-2)",
+      "color-ink": "var(--ink)",
+      "color-ink-2": "var(--ink-2)",
+      "color-ink-3": "var(--ink-3)",
+      "color-line": "var(--line)",
+      "color-line-strong": "var(--line-strong)",
+      "color-field": "var(--field)",
+      "color-stripe": "var(--stripe)",
+      "color-stripe-bg": "var(--stripe-bg)",
+      "color-accent": "var(--accent)",
+      "color-accent-ink": "var(--accent-ink)",
+      "color-accent-tint": "var(--accent-tint)",
+      "color-green": "var(--green)",
+      "color-green-tint": "var(--green-tint)",
+      "color-orange": "var(--orange)",
+      "color-orange-tint": "var(--orange-tint)",
+      "color-red": "var(--red)",
+      "color-red-tint": "var(--red-tint)",
+      "color-tooltip-bg": "var(--tooltip-bg)",
+      "color-tooltip-fg": "var(--tooltip-fg)",
+      "color-tooltip-muted": "var(--tooltip-muted)",
+      "color-tooltip-border": "var(--tooltip-border)",
+      "shadow-hairline": "var(--shadow-hairline)",
+      "shadow-btn": "var(--shadow-btn)",
+      "shadow-card": "var(--shadow-card)",
+      "shadow-raised": "var(--shadow-raised)",
+      "shadow-overlay": "var(--shadow-overlay)",
+      "shadow-inset-field": "var(--shadow-inset-field)",
+      "radius-chip": "6px",
+      "radius-control": "8px",
+      "radius-card": "10px",
+      "ease-out-strong": "cubic-bezier(0.23, 1, 0.32, 1)",
+      "ease-link": "cubic-bezier(0.16, 1, 0.3, 1)"
+    },
+    "light": {
+      "page": "#fafafb",
+      "canvas": "#f1f2f3",
+      "surface": "#ffffff",
+      "inset": "#f7f8f9",
+      "hover": "#f4f5f6",
+      "hover-2": "#e7e9eb",
+      "ink": "#1f2124",
+      "ink-2": "#62656b",
+      "ink-3": "#9a9da3",
+      "line": "#ecedef",
+      "line-strong": "#e0e2e5",
+      "field": "#f2f2f3",
+      "stripe": "#49494913",
+      "stripe-bg": "#f5f5f5",
+      "accent": "#0285ff",
+      "accent-ink": "#0170dd",
+      "accent-tint": "#e9f3ff",
+      "green": "#189a4d",
+      "green-tint": "#e8f5ed",
+      "orange": "#ef720c",
+      "orange-tint": "#fdf1e5",
+      "red": "#e3474c",
+      "red-tint": "#fcecec",
+      "tooltip-bg": "#25272b",
+      "tooltip-fg": "#f6f7f8",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#3a3c40",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #1018280d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #1018280a, 0 2px 6px #10182808",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #0000000b",
+      "shadow-overlay": "0 0 0 1px var(--line), 0 8px 28px #0001",
+      "shadow-inset-field": "inset 0 1px 2px #0000001f"
+    },
+    "dark": {
+      "page": "#17181a",
+      "canvas": "#1c1d1f",
+      "surface": "#232427",
+      "inset": "#1f2022",
+      "hover": "#2a2b2e",
+      "hover-2": "#313236",
+      "ink": "#f2f3f4",
+      "ink-2": "#a5a8ad",
+      "ink-3": "#6c6f75",
+      "line": "#2e3033",
+      "line-strong": "#3a3c40",
+      "field": "#2b2c2f",
+      "stripe": "#ffffff0e",
+      "stripe-bg": "#1b1c1e",
+      "accent": "#3d9aff",
+      "accent-ink": "#7ec0ff",
+      "accent-tint": "#3d9aff29",
+      "green": "#3dbb72",
+      "green-tint": "#3dbb7224",
+      "orange": "#f68f3c",
+      "orange-tint": "#f68f3c24",
+      "red": "#ee5c61",
+      "red-tint": "#ee5c6124",
+      "tooltip-bg": "#111214",
+      "tooltip-fg": "#f2f3f4",
+      "tooltip-muted": "#a5a8ad",
+      "tooltip-border": "#2e3033",
+      "shadow-hairline": "0 0 0 1px var(--line)",
+      "shadow-btn": "0 0 0 1px var(--line-strong), 0 1px 2px #0000004d",
+      "shadow-card": "0 0 0 1px var(--line), 0 1px 2px #0003, 0 2px 6px #0003",
+      "shadow-raised": "0 0 0 1px var(--line), 0 2px 10px #00000038",
+      "shadow-overlay": "0 0 0 1px var(--line-strong), 0 8px 28px #00000057",
+      "shadow-inset-field": "inset 0 1px 2px #0006"
+    }
+  },
+  "css": {
+    "@keyframes fade-up": {
+      "0%": {
+        "opacity": "0",
+        "transform": "translateY(8px)"
+      },
+      "to": {
+        "opacity": "1",
+        "transform": "translateY(0)"
+      }
+    },
+    "@keyframes pop-in": {
+      "0%": {
+        "opacity": "0",
+        "transform": "scale(.95)"
+      },
+      "to": {
+        "opacity": "1",
+        "transform": "scale(1)"
+      }
+    },
+    "@layer components": {
+      ".primitive-card-pad": {
+        "padding": "12px"
+      },
+      ".primitive-icon-button": {
+        "display": "inline-flex",
+        "align-items": "center",
+        "justify-content": "center",
+        "width": "22px",
+        "height": "22px",
+        "border-radius": "6px"
+      },
+      ".primitive-card-footer": {
+        "padding": "10px 12px"
+      }
+    }
+  },
+  "type": "registry:component"
+}
