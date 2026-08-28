@@ -234,7 +234,7 @@ export default function AgentTeams({ lang: propLang }: { lang?: "en" | "zh" }) {
                     )}
                     {task.dependsOn.length > 0 && (
                       <span className="font-mono">
-                        ⛓ {task.dependsOn.join(", ")}
+                        deps: {task.dependsOn.join(", ")}
                       </span>
                     )}
                     {task.scopes.map((s) => (

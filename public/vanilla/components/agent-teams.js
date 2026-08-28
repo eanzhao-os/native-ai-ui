@@ -463,7 +463,7 @@ export class NaiAgentTeams extends NaiBaseElement {
                     </div>
                     <div class="task-meta-row">
                       ${assignee ? `<span class="assignee-tag">@${assignee.name}</span>` : ""}
-                      ${task.dependsOn.length > 0 ? `<span class="deps-tag">⛓ ${task.dependsOn.join(", ")}</span>` : ""}
+                      ${task.dependsOn.length > 0 ? `<span class="deps-tag">deps: ${task.dependsOn.join(", ")}</span>` : ""}
                       ${task.scopes.map((s) => `<span class="scope-tag">${s}</span>`).join("")}
                       ${blocked && state === "pending" ? `<span class="blocked-tag">${zh ? "被阻塞" : "blocked"}</span>` : ""}
                     </div>

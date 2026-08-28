@@ -328,60 +328,36 @@ function ShowcaseContent() {
           mobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         }`}
       >
-        {/* Sidebar Header */}
-        <div className="flex h-14 items-center justify-between border-b border-line px-4">
+        {/* Sidebar Brand & Language Header */}
+        <div className="flex items-center justify-between border-b border-line px-4 py-3.5">
           <a
             href="#top"
             onClick={(e) => {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="flex items-center gap-2.5 cursor-pointer"
+            className="flex items-center gap-2.5 cursor-pointer min-w-0"
           >
-            <div className="flex size-7 items-center justify-center rounded-control bg-ink text-canvas shadow-sm">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-control bg-ink text-canvas shadow-sm">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round">
                 <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
               </svg>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="text-[13px] font-semibold text-ink leading-none tracking-tight">Native AI UI</h1>
                 <span className="rounded-chip border border-line bg-inset px-1 py-px font-mono text-[9px] text-ink-3">
                   v0.3.0
                 </span>
               </div>
-              <span className="text-[10.5px] text-ink-3 mt-0.5 block">
+              <span className="text-[10.5px] text-ink-3 mt-0.5 block truncate">
                 {zh ? `${totalCount} 个 AI 原生组件` : `${totalCount} AI-native primitives`}
               </span>
             </div>
           </a>
 
-          {/* Global Framework Toggle */}
-          <div className="flex items-center rounded-control border border-line/60 bg-field p-0.5 text-[10px]">
-            <button
-              type="button"
-              aria-pressed={globalFramework === "react"}
-              onClick={() => setGlobalFramework("react")}
-              className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
-                globalFramework === "react" ? "bg-surface text-ink shadow-xs" : "text-ink-3 hover:text-ink-2"
-              }`}
-            >
-              React
-            </button>
-            <button
-              type="button"
-              aria-pressed={globalFramework === "vanilla"}
-              onClick={() => setGlobalFramework("vanilla")}
-              className={`rounded-chip px-1.5 py-0.5 font-medium transition-colors cursor-pointer ${
-                globalFramework === "vanilla" ? "bg-surface text-ink shadow-xs" : "text-ink-3 hover:text-ink-2"
-              }`}
-            >
-              Vanilla
-            </button>
-          </div>
-
           {/* Global Language Toggle */}
-          <div className="flex items-center rounded-control border border-line/60 bg-field p-0.5 text-[10px]">
+          <div className="flex items-center rounded-control border border-line/60 bg-field p-0.5 text-[10px] shrink-0">
             {(["en", "zh"] as const).map((l) => (
               <button
                 key={l}
@@ -395,6 +371,36 @@ function ShowcaseContent() {
                 {l === "en" ? "EN" : "中"}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Framework Selector Bar */}
+        <div className="border-b border-line px-3 py-2 bg-inset/30">
+          <div className="grid grid-cols-2 gap-1 rounded-control border border-line/70 bg-field p-0.5 text-[11px]">
+            <button
+              type="button"
+              aria-pressed={globalFramework === "react"}
+              onClick={() => setGlobalFramework("react")}
+              className={`rounded-chip py-1 text-center font-medium transition-all cursor-pointer ${
+                globalFramework === "react"
+                  ? "bg-surface text-ink shadow-xs font-semibold"
+                  : "text-ink-3 hover:text-ink-2"
+              }`}
+            >
+              React (.tsx)
+            </button>
+            <button
+              type="button"
+              aria-pressed={globalFramework === "vanilla"}
+              onClick={() => setGlobalFramework("vanilla")}
+              className={`rounded-chip py-1 text-center font-medium transition-all cursor-pointer ${
+                globalFramework === "vanilla"
+                  ? "bg-surface text-ink shadow-xs font-semibold"
+                  : "text-ink-3 hover:text-ink-2"
+              }`}
+            >
+              Vanilla (ESM)
+            </button>
           </div>
         </div>
 
@@ -657,7 +663,7 @@ function ShowcaseContent() {
                         : "text-ink-2 hover:bg-hover hover:text-ink"
                     }`}
                   >
-                    ⚛️ React
+                    React (.tsx)
                   </button>
                   <button
                     type="button"
@@ -669,7 +675,7 @@ function ShowcaseContent() {
                         : "text-ink-2 hover:bg-hover hover:text-ink"
                     }`}
                   >
-                    🍦 Vanilla ESM
+                    Vanilla (ESM)
                   </button>
                 </div>
 

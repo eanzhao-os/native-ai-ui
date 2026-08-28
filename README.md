@@ -1,6 +1,6 @@
 # AI-Native React & Vanilla Components
 
-> 🌐 **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/) (Supports instant React / Vanilla Web Components toggling)
+> **Live Showcase**: [https://eanzhao-os.github.io/native-ai-ui/](https://eanzhao-os.github.io/native-ai-ui/) (Supports instant React / Vanilla Web Components toggling)
 
 44 crafted primitives for AI-native interfaces — loading and thinking states, streaming
 text, attachment queues, approval flows, agent teams, message branches, turn lifecycles,
