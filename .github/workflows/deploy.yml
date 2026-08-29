@@ -28,8 +28,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check registry artifacts
+      - name: Check generated Vanilla styles
+        run: npm run vanilla:styles:check
+
+      - name: Check repository integrity
         run: npm run registry:check
+
+      - name: Run tests
+        run: npm test -- --run
+
+      - name: Type-check
+        run: npm run typecheck
 
       - name: Build static site with Next.js
         run: npm run build
