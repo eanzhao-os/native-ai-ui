@@ -169,7 +169,7 @@ describe("Vanilla Shadow CSS generation", () => {
     expect(css).toContain(".flex");
   }, 30_000);
 
-  test("uses deterministic app-local cache keys for ordered source sets", () => {
+  test("uses deterministic app-local cache keys without writing virtual files", async () => {
     const sources = ["../components", "../app"];
     const cachePath = tailwindSourceSetCachePath(sources);
     expect(dirname(cachePath)).toBe(resolve("app"));
@@ -179,7 +179,11 @@ describe("Vanilla Shadow CSS generation", () => {
     );
     expect(cachePath.endsWith(".css")).toBe(true);
     expect(existsSync(cachePath)).toBe(false);
-  });
+
+    await buildTailwindCssForSources(sources);
+
+    expect(existsSync(cachePath)).toBe(false);
+  }, 30_000);
 
   test("isolates a later explicit app build from production sources", async () => {
     const productionSelectors = utilitySelectorSet(
@@ -309,9 +313,12 @@ describe("Vanilla Shadow CSS generation", () => {
 
     expect([...setIntersection(compatibilitySelectors, baselineSelectors)])
       .toEqual([]);
+    expect([...setDifference(compatibilitySelectors, missingBeforeBridge)])
+      .toEqual([]);
     expect([...setDifference(missingBeforeBridge, compatibilitySelectors)])
       .toEqual([]);
     expect(compatibilitySelectors.size).toBe(candidates.length);
+    expect(candidates.length).toBe(missingBeforeBridge.size);
   }, 60_000);
 
   test("extracts component extras from the canonical globals source", () => {
