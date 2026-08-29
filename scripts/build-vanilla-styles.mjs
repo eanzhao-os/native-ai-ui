@@ -74,15 +74,16 @@ function removeSelfReferentialShadowTokens(css) {
   return stylesheet.toString();
 }
 
-export async function buildStyleModule() {
+export async function buildTailwindCssForSources(sources) {
   const globalsPath = resolve(root, "app/globals.css");
   const globalsCss = readFileSync(globalsPath, "utf8");
-
   const themeMatch = globalsCss.match(/@theme inline \{[\s\S]*?\n\}/);
   if (!themeMatch) {
     throw new Error("Could not find @theme inline block in app/globals.css");
   }
-
+  const sourceDirectives = sources
+    .map((source) => `@source ${JSON.stringify(source)};`)
+    .join("\n");
   const input = `
 @import "tailwindcss" source(none);
 
@@ -90,17 +91,25 @@ export async function buildStyleModule() {
 
 ${themeMatch[0]}
 
-@source "../components";
-@source "../app";
+${sourceDirectives}
 `;
-
   const result = await postcss([
     tailwindcss({ base: root, optimize: false }),
   ]).process(input, {
     from: globalsPath,
   });
+  return result.css;
+}
+
+export async function buildStyleModule() {
+  const globalsPath = resolve(root, "app/globals.css");
+  const globalsCss = readFileSync(globalsPath, "utf8");
+  const compiledCss = await buildTailwindCssForSources([
+    "../components",
+    "../app",
+  ]);
   const utilityCss = rewriteShadowSelectors(
-    removeSelfReferentialShadowTokens(result.css),
+    removeSelfReferentialShadowTokens(compiledCss),
   );
 
   for (const needle of [

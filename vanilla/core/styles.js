@@ -266,6 +266,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .top-0 {
     top: 0px;
   }
+  .top-2 {
+    top: calc(var(--spacing) * 2);
+  }
   .top-4\\.5 {
     top: calc(var(--spacing) * 4.5);
   }
@@ -319,6 +322,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .z-10 {
     z-index: 10;
+  }
+  .z-20 {
+    z-index: 20;
   }
   .z-30 {
     z-index: 30;
@@ -578,6 +584,10 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     width: 7px;
     height: 7px;
   }
+  .size-full {
+    width: 100%;
+    height: 100%;
+  }
   .h-1\\.5 {
     height: calc(var(--spacing) * 1.5);
   }
@@ -641,6 +651,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .h-64 {
     height: calc(var(--spacing) * 64);
   }
+  .h-\\[130px\\] {
+    height: 130px;
+  }
   .h-\\[166px\\] {
     height: 166px;
   }
@@ -652,6 +665,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .h-px {
     height: 1px;
+  }
+  .max-h-56 {
+    max-height: calc(var(--spacing) * 56);
   }
   .min-h-0 {
     min-height: 0px;
@@ -677,11 +693,17 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .min-h-\\[15\\.5rem\\] {
     min-height: 15.5rem;
   }
+  .min-h-\\[18px\\] {
+    min-height: 18px;
+  }
   .min-h-\\[38px\\] {
     min-height: 38px;
   }
   .min-h-\\[42px\\] {
     min-height: 42px;
+  }
+  .min-h-\\[64px\\] {
+    min-height: 64px;
   }
   .min-h-\\[118px\\] {
     min-height: 118px;
@@ -766,6 +788,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .w-70 {
     width: calc(var(--spacing) * 70);
+  }
+  .w-72 {
+    width: calc(var(--spacing) * 72);
   }
   .w-\\[2\\.5px\\] {
     width: 2.5px;
@@ -979,8 +1004,14 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .animate-spin {
     animation: var(--animate-spin);
   }
+  .cursor-crosshair {
+    cursor: crosshair;
+  }
   .cursor-ew-resize {
     cursor: ew-resize;
+  }
+  .cursor-not-allowed {
+    cursor: not-allowed;
   }
   .cursor-pointer {
     cursor: pointer;

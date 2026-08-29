@@ -2,16 +2,19 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import postcss, { type Node } from "postcss";
 import { describe, expect, test } from "vitest";
 import {
   buildStyleModule,
+  buildTailwindCssForSources,
   extractComponentExtras,
   extractSharedKeyframes,
   rewriteShadowSelectors,
@@ -30,6 +33,75 @@ function runStyleCheck() {
     encoding: "utf8",
   });
 }
+
+const tailwindBuilds = new Map<string, Promise<string>>();
+
+function buildTailwindOnce(sources: string[]) {
+  const key = JSON.stringify(sources);
+  let build = tailwindBuilds.get(key);
+  if (!build) {
+    build = buildTailwindCssForSources(sources);
+    tailwindBuilds.set(key, build);
+  }
+  return build;
+}
+
+function utilitySelectorSet(css: string) {
+  const selectors = new Set<string>();
+  postcss.parse(css).walkRules((rule) => {
+    let ancestor: Node["parent"] = rule.parent;
+    while (ancestor) {
+      if (
+        ancestor.type === "atrule"
+        && "name" in ancestor
+        && ancestor.name === "layer"
+        && "params" in ancestor
+        && typeof ancestor.params === "string"
+        && ancestor.params.trim() === "utilities"
+      ) {
+        for (const selector of rule.selectors) selectors.add(selector);
+        break;
+      }
+      ancestor = ancestor.parent;
+    }
+  });
+  return selectors;
+}
+
+function setDifference(left: Set<string>, right: Set<string>) {
+  return new Set([...left].filter((value) => !right.has(value)));
+}
+
+function setIntersection(left: Set<string>, right: Set<string>) {
+  return new Set([...left].filter((value) => right.has(value)));
+}
+
+function listFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = resolve(directory, entry.name);
+    return entry.isDirectory() ? listFiles(entryPath) : [entryPath];
+  });
+}
+
+const compatibilityPath = resolve("app/vanilla-style-compatibility.ts");
+const confirmedCompatibilitySelectors = [
+  ".h-\\[130px\\]",
+  ".size-full",
+  ".top-2",
+  ".z-20",
+  ".w-72",
+  ".max-h-56",
+];
+
+// Tailwind's raw file scanner also sees JavaScript keywords/event names and
+// prefixes inside hand-written CSS selectors. These are not template classes.
+const vanillaScannerArtifactSelectors = new Set([
+  ".blur",
+  ".border-orange",
+  ".border-red",
+  ".py-0",
+  ".static",
+]);
 
 describe("Vanilla Shadow CSS generation", () => {
   test("places host context before a dark utility descendant", () => {
@@ -90,6 +162,12 @@ describe("Vanilla Shadow CSS generation", () => {
     expect(moduleSource).toContain(".shadow-card");
   }, 30_000);
 
+  test("compiles an explicit source set for compatibility audits", async () => {
+    expect(buildTailwindCssForSources).toBeTypeOf("function");
+    const css = await buildTailwindCssForSources(["../components", "../app"]);
+    expect(css).toContain(".flex");
+  }, 30_000);
+
   test("scans configured React sources but ignores non-React files", async () => {
     const fixturePath = resolve(".task-1-non-react-source.html");
     const nonReactClass = ["mt-[", "12345px", "]"].join("");
@@ -102,6 +180,100 @@ describe("Vanilla Shadow CSS generation", () => {
       rmSync(fixturePath, { force: true });
     }
   }, 30_000);
+
+  test("covers every current Vanilla Tailwind selector in production CSS", async () => {
+    const productionCss = await buildTailwindOnce(["../components", "../app"]);
+    const vanillaCss = await buildTailwindOnce(["../vanilla/components"]);
+    const vanillaOnlySelectors = setDifference(
+      utilitySelectorSet(vanillaCss),
+      utilitySelectorSet(productionCss),
+    );
+    expect([
+      ...setDifference(vanillaScannerArtifactSelectors, vanillaOnlySelectors),
+    ]).toEqual([]);
+    const missingSelectors = setDifference(
+      vanillaOnlySelectors,
+      vanillaScannerArtifactSelectors,
+    );
+    if (missingSelectors.size > 0) {
+      const confirmed = confirmedCompatibilitySelectors.filter((selector) =>
+        missingSelectors.has(selector)
+      );
+      throw new Error(
+        `Vanilla-only Tailwind selectors (${missingSelectors.size}); `
+        + `confirmed=${JSON.stringify(confirmed)}; `
+        + `all=${JSON.stringify([...missingSelectors].sort())}`,
+      );
+    }
+    expect([...missingSelectors]).toEqual([]);
+  }, 60_000);
+
+  test("keeps the compatibility bridge bounded and runtime-inert", async () => {
+    expect(relative(root, compatibilityPath).split(sep)[0]).toBe("app");
+    expect(compatibilityPath.endsWith(".ts")).toBe(true);
+    expect(existsSync(compatibilityPath)).toBe(true);
+
+    const compatibilitySource = readFileSync(compatibilityPath, "utf8");
+    expect(compatibilitySource).toContain("Task 16");
+    const candidates = [...compatibilitySource.matchAll(/^\s*"([^"]+)",?$/gm)]
+      .map((match) => match[1]);
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(new Set(candidates).size).toBe(candidates.length);
+
+    const runtimeImports = ["app", "components", "vanilla"]
+      .flatMap((directory) => listFiles(resolve(directory)))
+      .filter((filePath) => filePath !== compatibilityPath)
+      .filter((filePath) => /\.[cm]?[jt]sx?$/.test(filePath))
+      .flatMap((filePath) => readFileSync(filePath, "utf8")
+        .split("\n")
+        .filter((line) =>
+          line.includes("vanilla-style-compatibility")
+          && /\b(?:import|require)\b/.test(line)
+        )
+        .map((line) => `${relative(root, filePath)}: ${line.trim()}`));
+    expect(runtimeImports).toEqual([]);
+
+    const globalsDirectory = dirname(resolve("app/globals.css"));
+    const appSourcesWithoutCompatibility = listFiles(resolve("app"))
+      .filter((filePath) => filePath !== compatibilityPath)
+      .map((filePath) => {
+        const source = relative(globalsDirectory, filePath).split(sep).join("/");
+        return source.startsWith(".") ? source : `./${source}`;
+      });
+    const baselineCss = await buildTailwindOnce([
+      "../components",
+      ...appSourcesWithoutCompatibility,
+    ]);
+    const compatibilityCss = await buildTailwindOnce([
+      "./vanilla-style-compatibility.ts",
+    ]);
+    const vanillaCss = await buildTailwindOnce(["../vanilla/components"]);
+    const baselineSelectors = utilitySelectorSet(baselineCss);
+    const compatibilitySelectors = utilitySelectorSet(compatibilityCss);
+    const vanillaOnlyBeforeBridge = setDifference(
+      utilitySelectorSet(vanillaCss),
+      baselineSelectors,
+    );
+    expect([
+      ...setDifference(
+        vanillaScannerArtifactSelectors,
+        vanillaOnlyBeforeBridge,
+      ),
+    ]).toEqual([]);
+    const missingBeforeBridge = setDifference(
+      vanillaOnlyBeforeBridge,
+      vanillaScannerArtifactSelectors,
+    );
+
+    expect([...setIntersection(compatibilitySelectors, baselineSelectors)])
+      .toEqual([]);
+    expect([...setDifference(compatibilitySelectors, missingBeforeBridge)])
+      .toEqual([]);
+    expect([...setDifference(missingBeforeBridge, compatibilitySelectors)])
+      .toEqual([]);
+    expect(compatibilitySelectors.size).toBe(candidates.length);
+    expect(candidates.length).toBe(missingBeforeBridge.size);
+  }, 60_000);
 
   test("extracts component extras from the canonical globals source", () => {
     const css = `before
