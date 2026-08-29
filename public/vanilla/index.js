@@ -58,3 +58,7 @@ export { NaiLayerCard } from "./components/layer-card.js";
 export { NaiSidebarNav } from "./components/sidebar-nav.js";
 export { NaiSearch } from "./components/search.js";
 export { NaiFineTuneCard } from "./components/fine-tune-card.js";
+export { NaiSessionList } from "./components/session-list.js";
+export { NaiAuthorizationSurface } from "./components/authorization-surface.js";
+export { NaiSettingsEditor } from "./components/settings-editor.js";
+export { NaiFeedbackActions } from "./components/feedback-actions.js";

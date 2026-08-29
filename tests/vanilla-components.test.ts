@@ -1,10 +1,44 @@
-import { describe, expect, test, afterEach } from "vitest";
+import { describe, expect, test, afterEach, vi } from "vitest";
 import { setGlobalLang, getGlobalLang } from "../vanilla/core/lang.js";
 import "../vanilla/index.js";
+
+const originalClipboard = Object.getOwnPropertyDescriptor(
+  navigator,
+  "clipboard",
+);
+const originalExecCommand = Object.getOwnPropertyDescriptor(
+  document,
+  "execCommand",
+);
+
+function useClipboard(writeText: (value: string) => Promise<void>) {
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+}
+
+function useLegacyCopy(result: boolean) {
+  Object.defineProperty(document, "execCommand", {
+    configurable: true,
+    value: vi.fn(() => result),
+  });
+}
 
 afterEach(() => {
   document.body.innerHTML = "";
   setGlobalLang("en");
+  vi.useRealTimers();
+  if (originalClipboard) {
+    Object.defineProperty(navigator, "clipboard", originalClipboard);
+  } else {
+    Reflect.deleteProperty(navigator, "clipboard");
+  }
+  if (originalExecCommand) {
+    Object.defineProperty(document, "execCommand", originalExecCommand);
+  } else {
+    Reflect.deleteProperty(document, "execCommand");
+  }
 });
 
 describe("Vanilla ES Modules & Web Components", () => {
@@ -776,6 +810,231 @@ describe("Vanilla ES Modules & Web Components", () => {
     dropdownItems[0].click();
     expect(el._typeValue).toBe("Seasonal");
   });
+
+  test("<nai-session-list> shares its pointer and keyboard glide state", () => {
+    const el = document.createElement("nai-session-list") as any;
+    document.body.appendChild(el);
+
+    const first = el.shadowRoot.querySelector('[data-id="s1"]');
+    const second = el.shadowRoot.querySelector('[data-id="s2"]');
+    expect(first.dataset.active).toBe("true");
+    expect(second.dataset.active).toBe("false");
+
+    second.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(first.dataset.active).toBe("false");
+    expect(second.dataset.active).toBe("true");
+
+    second.dispatchEvent(new MouseEvent("mouseleave"));
+    expect(first.dataset.active).toBe("true");
+    expect(second.dataset.active).toBe("false");
+
+    second.dispatchEvent(new FocusEvent("focus"));
+    expect(first.dataset.active).toBe("false");
+    expect(second.dataset.active).toBe("true");
+
+    second.dispatchEvent(new FocusEvent("blur"));
+    expect(first.dataset.active).toBe("true");
+    expect(second.dataset.active).toBe("false");
+  });
+
+  test("<nai-session-list> selects rows and clears only their activity badges", () => {
+    const el = document.createElement("nai-session-list") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    expect(el._active).toBe("s1");
+    expect(el._badges).toEqual({ s1: 2, s2: 1 });
+
+    const row = el.shadowRoot.querySelector('[data-id="s2"]');
+    expect(row).toBeTruthy();
+    row.click();
+    expect(el._active).toBe("s2");
+    expect(el._badges).toEqual({ s1: 2, s2: 0 });
+  });
+
+  test("<nai-authorization-surface> begins a sign-in flow and writes the credential", () => {
+    vi.useFakeTimers();
+    try {
+      const el = document.createElement("nai-authorization-surface") as any;
+      document.body.appendChild(el);
+
+      expect(el.shadowRoot).toBeTruthy();
+      expect(el._configured.openai).toBe(true);
+      expect(el._configured.e2b).toBe(false);
+
+      const signIn = el.shadowRoot.querySelector('[data-signin="e2b"]');
+      expect(signIn).toBeTruthy();
+      signIn.click();
+      expect(el._flowKey).toBe("e2b");
+      expect(el._phase).toBe("prompt");
+
+      el._secret = "e2b-key";
+      el.render();
+      const authorize = el.shadowRoot.querySelector(".authorize-btn");
+      expect(authorize.disabled).toBe(false);
+      authorize.click();
+      expect(el._phase).toBe("settling");
+
+      vi.advanceTimersByTime(900);
+      expect(el._phase).toBe("done");
+      expect(el._configured.e2b).toBe(true);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  test("<nai-authorization-surface> clears and masks secrets when switching or withdrawing providers", () => {
+    const el = document.createElement("nai-authorization-surface") as any;
+    document.body.appendChild(el);
+
+    el.shadowRoot.querySelector('[data-signin="deepseek"]').click();
+    let input = el.shadowRoot.querySelector(".secret-input");
+    input.value = "dsk-old-secret";
+    input.dispatchEvent(new Event("input"));
+    el.shadowRoot.querySelector(".reveal-btn").click();
+    expect(input.type).toBe("text");
+
+    el.shadowRoot.querySelector('[data-signin="e2b"]').click();
+    input = el.shadowRoot.querySelector(".secret-input");
+    expect(el._flowKey).toBe("e2b");
+    expect(el._secret).toBe("");
+    expect(el._revealed).toBe(false);
+    expect(input.value).toBe("");
+    expect(input.type).toBe("password");
+
+    input.value = "e2b-secret";
+    input.dispatchEvent(new Event("input"));
+    el.shadowRoot.querySelector(".reveal-btn").click();
+    expect(input.type).toBe("text");
+    el.shadowRoot.querySelector(".withdraw-btn").click();
+
+    expect(el._secret).toBe("");
+    expect(el._revealed).toBe(false);
+    expect(el.shadowRoot.querySelector(".secret-input")).toBeNull();
+  });
+
+  test("<nai-authorization-surface> keeps credential text out of shadow DOM markup", () => {
+    const el = document.createElement("nai-authorization-surface") as any;
+    document.body.appendChild(el);
+
+    const secret = '\"><img data-injected src=x onerror="globalThis.__naiInjected = true">';
+    el._flowKey = "e2b";
+    el._phase = "prompt";
+    el._secret = secret;
+    el.render();
+
+    expect(el.shadowRoot.querySelector("[data-injected]")).toBeNull();
+    expect(el.shadowRoot.querySelector(".secret-input").value).toBe(secret);
+    expect((globalThis as any).__naiInjected).toBeUndefined();
+  });
+
+  test("<nai-settings-editor> assigns editable user drafts through textarea.value", () => {
+    const el = document.createElement("nai-settings-editor") as any;
+    document.body.appendChild(el);
+
+    const injection = '\"><img data-injected src=x onerror="globalThis.__naiInjected = true">';
+    const textarea = el.shadowRoot.querySelector(".editor-area");
+    expect(textarea.readOnly).toBe(false);
+
+    textarea.value = injection;
+    textarea.dispatchEvent(new Event("input"));
+
+    expect(el._draft).toBe(injection);
+    expect(el.shadowRoot.querySelector("[data-injected]")).toBeNull();
+    expect(el.shadowRoot.querySelector(".editor-area").value).toBe(injection);
+    expect((globalThis as any).__naiInjected).toBeUndefined();
+  });
+
+  test("<nai-settings-editor> preserves a conflicting draft until discard and refetch", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-settings-editor") as any;
+    document.body.appendChild(el);
+
+    const textarea = el.shadowRoot.querySelector(".editor-area");
+    textarea.value = '{\n  "theme": "dark"\n}';
+    textarea.dispatchEvent(new Event("input"));
+    el.shadowRoot.querySelector(".save-btn").click();
+    vi.advanceTimersByTime(650 + 1500);
+    expect(el._revision).toBe(8);
+
+    const conflictDraft = '{\n  "theme": "dark",\n  "maxTokens": 12288\n}';
+    const nextTextarea = el.shadowRoot.querySelector(".editor-area");
+    nextTextarea.value = conflictDraft;
+    nextTextarea.dispatchEvent(new Event("input"));
+    el.shadowRoot.querySelector(".save-btn").click();
+    vi.advanceTimersByTime(650);
+
+    expect(el._phase).toBe("conflict");
+    expect(el._draft).toBe(conflictDraft);
+    expect(el.shadowRoot.querySelector(".editor-area").value).toBe(conflictDraft);
+    expect(el._revision).toBe(8);
+
+    el.shadowRoot.querySelector(".refetch-btn").click();
+    expect(el._draft).toBe(conflictDraft);
+    vi.advanceTimersByTime(900);
+
+    expect(el._phase).toBe("edit");
+    expect(el._revision).toBe(9);
+    expect(el._draft).toContain('"temperature": 0.4');
+    expect(el.shadowRoot.querySelector(".editor-area").value).toBe(el._draft);
+  });
+
+  test("<nai-feedback-actions> toggles exclusive reversible ratings", () => {
+    const el = document.createElement("nai-feedback-actions") as any;
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeTruthy();
+    const up = el.shadowRoot.querySelector(".up-btn");
+    const down = el.shadowRoot.querySelector(".down-btn");
+    expect(up).toBeTruthy();
+    expect(down).toBeTruthy();
+
+    up.click();
+    expect(el._rating).toBe("up");
+    // render() replaces the shadow DOM; re-query after each state change.
+    expect(el.shadowRoot.querySelector(".up-btn").getAttribute("aria-pressed")).toBe("true");
+
+    el.shadowRoot.querySelector(".down-btn").click();
+    expect(el._rating).toBe("down");
+
+    el.shadowRoot.querySelector(".down-btn").click();
+    expect(el._rating).toBe(null);
+  });
+
+  test("<nai-feedback-actions> uses fallback success after Clipboard API denial", async () => {
+    useClipboard(vi.fn().mockRejectedValue(new Error("denied")));
+    useLegacyCopy(true);
+    const el = document.createElement("nai-feedback-actions") as any;
+    document.body.appendChild(el);
+
+    el.shadowRoot.querySelector(".copy-btn").click();
+    await vi.waitFor(() => expect(el._copyStatus).toBe("copied"));
+
+    expect(el.shadowRoot.querySelector('[role="status"]').textContent).toBe("Copied");
+  });
+
+  test("<nai-feedback-actions> reports failure after both copy paths fail", async () => {
+    useClipboard(vi.fn().mockRejectedValue(new Error("denied")));
+    useLegacyCopy(false);
+    const el = document.createElement("nai-feedback-actions") as any;
+    document.body.appendChild(el);
+
+    el.shadowRoot.querySelector(".copy-btn").click();
+    await vi.waitFor(() => expect(el._copyStatus).toBe("copy-error"));
+
+    expect(el.shadowRoot.querySelector('[role="status"]').textContent).toBe("Copy failed");
+    expect(el.shadowRoot.textContent).not.toContain("Copied");
+  });
+
+  test("<nai-feedback-actions> never simulates copy success on a timer", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-feedback-actions") as any;
+    document.body.appendChild(el);
+
+    vi.advanceTimersByTime(1200);
+
+    expect(el._copyStatus).toBe("idle");
+    expect(el.shadowRoot.textContent).not.toContain("Copied");
+  });
 });
-
-
