@@ -22,14 +22,15 @@ const outputPaths = [
 export function rewriteShadowSelectors(css) {
   const stylesheet = postcss.parse(css);
   stylesheet.walkRules((rule) => {
-    // Scope the prescribed replacements to selector text. Applying the first
-    // regex to complete CSS can consume declarations from the preceding rule.
-    rule.selector = rule.selector
+    // Scope the prescribed replacements to each selector-list branch. Applying
+    // the first regex to complete CSS can consume the preceding declaration,
+    // while applying the second to the unsplit list misses later branches.
+    rule.selectors = rule.selectors.map((selector) => selector
       .replace(
         /([^,{]+):where\(\.dark, \.dark \*\)/g,
-        (_, selector) => `:host-context(.dark) ${selector.trim()}`,
+        (_, darkSelector) => `:host-context(.dark) ${darkSelector.trim()}`,
       )
-      .replace(/(^|})\.dark\s+([^,{]+)/gm, "$1:host-context(.dark) $2");
+      .replace(/^\.dark\s+([^,{]+)/, ":host-context(.dark) $1"));
   });
   return stylesheet.toString();
 }
@@ -53,8 +54,29 @@ export function extractSharedKeyframes(css) {
   }).join("\n");
 }
 
+export function extractComponentExtras(css) {
+  const match = css.match(
+    /\/\* ── Primitive card chrome ─+[\s\S]*?(?=\/\* ── Records table)/,
+  );
+  if (!match) {
+    throw new Error("Could not extract shared component extras from globals.css");
+  }
+  return match[0].trim();
+}
+
+function removeSelfReferentialShadowTokens(css) {
+  const stylesheet = postcss.parse(css);
+  stylesheet.walkDecls(/^--shadow-/, (declaration) => {
+    if (declaration.value === `var(${declaration.prop})`) {
+      declaration.remove();
+    }
+  });
+  return stylesheet.toString();
+}
+
 export async function buildStyleModule() {
-  const globalsCss = readFileSync(resolve(root, "app/globals.css"), "utf8");
+  const globalsPath = resolve(root, "app/globals.css");
+  const globalsCss = readFileSync(globalsPath, "utf8");
 
   const themeMatch = globalsCss.match(/@theme inline \{[\s\S]*?\n\}/);
   if (!themeMatch) {
@@ -62,7 +84,7 @@ export async function buildStyleModule() {
   }
 
   const input = `
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -72,19 +94,19 @@ ${themeMatch[0]}
 @source "../app";
 `;
 
-  const tmpEntry = resolve(root, "node_modules/.cache/vanilla-tailwind-entry.css");
-  mkdirSync(dirname(tmpEntry), { recursive: true });
-  writeFileSync(tmpEntry, input);
-
-  const result = await postcss([tailwindcss({ base: root })]).process(input, {
-    from: tmpEntry,
+  const result = await postcss([
+    tailwindcss({ base: root, optimize: false }),
+  ]).process(input, {
+    from: globalsPath,
   });
-  const utilityCss = rewriteShadowSelectors(result.css);
+  const utilityCss = rewriteShadowSelectors(
+    removeSelfReferentialShadowTokens(result.css),
+  );
 
   for (const needle of [
     ".flex",
     ".text-ink",
-    "--color-accent",
+    ".bg-accent",
     ":host-context(.dark) .dark\\:",
   ]) {
     if (!utilityCss.includes(needle)) {
@@ -129,25 +151,9 @@ ${insightMatch[0].replace(/^\/\* ── Insight cards chart ─+\s*\n/, "").trim
   }
   .pixel-grid > span { animation: none !important; }
 }
-
-/* ── Primitive card chrome (globals.css) ─────────────────────────────── */
-.primitive-card-bar{padding:8px 12px}
-.primitive-card-pad{padding:12px}
-.primitive-card-footer{padding:10px 12px}
-.primitive-icon-button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px}
-.primitive-table-cell{padding:6px 12px}
-
-/* ── Streaming caret ─────────────────────────────────────────────────── */
-.stream-caret{background:var(--ink);vertical-align:text-bottom;border-radius:1px;width:2px;height:1.05em;margin-left:1.5px;animation:caret-blink 1s step-end infinite;display:inline-block;translate:0 -.5px}
-.stream-caret.is-streaming{animation:none}
-
-/* ── Animated underline ──────────────────────────────────────────────── */
-.animated-underline{display:inline-block;position:relative}
-.animated-underline:after{content:"";transform-origin:0;height:1px;transition:transform .28s var(--ease-link);background:currentColor;position:absolute;bottom:-1px;left:0;right:0;transform:scaleX(0)}
-a:focus-visible .animated-underline:after,a:hover .animated-underline:after{transform:scaleX(1)}
 `;
 
-  const completeCss = `${utilityCss}\n${extractSharedKeyframes(globalsCss)}${componentExtras}${sharedBlocks}`;
+  const completeCss = `${utilityCss}\n${extractSharedKeyframes(globalsCss)}${componentExtras}\n${extractComponentExtras(globalsCss)}\n${sharedBlocks}`;
   const escapeForTemplate = (value) => value
     .replace(/\\/g, "\\\\")
     .replace(/`/g, "\\`")
