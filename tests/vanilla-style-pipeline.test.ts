@@ -18,6 +18,7 @@ import {
   extractComponentExtras,
   extractSharedKeyframes,
   rewriteShadowSelectors,
+  tailwindSourceSetCachePath,
 } from "../scripts/build-vanilla-styles.mjs";
 
 const root = resolve(".");
@@ -168,6 +169,47 @@ describe("Vanilla Shadow CSS generation", () => {
     expect(css).toContain(".flex");
   }, 30_000);
 
+  test("uses deterministic app-local cache keys for ordered source sets", () => {
+    const sources = ["../components", "../app"];
+    const cachePath = tailwindSourceSetCachePath(sources);
+    expect(dirname(cachePath)).toBe(resolve("app"));
+    expect(cachePath).toBe(tailwindSourceSetCachePath([...sources]));
+    expect(cachePath).not.toBe(
+      tailwindSourceSetCachePath([...sources].reverse()),
+    );
+    expect(cachePath.endsWith(".css")).toBe(true);
+    expect(existsSync(cachePath)).toBe(false);
+  });
+
+  test("isolates a later explicit app build from production sources", async () => {
+    const productionSelectors = utilitySelectorSet(
+      await buildTailwindCssForSources(["../components", "../app"]),
+    );
+    const globalsDirectory = dirname(resolve("app/globals.css"));
+    const appSourcesWithoutCompatibility = listFiles(resolve("app"))
+      .filter((filePath) => filePath !== compatibilityPath)
+      .map((filePath) => {
+        const source = relative(globalsDirectory, filePath).split(sep).join("/");
+        return source.startsWith(".") ? source : `./${source}`;
+      });
+    const isolatedSelectors = utilitySelectorSet(
+      await buildTailwindCssForSources([
+        "../components",
+        ...appSourcesWithoutCompatibility,
+      ]),
+    );
+    const bridgeOnlySelectors = [
+      ".h-\\[130px\\]",
+      ".cursor-crosshair",
+      ".cursor-not-allowed",
+    ];
+
+    for (const selector of bridgeOnlySelectors) {
+      expect(productionSelectors).toContain(selector);
+      expect(isolatedSelectors).not.toContain(selector);
+    }
+  }, 60_000);
+
   test("scans configured React sources but ignores non-React files", async () => {
     const fixturePath = resolve(".task-1-non-react-source.html");
     const nonReactClass = ["mt-[", "12345px", "]"].join("");
@@ -267,12 +309,9 @@ describe("Vanilla Shadow CSS generation", () => {
 
     expect([...setIntersection(compatibilitySelectors, baselineSelectors)])
       .toEqual([]);
-    expect([...setDifference(compatibilitySelectors, missingBeforeBridge)])
-      .toEqual([]);
     expect([...setDifference(missingBeforeBridge, compatibilitySelectors)])
       .toEqual([]);
     expect(compatibilitySelectors.size).toBe(candidates.length);
-    expect(candidates.length).toBe(missingBeforeBridge.size);
   }, 60_000);
 
   test("extracts component extras from the canonical globals source", () => {

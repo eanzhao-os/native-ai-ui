@@ -7,6 +7,7 @@
  *   node scripts/build-vanilla-styles.mjs
  *   node scripts/build-vanilla-styles.mjs --check
  */
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -74,6 +75,13 @@ function removeSelfReferentialShadowTokens(css) {
   return stylesheet.toString();
 }
 
+export function tailwindSourceSetCachePath(sources) {
+  const digest = createHash("sha256")
+    .update(JSON.stringify(sources))
+    .digest("hex");
+  return resolve(root, "app", `.vanilla-tailwind-sources-${digest}.css`);
+}
+
 export async function buildTailwindCssForSources(sources) {
   const globalsPath = resolve(root, "app/globals.css");
   const globalsCss = readFileSync(globalsPath, "utf8");
@@ -96,7 +104,7 @@ ${sourceDirectives}
   const result = await postcss([
     tailwindcss({ base: root, optimize: false }),
   ]).process(input, {
-    from: globalsPath,
+    from: tailwindSourceSetCachePath(sources),
   });
   return result.css;
 }
