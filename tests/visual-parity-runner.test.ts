@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   existsSync,
   mkdirSync,
@@ -7,27 +9,40 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
 import registry from "../registry.json";
 import {
   buildBaseMatrix,
   buildCaseInventory,
   compareImages,
-  defaultComponentIds,
   exitCodeForReport,
+  getDefaultComponentIds,
   parseRunnerArgs,
   runVisualParity,
   VISUAL_ARTIFACT_DIRECTORY,
   writeVisualReports,
 } from "../scripts/visual-parity.mjs";
 import { runPagesSmoke } from "../scripts/pages-smoke.mjs";
+import { main as runVisualCommand } from "../scripts/run-visual-parity.mjs";
 import { startStaticServer } from "../scripts/serve-static.mjs";
 import { CASES, DEFAULT_CASE } from "./visual/cases.mjs";
 
+const require = createRequire(pathToFileURL(resolve("package.json")));
+const yaml = require("js-yaml");
+const mutableCases = CASES as Map<
+  string,
+  Array<{
+    action?: (args: any) => unknown;
+    advanceMs: number;
+    name: string;
+  }>
+>;
 const temporaryPaths: string[] = [];
 
 afterEach(() => {
+  mutableCases.delete("demo");
   for (const path of temporaryPaths.splice(0)) {
     rmSync(path, { force: true, recursive: true });
   }
@@ -105,6 +120,7 @@ describe("strict image comparison", () => {
 describe("registry-derived visual case inventory", () => {
   test("uses every sorted registry item as the default component list", () => {
     const expected = registry.items.map((item) => item.name).sort();
+    const defaultComponentIds = getDefaultComponentIds();
 
     expect(defaultComponentIds).toEqual(expected);
     expect(defaultComponentIds).toHaveLength(48);
@@ -112,7 +128,7 @@ describe("registry-derived visual case inventory", () => {
 
   test("builds 48 light/dark and en/zh pairs before state expansion", () => {
     const matrix = buildBaseMatrix({
-      componentIds: defaultComponentIds,
+      componentIds: getDefaultComponentIds(),
       themes: ["light", "dark"],
       locales: ["en", "zh"],
     });
@@ -158,7 +174,7 @@ describe("visual runner CLI and reports", () => {
         "--react-only",
       ]),
     ).toEqual({
-      baseUrl: "https://example.test/native-ai-ui",
+      baseUrl: "https://example.test/native-ai-ui/",
       componentIds: ["code-block", "loading-state"],
       locales: ["zh"],
       reactOnly: true,
@@ -166,10 +182,42 @@ describe("visual runner CLI and reports", () => {
     });
   });
 
+  test.each([
+    ["root", "https://example.test/", "https://example.test/"],
+    [
+      "nested path",
+      "https://example.test/preview///",
+      "https://example.test/preview/",
+    ],
+  ])("preserves the meaningful trailing slash for a %s base", (_label, input, expected) => {
+    expect(parseRunnerArgs(["--base-url", input]).baseUrl).toBe(expected);
+  });
+
   test("rejects unknown component filters", () => {
     expect(() => parseRunnerArgs(["--components", "not-in-registry"])).toThrow(
       "Unknown component: not-in-registry",
     );
+  });
+
+  test("writes fatal reports when the selected registry is malformed", async () => {
+    const root = temporaryDirectory("native-ai-ui-malformed-registry-root-");
+    const artifactDir = temporaryDirectory("native-ai-ui-malformed-registry-artifacts-");
+    const registryPath = join(root, "registry.json");
+    writeFileSync(registryPath, "{not-json\n");
+
+    const exitCode = await runVisualCommand(["--components", "demo"], {
+      artifactDir,
+      outputRoot: root,
+      port: 0,
+      registryPath,
+    });
+
+    expect(exitCode).toBe(1);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.fatalError).toContain("registry.json");
+    expect(existsSync(join(artifactDir, "report.html"))).toBe(true);
   });
 
   test("writes JSON and HTML reports and returns nonzero for failures", () => {
@@ -202,6 +250,40 @@ describe("visual runner CLI and reports", () => {
     expect(readFileSync(join(artifactDir, "report.html"), "utf8")).toContain(
       "code-block",
     );
+  });
+});
+
+describe("deployment visual gates", () => {
+  test("smokes Pages before parity and uploads hidden reports on failure", () => {
+    const workflow = yaml.load(
+      readFileSync(resolve(".github/workflows/deploy.yml"), "utf8"),
+    );
+    const steps = workflow.jobs.deploy.steps as Array<{
+      if?: string;
+      run?: string;
+      uses?: string;
+      with?: Record<string, unknown>;
+    }>;
+    const smokeIndex = steps.findIndex(
+      (step) => step.run === "npm run pages:smoke",
+    );
+    const parityIndex = steps.findIndex(
+      (step) => step.run === "npm run visual:parity",
+    );
+    const upload = steps.find(
+      (step) => step.uses === "actions/upload-artifact@v4",
+    );
+
+    expect(smokeIndex).toBeGreaterThan(-1);
+    expect(parityIndex).toBeGreaterThan(smokeIndex);
+    expect(upload).toMatchObject({
+      if: "failure()",
+      with: {
+        "if-no-files-found": "error",
+        "include-hidden-files": true,
+        path: ".artifacts/visual-parity",
+      },
+    });
   });
 });
 
@@ -260,7 +342,337 @@ function visualRuntimeFixture({
   return root;
 }
 
+function parityCommandFixture({
+  chainedTimer = false,
+  detectCoordinateRewrite = false,
+  reactOffset = 0,
+  stalledImage = false,
+  vanillaOffset = reactOffset,
+  vanillaThrows = false,
+}: {
+  chainedTimer?: boolean;
+  detectCoordinateRewrite?: boolean;
+  reactOffset?: number;
+  stalledImage?: boolean;
+  vanillaOffset?: number;
+  vanillaThrows?: boolean;
+} = {}) {
+  const root = temporaryDirectory("native-ai-ui-parity-command-");
+  const registryPath = join(root, "registry.json");
+  writeFileSync(registryPath, JSON.stringify({ items: [{ name: "demo" }] }));
+  writeFileSync(
+    join(root, "index.html"),
+    `<!doctype html>
+<html lang="en">
+<head>
+<style>
+  html,body{margin:0;background:#fff;color:#111;font-family:monospace}
+  .rounded-card{width:240px;height:120px;display:flex;align-items:center;background:#fff}
+  .viewport{width:100%;height:100%;display:flex;align-items:center}
+  .visual-box{position:relative;width:32px;height:32px;background:#2463eb}
+</style>
+</head>
+<body>
+  <aside><button type="button">EN</button></aside>
+  <input aria-label="Search components" value="">
+  <div id="loading-state">ready</div>
+  <main>
+    <section id="demo">
+      <button type="button" data-framework="react" aria-pressed="true">React</button>
+      <button type="button" data-framework="vanilla" aria-pressed="false">Vanilla</button>
+      <div class="rounded-card"><div class="viewport"></div></div>
+    </section>
+  </main>
+  <script>
+    let reactMounts = 0;
+    const contextColor = () =>
+      localStorage.getItem("visual-pair-context") === "ready"
+        ? "#2463eb"
+        : "#dc2626";
+    const main = document.querySelector("main");
+    const section = document.getElementById("demo");
+    const viewport = section.querySelector(".viewport");
+    const chainedTimer = ${JSON.stringify(chainedTimer)};
+    const reactOffset = ${JSON.stringify(reactOffset)};
+    const stalledImage = ${JSON.stringify(stalledImage)};
+    const vanillaOffset = ${JSON.stringify(vanillaOffset)};
+    ${detectCoordinateRewrite ? `new MutationObserver(() => {
+      if (viewport.style.transform) {
+        console.error("capture rewrote internal canvas coordinates");
+      }
+    }).observe(viewport, { attributes: true, attributeFilter: ["style"] });` : ""}
+
+    customElements.define("nai-demo", class extends HTMLElement {
+      constructor() {
+        super();
+        ${vanillaThrows ? 'throw new Error("Vanilla lifecycle exploded");' : ""}
+        const shadow = this.attachShadow({ mode: "open" });
+        shadow.innerHTML = '<style>.visual-box{width:32px;height:32px;background:#2463eb}</style><div class="visual-box"></div>';
+      }
+      connectedCallback() {
+        this.style.cssText = "display:block;position:relative;left:" + vanillaOffset + "px;width:32px;height:32px";
+        this.shadowRoot.querySelector(".visual-box").style.background = contextColor();
+      }
+    });
+
+    function selectFramework(framework) {
+      for (const button of section.querySelectorAll("[data-framework]")) {
+        button.setAttribute("aria-pressed", String(button.dataset.framework === framework));
+      }
+      if (framework === "react") {
+        reactMounts += 1;
+        if (reactMounts >= 2) {
+          localStorage.setItem("visual-pair-context", "ready");
+        }
+        const content = document.createElement("div");
+        content.className = "visual-box";
+        content.style.left = reactOffset + "px";
+        content.style.background = contextColor();
+        if (chainedTimer) {
+          content.textContent = "initial";
+          const observer = new MutationObserver(() => {
+            if (content.textContent !== "first") return;
+            observer.disconnect();
+            setTimeout(() => { content.textContent = "second"; }, 0);
+          });
+          observer.observe(content, { childList: true });
+          setTimeout(() => { content.textContent = "first"; }, 2600);
+        }
+        if (stalledImage) {
+          const image = document.createElement("img");
+          image.alt = "stalled";
+          Object.defineProperty(image, "complete", { get: () => false });
+          Object.defineProperty(image, "naturalWidth", { get: () => 0 });
+          content.appendChild(image);
+        }
+        viewport.replaceChildren(content);
+      } else {
+        viewport.replaceChildren(document.createElement("nai-demo"));
+      }
+    }
+
+    for (const button of section.querySelectorAll("[data-framework]")) {
+      button.addEventListener("click", () => selectFramework(button.dataset.framework));
+    }
+    document.querySelector('[aria-label="Search components"]').addEventListener("input", (event) => {
+      if (event.target.value === "__nai_visual_remount__") {
+        section.remove();
+      } else if (!section.isConnected) {
+        main.appendChild(section);
+        const selected = section.querySelector('[aria-pressed="true"]').dataset.framework;
+        selectFramework(selected);
+      }
+    });
+    selectFramework("react");
+  </script>
+</body>
+</html>`,
+  );
+  return { registryPath, root };
+}
+
+async function expectServerClosed(baseUrl: string) {
+  await expect(fetch(baseUrl)).rejects.toThrow();
+}
+
 describe("browser visual environment", () => {
+  test("captures an exact React and Vanilla pair in one context and closes its internal server", async () => {
+    const { registryPath, root } = parityCommandFixture({
+      detectCoordinateRewrite: true,
+    });
+    const artifactDir = temporaryDirectory("native-ai-ui-exact-parity-artifacts-");
+    mutableCases.set("demo", [{ name: "exact", advanceMs: 0 }]);
+
+    const exitCode = await runVisualCommand(
+      ["--components", "demo", "--themes", "light", "--locales", "en"],
+      {
+        artifactDir,
+        basePath: "/preview",
+        outputRoot: root,
+        port: 0,
+        registryPath,
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.baseUrl).toMatch(/\/preview\/$/);
+    // The fixture paints Vanilla blue only after React marked this BrowserContext.
+    expect(report.summary).toEqual({ failed: 0, passed: 1, total: 1 });
+    expect(report.results[0]).toMatchObject({
+      mismatched: 0,
+      ok: true,
+      reactScreenshot: expect.any(String),
+      vanillaScreenshot: expect.any(String),
+    });
+    expect(existsSync(join(artifactDir, report.results[0].reactScreenshot))).toBe(true);
+    expect(existsSync(join(artifactDir, report.results[0].vanillaScreenshot))).toBe(true);
+    expect(existsSync(join(artifactDir, "report.html"))).toBe(true);
+    await expectServerClosed(report.baseUrl);
+  }, 60_000);
+
+  test("fails a real parity command for a one-pixel internal offset and closes its server", async () => {
+    const { registryPath, root } = parityCommandFixture({
+      reactOffset: 0,
+      vanillaOffset: 1,
+    });
+    const artifactDir = temporaryDirectory("native-ai-ui-offset-parity-artifacts-");
+    mutableCases.set("demo", [{ name: "offset", advanceMs: 0 }]);
+
+    const exitCode = await runVisualCommand(
+      ["--components", "demo", "--themes", "light", "--locales", "en"],
+      {
+        artifactDir,
+        basePath: "/",
+        outputRoot: root,
+        port: 0,
+        registryPath,
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.summary).toEqual({ failed: 1, passed: 0, total: 1 });
+    expect(report.results[0]).toMatchObject({ ok: false });
+    expect(report.results[0].mismatched).toBeGreaterThan(0);
+    expect(existsSync(join(artifactDir, "report.html"))).toBe(true);
+    await expectServerClosed(report.baseUrl);
+  }, 60_000);
+
+  test("captures two React-only cases without ever mounting Vanilla", async () => {
+    const { registryPath, root } = parityCommandFixture({ vanillaThrows: true });
+    const artifactDir = temporaryDirectory("native-ai-ui-react-only-artifacts-");
+    mutableCases.set("demo", [
+      { name: "first", advanceMs: 0 },
+      { name: "second", advanceMs: 0 },
+    ]);
+
+    const exitCode = await runVisualCommand(
+      [
+        "--react-only",
+        "--components",
+        "demo",
+        "--themes",
+        "light",
+        "--locales",
+        "en",
+      ],
+      {
+        artifactDir,
+        basePath: "/",
+        outputRoot: root,
+        port: 0,
+        registryPath,
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.summary).toEqual({ failed: 0, passed: 2, total: 2 });
+    expect(report.results.every((result: { ok: boolean }) => result.ok)).toBe(true);
+    await expectServerClosed(report.baseUrl);
+  }, 60_000);
+
+  test("drains a zero-delay timer registered after a boundary timer effect", async () => {
+    const { registryPath, root } = parityCommandFixture({ chainedTimer: true });
+    const artifactDir = temporaryDirectory("native-ai-ui-timer-chain-artifacts-");
+    mutableCases.set("demo", [
+      {
+        name: "timer-chain",
+        advanceMs: 2600,
+        action: async ({ canvas }: { canvas: any }) => {
+          const text = await canvas.locator(".visual-box").textContent();
+          if (text !== "second") {
+            throw new Error(`Expected second timer transition, received ${text}`);
+          }
+        },
+      },
+    ]);
+
+    const exitCode = await runVisualCommand(
+      [
+        "--react-only",
+        "--components",
+        "demo",
+        "--themes",
+        "light",
+        "--locales",
+        "en",
+      ],
+      {
+        artifactDir,
+        basePath: "/",
+        outputRoot: root,
+        port: 0,
+        registryPath,
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.summary).toEqual({ failed: 0, passed: 1, total: 1 });
+  }, 60_000);
+
+  test("times out stalled image readiness and still writes reports", () => {
+    const { registryPath, root } = parityCommandFixture({ stalledImage: true });
+    const artifactDir = temporaryDirectory("native-ai-ui-stalled-image-artifacts-");
+    const runnerUrl = pathToFileURL(
+      resolve("scripts/run-visual-parity.mjs"),
+    ).href;
+    const source = `
+      import { readFileSync } from "node:fs";
+      import { resolve } from "node:path";
+      import { main } from ${JSON.stringify(runnerUrl)};
+      const artifactDir = ${JSON.stringify(artifactDir)};
+      const exitCode = await main(
+        ["--react-only", "--components", "demo", "--themes", "light", "--locales", "en"],
+        ${JSON.stringify({
+          artifactDir,
+          basePath: "/",
+          imageTimeoutMs: 50,
+          outputRoot: root,
+          port: 0,
+          registryPath,
+        })},
+      );
+      const report = JSON.parse(readFileSync(resolve(artifactDir, "report.json"), "utf8"));
+      let serverClosed = false;
+      try { await fetch(report.baseUrl); } catch { serverClosed = true; }
+      console.log("__STALLED_RESULT__" + JSON.stringify({ exitCode, serverClosed }));
+      process.exitCode = exitCode === 1 && serverClosed ? 1 : 2;
+    `;
+
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "--eval", source],
+      { encoding: "utf8", timeout: 15_000 },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.signal).toBeNull();
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      '__STALLED_RESULT__{"exitCode":1,"serverClosed":true}',
+    );
+    const reportPath = join(artifactDir, "report.json");
+    if (!existsSync(reportPath)) {
+      throw new Error(`Stalled-image subprocess wrote no report:\n${result.stderr}`);
+    }
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    expect(report.results[0]?.error).toContain(
+      "Image readiness timed out after 50ms",
+    );
+    expect(existsSync(join(artifactDir, "report.html"))).toBe(true);
+  }, 20_000);
+
   test("initializes locale and theme before app code without dereferencing a missing document root", async () => {
     const root = temporaryDirectory("native-ai-ui-visual-page-");
     const artifactDir = temporaryDirectory("native-ai-ui-visual-artifacts-");

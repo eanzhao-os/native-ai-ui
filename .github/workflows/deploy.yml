@@ -48,11 +48,11 @@ jobs:
         env:
           GITHUB_ACTIONS: "true"
 
-      - name: Compare React and Vanilla visuals
-        run: npm run visual:parity
-
       - name: Smoke-test the Pages export
         run: npm run pages:smoke
+
+      - name: Compare React and Vanilla visuals
+        run: npm run visual:parity
 
       - name: Upload visual parity artifacts on failure
         if: failure()
@@ -60,7 +60,8 @@ jobs:
         with:
           name: visual-parity
           path: .artifacts/visual-parity
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: error
 
       - name: Add .nojekyll
         run: touch out/.nojekyll

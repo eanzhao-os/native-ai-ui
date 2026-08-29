@@ -23,11 +23,22 @@ export const VISUAL_ARTIFACT_DIRECTORY = resolve(
 export function readRegistryComponentIds(
   registryPath = resolve(repositoryRoot, "registry.json"),
 ) {
-  const registry = JSON.parse(readFileSync(registryPath, "utf8"));
-  return (registry.items ?? []).map(({ name }) => name).sort();
+  try {
+    const registry = JSON.parse(readFileSync(registryPath, "utf8"));
+    return (registry.items ?? []).map(({ name }) => name).sort();
+  } catch (error) {
+    throw new Error(
+      `Could not read registry ${registryPath}: ${errorMessage(error)}`,
+      { cause: error },
+    );
+  }
 }
 
-export const defaultComponentIds = Object.freeze(readRegistryComponentIds());
+export function getDefaultComponentIds(
+  registryPath = resolve(repositoryRoot, "registry.json"),
+) {
+  return Object.freeze(readRegistryComponentIds(registryPath));
+}
 
 export function initializeVisualEnvironment({ locale, theme }) {
   window.localStorage.setItem("nai-lang", locale);
@@ -96,11 +107,19 @@ function normalizeExternalBaseUrl(value) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error(`Invalid --base-url protocol: ${url.protocol}`);
   }
-  return url.href.replace(/\/+$/, "");
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/`;
+  return url.href;
 }
 
-export function parseRunnerArgs(args) {
-  let componentIds = [...defaultComponentIds];
+function navigationUrlForBase(baseUrl) {
+  return new URL(".", normalizeExternalBaseUrl(baseUrl)).href;
+}
+
+export function parseRunnerArgs(
+  args,
+  availableComponentIds = getDefaultComponentIds(),
+) {
+  let componentIds = [...availableComponentIds];
   let themes = [...DEFAULT_THEMES];
   let locales = [...DEFAULT_LOCALES];
   let baseUrl;
@@ -133,7 +152,7 @@ export function parseRunnerArgs(args) {
   }
 
   for (const component of componentIds) {
-    if (!defaultComponentIds.includes(component)) {
+    if (!availableComponentIds.includes(component)) {
       throw new Error(`Unknown component: ${component}`);
     }
   }
@@ -390,6 +409,7 @@ const VIRTUAL_CLOCK_SCRIPT = `
   window.__naiAdvanceVirtualClock = (milliseconds) => {
     const target = now + Math.max(0, milliseconds);
     let guard = 100000;
+    let ran = 0;
     while (guard-- > 0) {
       let nextId = null;
       let nextTimer = null;
@@ -405,6 +425,7 @@ const VIRTUAL_CLOCK_SCRIPT = `
       }
       if (nextTimer === null) break;
       now = nextTimer.at;
+      ran += 1;
       if (nextTimer.interval) nextTimer.at = now + nextTimer.interval;
       else timers.delete(nextId);
       try {
@@ -417,6 +438,7 @@ const VIRTUAL_CLOCK_SCRIPT = `
       window.__naiTimerErrors.push("Virtual clock exceeded its timer guard");
     }
     now = target;
+    return ran;
   };
 })();
 `;
@@ -458,12 +480,25 @@ async function settleBrowserPaint(page) {
 
 async function advanceVirtualTime(page, milliseconds) {
   await page.evaluate(async (advanceMs) => {
+    const flushRealTask = async () => {
+      await Promise.resolve();
+      await new Promise((resolveTick) => window.__naiRealSetTimeout(resolveTick, 0));
+      await Promise.resolve();
+    };
     const step = 50;
     for (let elapsed = 0; elapsed < advanceMs; elapsed += step) {
       window.__naiAdvanceVirtualClock(Math.min(step, advanceMs - elapsed));
-      await new Promise((resolveTick) => window.__naiRealSetTimeout(resolveTick, 0));
+      await flushRealTask();
     }
-    await new Promise((resolveTick) => window.__naiRealSetTimeout(resolveTick, 0));
+
+    let idleRounds = 0;
+    for (let round = 0; round < 50; round += 1) {
+      const ran = window.__naiAdvanceVirtualClock(0);
+      await flushRealTask();
+      idleRounds = ran === 0 ? idleRounds + 1 : 0;
+      if (idleRounds >= 2) return;
+    }
+    throw new Error("Virtual timer settle exceeded 50 rounds");
   }, milliseconds);
   await settleBrowserPaint(page);
 }
@@ -481,48 +516,42 @@ function frameworkButton(section, framework) {
     .first();
 }
 
-async function waitForFrameworkSelection(page, component, framework) {
-  await page.waitForFunction(
-    ({ component, framework }) => {
-      const label = framework === "react" ? "React" : "Vanilla";
-      const section = document.getElementById(component);
-      return [...(section?.querySelectorAll("button") ?? [])].some(
-        (button) =>
-          button.textContent?.trim() === label &&
-          button.getAttribute("aria-pressed") === "true",
-      );
-    },
-    { component, framework },
-    { timeout: 20_000 },
-  );
-}
-
-async function freshMount(
-  page,
-  section,
-  component,
-  framework,
-  waitForOtherMount,
-) {
-  const target = frameworkButton(section, framework);
-  if ((await target.getAttribute("aria-pressed")) === "true") {
-    const otherFramework = framework === "react" ? "vanilla" : "react";
-    await frameworkButton(section, otherFramework).click();
-    if (waitForOtherMount) {
-      await waitForMounted(page, component, otherFramework);
-    } else {
-      await waitForFrameworkSelection(page, component, otherFramework);
-    }
-  }
-
-  await resetVirtualTime(page);
-  await target.click();
+async function finishFreshMount(page, component, framework) {
   await waitForMounted(page, component, framework);
   await settleBrowserPaint(page);
   await page.evaluate(
     () => new Promise((resolveTask) => window.__naiRealSetTimeout(resolveTask, 0)),
   );
   await page.evaluate(() => window.__naiResetVirtualRandom());
+}
+
+async function freshMount(page, section, component, framework) {
+  const target = frameworkButton(section, framework);
+  if ((await target.getAttribute("aria-pressed")) === "true") {
+    const otherFramework = framework === "react" ? "vanilla" : "react";
+    await frameworkButton(section, otherFramework).click();
+    await waitForMounted(page, component, otherFramework);
+  }
+
+  await resetVirtualTime(page);
+  await target.click();
+  await finishFreshMount(page, component, framework);
+}
+
+async function freshReactOnlyMount(page, section, component) {
+  const search = page
+    .getByRole("textbox", { name: /Search components|搜索组件/ })
+    .first();
+  if ((await search.count()) > 0) {
+    await search.fill("__nai_visual_remount__");
+    await section.waitFor({ state: "detached", timeout: 20_000 });
+    await resetVirtualTime(page);
+    await search.fill(component);
+  } else {
+    await resetVirtualTime(page);
+    await frameworkButton(section, "react").click();
+  }
+  await finishFreshMount(page, component, "react");
 }
 
 async function drainRuntimeErrors(page, pageErrors) {
@@ -540,62 +569,20 @@ async function drainRuntimeErrors(page, pageErrors) {
 }
 
 async function screenshotCanvas(page, canvas, screenshotPath) {
-  const handle = await canvas.elementHandle();
-  if (!handle) throw new Error("Component canvas disappeared before capture");
-
-  const originalStyles = await handle.evaluate((element) => {
-    const viewport = element.firstElementChild;
-    const styles = {
-      canvas: element.getAttribute("style"),
-      viewport: viewport?.getAttribute("style") ?? null,
-    };
-    const rect = element.getBoundingClientRect();
-    Object.assign(element.style, {
-      borderRadius: "0",
-      bottom: "auto",
-      boxShadow: "none",
-      height: `${rect.height}px`,
-      left: "16px",
-      margin: "0",
-      position: "fixed",
-      right: "auto",
-      top: "16px",
-      transform: "none",
-      width: `${rect.width}px`,
-      zIndex: "2147483647",
-    });
-
-    const content = viewport?.firstElementChild;
-    if (viewport && content) {
-      const contentRect = content.getBoundingClientRect();
-      const offsetX = Math.round(contentRect.left) - contentRect.left;
-      const offsetY = Math.round(contentRect.top) - contentRect.top;
-      viewport.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-    }
-    return styles;
+  await settleBrowserPaint(page);
+  await canvas.screenshot({
+    animations: "disabled",
+    caret: "hide",
+    path: screenshotPath,
   });
-
-  try {
-    await settleBrowserPaint(page);
-    await handle.screenshot({
-      animations: "disabled",
-      caret: "hide",
-      path: screenshotPath,
-    });
-  } finally {
-    await handle.evaluate((element, styles) => {
-      if (styles.canvas === null) element.removeAttribute("style");
-      else element.setAttribute("style", styles.canvas);
-      const viewport = element.firstElementChild;
-      if (!viewport) return;
-      if (styles.viewport === null) viewport.removeAttribute("style");
-      else viewport.setAttribute("style", styles.viewport);
-    }, originalStyles);
-    await handle.dispose();
-  }
 }
 
-async function validateCanvasRuntime(canvas, component, framework) {
+async function validateCanvasRuntime(
+  canvas,
+  component,
+  framework,
+  imageTimeoutMs,
+) {
   const failures = await canvas.evaluate(async (root, options) => {
     const images = [];
     const visit = (scope) => {
@@ -606,7 +593,7 @@ async function validateCanvasRuntime(canvas, component, framework) {
     };
     visit(root);
 
-    await Promise.all(
+    const imageReadiness = Promise.all(
       images.map(
         (image) =>
           image.complete
@@ -617,6 +604,19 @@ async function validateCanvasRuntime(canvas, component, framework) {
               }),
       ),
     );
+    await Promise.race([
+      imageReadiness,
+      new Promise((_, rejectTimeout) => {
+        window.__naiRealSetTimeout(
+          () => rejectTimeout(
+            new Error(
+              `Image readiness timed out after ${options.imageTimeoutMs}ms`,
+            ),
+          ),
+          options.imageTimeoutMs,
+        );
+      }),
+    ]);
 
     const errors = [];
     for (const image of images) {
@@ -643,7 +643,7 @@ async function validateCanvasRuntime(canvas, component, framework) {
     }
 
     return errors;
-  }, { component, framework });
+  }, { component, framework, imageTimeoutMs });
 
   if (failures.length > 0) throw new Error(failures.join("\n"));
 }
@@ -652,9 +652,10 @@ async function captureFramework({
   artifactDir,
   entry,
   framework,
+  imageTimeoutMs,
   page,
   pageErrors,
-  waitForOtherMount = true,
+  reactOnly = false,
 }) {
   const section = page.locator(`#${entry.component}`);
   const canvas = section.locator(":scope > div.rounded-card").first();
@@ -666,13 +667,11 @@ async function captureFramework({
       element.scrollIntoView({ block: "center", behavior: "instant" }),
     );
     await canvas.waitFor({ state: "visible", timeout: 20_000 });
-    await freshMount(
-      page,
-      section,
-      entry.component,
-      framework,
-      waitForOtherMount,
-    );
+    if (reactOnly) {
+      await freshReactOnlyMount(page, section, entry.component);
+    } else {
+      await freshMount(page, section, entry.component, framework);
+    }
     await advanceVirtualTime(page, entry.advanceMs);
     if (typeof entry.action === "function") {
       await entry.action({
@@ -685,7 +684,12 @@ async function captureFramework({
       await settleBrowserPaint(page);
     }
 
-    await validateCanvasRuntime(canvas, entry.component, framework);
+    await validateCanvasRuntime(
+      canvas,
+      entry.component,
+      framework,
+      imageTimeoutMs,
+    );
     await screenshotCanvas(page, canvas, screenshotPath);
     const runtimeErrors = await drainRuntimeErrors(page, pageErrors);
     if (runtimeErrors.length > 0) {
@@ -762,6 +766,7 @@ function createReport({ baseUrl, fatalError, mode, options, results }) {
  *   artifactDir?: string,
  *   baseUrl?: string,
  *   componentIds?: readonly string[],
+ *   imageTimeoutMs?: number,
  *   locales?: readonly string[],
  *   reactOnly?: boolean,
  *   themes?: readonly string[],
@@ -771,18 +776,24 @@ function createReport({ baseUrl, fatalError, mode, options, results }) {
 export async function runVisualParity({
   artifactDir = VISUAL_ARTIFACT_DIRECTORY,
   baseUrl,
-  componentIds = defaultComponentIds,
+  componentIds,
+  imageTimeoutMs = 5_000,
   locales = DEFAULT_LOCALES,
   reactOnly = false,
+  registryPath = resolve(repositoryRoot, "registry.json"),
   themes = DEFAULT_THEMES,
   log = console.log,
 } = {}) {
-  const options = { componentIds, locales, themes };
   const mode = reactOnly ? "react-only" : "parity";
-  const inventory = buildCaseInventory(options);
   const results = [];
   let browser;
   let fatalError = null;
+  let resolvedComponentIds = componentIds;
+  let options = {
+    componentIds: resolvedComponentIds ?? [],
+    locales,
+    themes,
+  };
 
   mkdirSync(artifactDir, { recursive: true });
   if (!baseUrl) {
@@ -796,6 +807,13 @@ export async function runVisualParity({
   }
 
   try {
+    resolvedComponentIds ??= getDefaultComponentIds(registryPath);
+    options = {
+      componentIds: resolvedComponentIds,
+      locales,
+      themes,
+    };
+    const inventory = buildCaseInventory(options);
     browser = await chromium.launch({ headless: true });
     for (const theme of themes) {
       for (const locale of locales) {
@@ -825,7 +843,10 @@ export async function runVisualParity({
             locale,
             theme,
           });
-          await page.goto(baseUrl, { waitUntil: "networkidle", timeout: 45_000 });
+          await page.goto(navigationUrlForBase(baseUrl), {
+            waitUntil: "networkidle",
+            timeout: 45_000,
+          });
           await page.waitForSelector("#loading-state", { timeout: 30_000 });
           await page.evaluate(() => document.fonts.ready);
           await page
@@ -858,9 +879,10 @@ export async function runVisualParity({
               artifactDir,
               entry,
               framework: "react",
+              imageTimeoutMs,
               page,
               pageErrors,
-              waitForOtherMount: !reactOnly,
+              reactOnly,
             });
 
             if (reactOnly) {
@@ -888,6 +910,7 @@ export async function runVisualParity({
               artifactDir,
               entry,
               framework: "vanilla",
+              imageTimeoutMs,
               page,
               pageErrors,
             });

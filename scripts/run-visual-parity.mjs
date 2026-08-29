@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { startStaticServer } from "./serve-static.mjs";
 import {
   exitCodeForReport,
+  getDefaultComponentIds,
   parseRunnerArgs,
   repositoryRoot,
   runVisualParity,
@@ -29,35 +30,46 @@ function fatalReport(error, args, baseUrl = null) {
   };
 }
 
-export async function main(args = process.argv.slice(2)) {
-  const artifactDir = VISUAL_ARTIFACT_DIRECTORY;
+export async function main(
+  args = process.argv.slice(2),
+  {
+    artifactDir = VISUAL_ARTIFACT_DIRECTORY,
+    basePath = PRODUCTION_BASE_PATH,
+    imageTimeoutMs = 5_000,
+    outputRoot = resolve(repositoryRoot, "out"),
+    port = DEFAULT_VISUAL_PORT,
+    registryPath = resolve(repositoryRoot, "registry.json"),
+  } = {},
+) {
   rmSync(artifactDir, { force: true, recursive: true });
 
   let runningServer;
   let report;
   let baseUrl = null;
   try {
-    const options = parseRunnerArgs(args);
+    const availableComponentIds = getDefaultComponentIds(registryPath);
+    const options = parseRunnerArgs(args, availableComponentIds);
     baseUrl = options.baseUrl ?? null;
     if (!baseUrl) {
-      const outputRoot = resolve(repositoryRoot, "out");
       if (!existsSync(resolve(outputRoot, "index.html"))) {
         throw new Error(
           `Static export is missing at ${outputRoot}; run npm run build first`,
         );
       }
       runningServer = await startStaticServer({
-        basePath: PRODUCTION_BASE_PATH,
-        port: DEFAULT_VISUAL_PORT,
+        basePath,
+        port,
         root: outputRoot,
       });
-      baseUrl = `${runningServer.baseUrl}${PRODUCTION_BASE_PATH}`;
+      const relativeBasePath = `${basePath.replace(/^\/+|\/+$/g, "")}/`;
+      baseUrl = new URL(relativeBasePath, `${runningServer.baseUrl}/`).href;
     }
 
     report = await runVisualParity({
       artifactDir,
       baseUrl,
       componentIds: options.componentIds,
+      imageTimeoutMs,
       locales: options.locales,
       reactOnly: options.reactOnly,
       themes: options.themes,
