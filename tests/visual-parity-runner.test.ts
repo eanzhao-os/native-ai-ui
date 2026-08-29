@@ -42,7 +42,9 @@ const mutableCases = CASES as Map<
 const temporaryPaths: string[] = [];
 
 afterEach(() => {
-  mutableCases.delete("demo");
+  for (const component of ["demo", "alpha", "beta"]) {
+    mutableCases.delete(component);
+  }
   for (const path of temporaryPaths.splice(0)) {
     rmSync(path, { force: true, recursive: true });
   }
@@ -471,6 +473,115 @@ function parityCommandFixture({
   return { registryPath, root };
 }
 
+function reactOnlyMultiComponentFixture() {
+  const componentIds = ["alpha", "beta"];
+  const root = temporaryDirectory("native-ai-ui-react-only-multi-");
+  const registryPath = join(root, "registry.json");
+  writeFileSync(
+    registryPath,
+    JSON.stringify({ items: componentIds.map((name) => ({ name })) }),
+  );
+  const sections = componentIds
+    .map(
+      (id) => `
+      <section id="${id}">
+        <button type="button" data-framework="react" aria-pressed="true">React</button>
+        <button type="button" data-framework="vanilla" aria-pressed="false">Vanilla</button>
+        <div class="rounded-card"><div class="viewport"></div></div>
+      </section>`,
+    )
+    .join("");
+  const definitions = componentIds
+    .map(
+      (id) => `
+      customElements.define("nai-${id}", class extends HTMLElement {
+        constructor() {
+          super();
+          throw new Error("Vanilla ${id} must not mount");
+        }
+      });`,
+    )
+    .join("");
+  writeFileSync(
+    join(root, "index.html"),
+    `<!doctype html>
+<html lang="en">
+<head>
+<style>
+  html,body{margin:0;background:#fff;color:#111;font-family:monospace}
+  main{display:flex;flex-direction:column;gap:16px}
+  .rounded-card{width:240px;height:120px;display:flex;align-items:center;background:#fff}
+  .viewport{width:100%;height:100%;display:flex;align-items:center}
+  .visual-box{width:32px;height:32px;background:#2463eb}
+</style>
+</head>
+<body>
+  <aside><button type="button">EN</button></aside>
+  <input aria-label="Search components" value="">
+  <div id="loading-state">ready</div>
+  <main>${sections}</main>
+  <script>
+    const ids = ${JSON.stringify(componentIds)};
+    const main = document.querySelector("main");
+    const sectionById = new Map(
+      ids.map((id) => [id, document.getElementById(id)]),
+    );
+    ${definitions}
+
+    function selectFramework(id, framework) {
+      const section = sectionById.get(id);
+      for (const button of section.querySelectorAll("[data-framework]")) {
+        button.setAttribute(
+          "aria-pressed",
+          String(button.dataset.framework === framework),
+        );
+      }
+      const viewport = section.querySelector(".viewport");
+      if (framework === "react") {
+        const content = document.createElement("div");
+        content.className = "visual-box";
+        content.dataset.component = id;
+        viewport.replaceChildren(content);
+      } else {
+        viewport.replaceChildren(document.createElement("nai-" + id));
+      }
+    }
+
+    for (const id of ids) {
+      const section = sectionById.get(id);
+      for (const button of section.querySelectorAll("[data-framework]")) {
+        button.addEventListener(
+          "click",
+          () => selectFramework(id, button.dataset.framework),
+        );
+      }
+      selectFramework(id, "react");
+    }
+
+    function applyFilter(value) {
+      for (const id of ids) {
+        const section = sectionById.get(id);
+        const matches = !value || id.includes(value);
+        if (matches && !section.isConnected) {
+          main.appendChild(section);
+          const selected = section.querySelector('[aria-pressed="true"]');
+          selectFramework(id, selected.dataset.framework);
+        } else if (!matches && section.isConnected) {
+          section.remove();
+        }
+      }
+    }
+
+    document
+      .querySelector('[aria-label="Search components"]')
+      .addEventListener("input", (event) => applyFilter(event.target.value));
+  </script>
+</body>
+</html>`,
+  );
+  return { componentIds, registryPath, root };
+}
+
 async function expectServerClosed(baseUrl: string) {
   await expect(fetch(baseUrl)).rejects.toThrow();
 }
@@ -540,6 +651,52 @@ describe("browser visual environment", () => {
     expect(report.results[0]).toMatchObject({ ok: false });
     expect(report.results[0].mismatched).toBeGreaterThan(0);
     expect(existsSync(join(artifactDir, "report.html"))).toBe(true);
+    await expectServerClosed(report.baseUrl);
+  }, 60_000);
+
+  test("captures two filtered React-only components without mounting Vanilla", async () => {
+    const { componentIds, registryPath, root } = reactOnlyMultiComponentFixture();
+    const artifactDir = temporaryDirectory(
+      "native-ai-ui-react-only-multi-artifacts-",
+    );
+    for (const component of componentIds) {
+      mutableCases.set(component, [{ name: "review", advanceMs: 0 }]);
+    }
+
+    const exitCode = await runVisualCommand(
+      [
+        "--react-only",
+        "--components",
+        componentIds.join(","),
+        "--themes",
+        "light",
+        "--locales",
+        "en",
+      ],
+      {
+        artifactDir,
+        basePath: "/",
+        outputRoot: root,
+        port: 0,
+        registryPath,
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.summary).toEqual({ failed: 0, passed: 2, total: 2 });
+    expect(report.results.map((result: { component: string }) => result.component))
+      .toEqual(componentIds);
+    for (const result of report.results) {
+      expect(result).toMatchObject({
+        ok: true,
+        reactScreenshot: expect.any(String),
+        vanillaScreenshot: null,
+      });
+      expect(existsSync(join(artifactDir, result.reactScreenshot))).toBe(true);
+    }
     await expectServerClosed(report.baseUrl);
   }, 60_000);
 

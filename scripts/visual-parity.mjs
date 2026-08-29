@@ -538,20 +538,35 @@ async function freshMount(page, section, component, framework) {
   await finishFreshMount(page, component, framework);
 }
 
-async function freshReactOnlyMount(page, section, component) {
+function componentLocators(page, component) {
+  const section = page.locator(`#${component}`);
+  return {
+    canvas: section.locator(":scope > div.rounded-card").first(),
+    section,
+  };
+}
+
+async function freshReactOnlyMount(page, component) {
   const search = page
     .getByRole("textbox", { name: /Search components|搜索组件/ })
     .first();
-  if ((await search.count()) > 0) {
+  const hasSearch = (await search.count()) > 0;
+  if (hasSearch) {
     await search.fill("__nai_visual_remount__");
-    await section.waitFor({ state: "detached", timeout: 20_000 });
+    await page
+      .locator(`#${component}`)
+      .waitFor({ state: "detached", timeout: 20_000 });
     await resetVirtualTime(page);
     await search.fill(component);
-  } else {
+  }
+
+  const locators = componentLocators(page, component);
+  if (!hasSearch) {
     await resetVirtualTime(page);
-    await frameworkButton(section, "react").click();
+    await frameworkButton(locators.section, "react").click();
   }
   await finishFreshMount(page, component, "react");
+  return locators;
 }
 
 async function drainRuntimeErrors(page, pageErrors) {
@@ -657,19 +672,18 @@ async function captureFramework({
   pageErrors,
   reactOnly = false,
 }) {
-  const section = page.locator(`#${entry.component}`);
-  const canvas = section.locator(":scope > div.rounded-card").first();
   const screenshot = `${artifactStem(entry)}__${framework}.png`;
   const screenshotPath = resolve(artifactDir, screenshot);
 
   try {
+    const { section, canvas } = reactOnly
+      ? await freshReactOnlyMount(page, entry.component)
+      : componentLocators(page, entry.component);
     await section.evaluate((element) =>
       element.scrollIntoView({ block: "center", behavior: "instant" }),
     );
     await canvas.waitFor({ state: "visible", timeout: 20_000 });
-    if (reactOnly) {
-      await freshReactOnlyMount(page, section, entry.component);
-    } else {
+    if (!reactOnly) {
       await freshMount(page, section, entry.component, framework);
     }
     await advanceVirtualTime(page, entry.advanceMs);
