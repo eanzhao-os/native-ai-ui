@@ -18,6 +18,9 @@
     "vanilla:styles:check": "node scripts/build-vanilla-styles.mjs --check",
     "registry:build": "shadcn build",
     "registry:check": "node scripts/check-registry.mjs",
+    "visual:capture:react": "node scripts/run-visual-parity.mjs --react-only",
+    "visual:parity": "node scripts/run-visual-parity.mjs",
+    "pages:smoke": "node scripts/pages-smoke.mjs",
     "deploy": "next build && touch out/.nojekyll && gh-pages -d out --dotfiles -b gh-pages"
   },
   "dependencies": {

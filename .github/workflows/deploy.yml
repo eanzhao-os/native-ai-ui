@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Check generated Vanilla styles
         run: npm run vanilla:styles:check
 
@@ -35,7 +38,7 @@ jobs:
         run: npm run registry:check
 
       - name: Run tests
-        run: npm test -- --run
+        run: npm test -- --run --no-file-parallelism
 
       - name: Type-check
         run: npm run typecheck
@@ -44,6 +47,20 @@ jobs:
         run: npm run build
         env:
           GITHUB_ACTIONS: "true"
+
+      - name: Compare React and Vanilla visuals
+        run: npm run visual:parity
+
+      - name: Smoke-test the Pages export
+        run: npm run pages:smoke
+
+      - name: Upload visual parity artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-parity
+          path: .artifacts/visual-parity
+          if-no-files-found: ignore
 
       - name: Add .nojekyll
         run: touch out/.nojekyll
