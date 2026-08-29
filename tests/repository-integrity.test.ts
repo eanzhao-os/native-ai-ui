@@ -26,6 +26,11 @@ function registryJson(name = "demo") {
   });
 }
 
+function writeIndexes(root: string, source: string) {
+  writeFileSync(join(root, "vanilla", "index.js"), source);
+  writeFileSync(join(root, "public", "vanilla", "index.js"), source);
+}
+
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "native-ai-ui-repository-"));
   for (const directory of [
@@ -48,8 +53,7 @@ function fixture() {
     join(root, "public", "vanilla", "components", "demo.js"),
     vanillaSource,
   );
-  writeFileSync(join(root, "vanilla", "index.js"), indexSource);
-  writeFileSync(join(root, "public", "vanilla", "index.js"), indexSource);
+  writeIndexes(root, indexSource);
   writeFileSync(join(root, "registry.json"), aggregateRegistry);
   writeFileSync(
     join(root, "public", "r", "registry.json"),
@@ -135,6 +139,37 @@ describe("repository integrity checker", () => {
     expect(validateRepository(root)).toContain(
       "component inventory differs: components=1 vanilla=1 public=1 registry=1",
     );
+  });
+
+  test("rejects import-only references in both Vanilla indexes", () => {
+    const root = fixture();
+    writeIndexes(
+      root,
+      'import { NaiDemo } from "./components/demo.js";\n',
+    );
+
+    expect(validateRepository(root)).toContain(
+      "component inventory differs: components=1 vanilla=1 public=1 registry=1",
+    );
+  });
+
+  test("rejects commented-out re-exports in both Vanilla indexes", () => {
+    const root = fixture();
+    writeIndexes(
+      root,
+      '// export { NaiDemo } from "./components/demo.js";\n',
+    );
+
+    expect(validateRepository(root)).toContain(
+      "component inventory differs: components=1 vanilla=1 public=1 registry=1",
+    );
+  });
+
+  test("accepts export-star component re-exports", () => {
+    const root = fixture();
+    writeIndexes(root, 'export * from "./components/demo.js";\n');
+
+    expect(validateRepository(root)).toEqual([]);
   });
 
   test("compares the source Vanilla index imports", () => {

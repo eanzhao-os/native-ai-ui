@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import ts from "typescript";
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -37,11 +38,31 @@ function readRegistryStems(path) {
 
 function readIndexStems(path) {
   if (!existsSync(path)) return [];
-  return [
-    ...readFileSync(path, "utf8").matchAll(
-      /from\s+["']\.\/components\/([^"']+)\.js["']/g,
-    ),
-  ].map((match) => match[1]).sort();
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const stems = new Set();
+
+  for (const statement of source.statements) {
+    if (
+      !ts.isExportDeclaration(statement) ||
+      statement.isTypeOnly ||
+      !statement.moduleSpecifier ||
+      !ts.isStringLiteral(statement.moduleSpecifier)
+    ) {
+      continue;
+    }
+    const match = statement.moduleSpecifier.text.match(
+      /^\.\/components\/([^/]+)\.js$/,
+    );
+    if (match) stems.add(match[1]);
+  }
+
+  return [...stems].sort();
 }
 
 function setsEqual(left, right) {
