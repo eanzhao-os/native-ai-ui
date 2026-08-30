@@ -784,8 +784,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .w-30 {
     width: calc(var(--spacing) * 30);
   }
-  .w-36 {
-    width: calc(var(--spacing) * 36);
+  .w-40 {
+    width: calc(var(--spacing) * 40);
   }
   .w-44 {
     width: calc(var(--spacing) * 44);
@@ -870,9 +870,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .max-w-\\[240px\\] {
     max-width: 240px;
-  }
-  .max-w-\\[260px\\] {
-    max-width: 260px;
   }
   .max-w-\\[280px\\] {
     max-width: 280px;
@@ -1067,6 +1064,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .grid-cols-\\[34\\%_30\\%_36\\%\\] {
     grid-template-columns: 34% 30% 36%;
+  }
+  .grid-cols-\\[minmax\\(0\\,1fr\\)_auto\\] {
+    grid-template-columns: minmax(0,1fr) auto;
   }
   .grid-cols-\\[minmax\\(0\\,1fr\\)_auto_28px_28px\\] {
     grid-template-columns: minmax(0,1fr) auto 28px 28px;
@@ -1546,10 +1546,10 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
       background-color: color-mix(in oklab, var(--green) 25%, transparent);
     }
   }
-  .bg-green\\/60 {
+  .bg-green\\/70 {
     background-color: var(--green);
     @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--green) 60%, transparent);
+      background-color: color-mix(in oklab, var(--green) 70%, transparent);
     }
   }
   .bg-green\\/80 {
@@ -2150,6 +2150,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .\\[overflow-wrap\\:anywhere\\] {
     overflow-wrap: anywhere;
   }
+  .break-words {
+    overflow-wrap: break-word;
+  }
   .break-all {
     word-break: break-all;
   }
@@ -2363,6 +2366,11 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
+  .transition-\\[background-color\\,border-color\\] {
+    transition-property: background-color,border-color;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
   .transition-\\[background-color\\,box-shadow\\,color\\] {
     transition-property: background-color,box-shadow,color;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
@@ -2435,11 +2443,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .transition-\\[opacity\\,filter\\,transform\\] {
     transition-property: opacity,filter,transform;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
-  }
-  .transition-\\[opacity\\,transform\\,background-color\\] {
-    transition-property: opacity,transform,background-color;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }

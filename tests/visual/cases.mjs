@@ -782,6 +782,190 @@ async function failFeedbackCopy({ canvas, page }) {
 }
 /* TASK 4 VISUAL ACTIONS END */
 
+/* TASK 7 VISUAL ACTIONS START */
+async function assertMinimumTarget(control, label) {
+  const box = await control.boundingBox();
+  if (!box || box.width < 44 || box.height < 44) {
+    throw new Error(`${label} must expose a 44x44 minimum target`);
+  }
+}
+
+async function assertKeyboardFocus({ canvas, page, control, label }) {
+  await control.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error(`${label} did not receive visible keyboard focus`);
+  }
+  await assertMinimumTarget(control, label);
+}
+
+async function selectContextSegment({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /RAG & Retrieved Docs|RAG 检索增强知识/,
+  });
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Context segment did not become selected");
+  }
+  await assertMinimumTarget(control, "Context segment");
+}
+
+async function pruneContextWindow({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Prune history|精简历史/,
+  });
+  await control.click();
+  const restoredControl = canvas.getByRole("button", {
+    name: /Restore context|恢复完整上下文/,
+  });
+  if ((await restoredControl.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Context compaction did not become active");
+  }
+  const progress = canvas.getByRole("progressbar", {
+    name: /Context usage|上下文占用率/,
+  });
+  if ((await progress.getAttribute("aria-valuenow")) !== "33.6") {
+    throw new Error("Context progress did not report the pruned capacity");
+  }
+  await assertMinimumTarget(restoredControl, "Context compaction control");
+}
+
+async function focusContextSegment({ canvas, page }) {
+  const control = canvas.getByRole("button", {
+    name: /System & Directives|系统指令与安全约束/,
+  });
+  await assertKeyboardFocus({
+    canvas,
+    page,
+    control,
+    label: "Context segment",
+  });
+}
+
+async function filterMemoryRules({ canvas }) {
+  const control = canvas.getByRole("button", {
+    exact: true,
+    name: /^(Rules|规范)$/,
+  });
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Memory rule filter did not become selected");
+  }
+  if ((await canvas.getByRole("listitem").count()) !== 1) {
+    throw new Error("Memory rule filter did not isolate one result");
+  }
+  await assertMinimumTarget(control, "Memory filter");
+}
+
+async function searchMemory({ canvas }) {
+  const control = canvas.getByRole("searchbox", {
+    name: /Search memory|搜索记忆/,
+  });
+  await control.fill("Turborepo");
+  await canvas.getByText(/Project uses Turborepo|项目采用 Turborepo/).waitFor();
+  if ((await canvas.getByRole("listitem").count()) !== 1) {
+    throw new Error("Memory search did not isolate one result");
+  }
+  await assertMinimumTarget(control, "Memory search");
+}
+
+async function focusMemoryAction({ canvas, page }) {
+  const control = canvas
+    .getByRole("button", { name: /^(Unpin|取消置顶):/ })
+    .first();
+  await assertKeyboardFocus({
+    canvas,
+    page,
+    control,
+    label: "Memory row action",
+  });
+}
+
+async function hydrateSpill(canvas, control, tokenPattern) {
+  const controlledId = await control.getAttribute("aria-controls");
+  if (!controlledId) {
+    throw new Error("Spill disclosure is missing aria-controls");
+  }
+  const stableControl = canvas.locator(`[aria-controls="${controlledId}"]`);
+  const region = canvas.locator(`[id="${controlledId}"]`);
+  if ((await region.count()) !== 1) {
+    throw new Error("Spill disclosure target is missing or duplicated");
+  }
+
+  await control.click();
+  if ((await stableControl.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Spill disclosure did not expand");
+  }
+  await region.waitFor({ state: "visible" });
+  await region.getByText(tokenPattern).waitFor();
+  await assertMinimumTarget(stableControl, "Spill hydrate control");
+}
+
+async function hydrateFirstSpill({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /^(Hydrate|按需水合) spill\/ripgrep_ast_results\.json$/,
+  });
+  await hydrateSpill(canvas, control, /48,500 token/);
+}
+
+async function hydrateSecondSpill({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /^(Hydrate|按需水合) spill\/git_diff_refactor_v2\.patch$/,
+  });
+  await hydrateSpill(canvas, control, /86,200 token/);
+}
+
+async function focusSpillAction({ canvas, page }) {
+  const control = canvas.getByRole("button", {
+    name: /^(Hydrate|按需水合) spill\/ripgrep_ast_results\.json$/,
+  });
+  await assertKeyboardFocus({
+    canvas,
+    page,
+    control,
+    label: "Spill hydrate control",
+  });
+}
+
+const TASK7_CASES = [
+  [
+    "context-window",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "selected", advanceMs: 0, action: selectContextSegment },
+      { name: "pruned", advanceMs: 0, action: pruneContextWindow },
+      { name: "focused", advanceMs: 0, action: focusContextSegment },
+    ],
+  ],
+  [
+    "memory-inspector",
+    [
+      { name: "all", advanceMs: 0 },
+      { name: "rules", advanceMs: 0, action: filterMemoryRules },
+      { name: "search", advanceMs: 0, action: searchMemory },
+      { name: "focused", advanceMs: 0, action: focusMemoryAction },
+    ],
+  ],
+  [
+    "context-cards",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "sources-ready", advanceMs: 700 },
+    ],
+  ],
+  [
+    "context-spillover",
+    [
+      { name: "compacted", advanceMs: 0 },
+      { name: "first-hydrated", advanceMs: 0, action: hydrateFirstSpill },
+      { name: "second-hydrated", advanceMs: 0, action: hydrateSecondSpill },
+      { name: "focused", advanceMs: 0, action: focusSpillAction },
+    ],
+  ],
+];
+/* TASK 7 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -851,6 +1035,9 @@ export const CASES = new Map([
   ],
   /* TASK 4 VISUAL REGISTRATIONS END */
   ...TASK6_CASES,
+  /* TASK 7 VISUAL REGISTRATIONS START */
+  ...TASK7_CASES,
+  /* TASK 7 VISUAL REGISTRATIONS END */
 ]);
 
 export function casesForComponent(componentId) {

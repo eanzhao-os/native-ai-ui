@@ -68,37 +68,57 @@ export default function ContextWindow({ lang: propLang }: { lang?: "en" | "zh" }
   const zh = lang === "zh";
 
   const [segments, setSegments] = useState<ContextSegment[]>(INITIAL_SEGMENTS);
-  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [previewSegmentId, setPreviewSegmentId] = useState<string | null>(null);
   const [isPruned, setIsPruned] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
 
-  const totalUsed = segments.reduce((sum, s) => sum + s.tokens, 0);
-  const percentUsed = ((totalUsed / MAX_TOKENS) * 100).toFixed(1);
+  const totalUsed = segments.reduce((sum, segment) => sum + segment.tokens, 0);
+  const percentUsed = Number(((totalUsed / MAX_TOKENS) * 100).toFixed(1));
   const estimatedCost = ((totalUsed / 1000000) * 3.0).toFixed(4); // $3 / MTok
+  const activeSegmentId = previewSegmentId ?? selectedSegmentId;
 
   const handlePruneHistory = () => {
     if (isPruned) {
+      const restoredTotal = INITIAL_SEGMENTS.reduce(
+        (sum, segment) => sum + segment.tokens,
+        0,
+      );
       setSegments(INITIAL_SEGMENTS);
       setIsPruned(false);
-    } else {
-      setSegments((prev) =>
-        prev.map((s) =>
-          s.id === "history"
-            ? { ...s, tokens: Math.round(s.tokens * 0.45) }
-            : s.id === "tools"
-            ? { ...s, tokens: Math.round(s.tokens * 0.3) }
-            : s
-        )
+      setAnnouncement(
+        zh
+          ? `上下文已恢复至 ${restoredTotal.toLocaleString()} tokens`
+          : `Context restored to ${restoredTotal.toLocaleString()} tokens`,
       );
-      setIsPruned(true);
+      return;
     }
+
+    const prunedSegments = segments.map((segment) =>
+      segment.id === "history"
+        ? { ...segment, tokens: Math.round(segment.tokens * 0.45) }
+        : segment.id === "tools"
+          ? { ...segment, tokens: Math.round(segment.tokens * 0.3) }
+          : segment,
+    );
+    const prunedTotal = prunedSegments.reduce(
+      (sum, segment) => sum + segment.tokens,
+      0,
+    );
+    setSegments(prunedSegments);
+    setIsPruned(true);
+    setAnnouncement(
+      zh
+        ? `上下文已精简至 ${prunedTotal.toLocaleString()} tokens`
+        : `Context pruned to ${prunedTotal.toLocaleString()} tokens`,
+    );
   };
 
   return (
     <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3">
-        <div className="flex items-center gap-2">
-          <span className="flex size-2 rounded-full bg-green" />
+      <div className="flex flex-wrap items-start justify-between gap-3 pb-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="flex size-2 shrink-0 rounded-full bg-green" />
           <h3 className="text-[13px] font-semibold text-ink">
             {zh ? "上下文窗口计量" : "Context Window"}
           </h3>
@@ -106,16 +126,34 @@ export default function ContextWindow({ lang: propLang }: { lang?: "en" | "zh" }
             {zh ? "128k 容量" : "128k context"}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <span className="font-mono text-[11px] tabular-nums text-ink-2">
             ${estimatedCost} {zh ? "预估成本" : "est."}
           </span>
           <button
             type="button"
+            aria-label={
+              isPruned
+                ? zh
+                  ? "恢复完整上下文"
+                  : "Restore context"
+                : zh
+                  ? "精简历史"
+                  : "Prune history"
+            }
+            aria-pressed={isPruned}
             onClick={handlePruneHistory}
-            className="flex items-center gap-1 rounded-control border border-line bg-field px-2 py-1 text-[11.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+            className="flex min-h-11 items-center gap-1.5 rounded-control border border-line bg-field px-3 text-[11.5px] font-medium text-ink-2 transition-colors hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none cursor-pointer"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              aria-hidden="true"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
             {isPruned
@@ -123,40 +161,51 @@ export default function ContextWindow({ lang: propLang }: { lang?: "en" | "zh" }
                 ? "恢复完整上下文"
                 : "Restore Context"
               : zh
-              ? "精简历史"
-              : "Prune History"}
+                ? "精简历史"
+                : "Prune History"}
           </button>
         </div>
       </div>
 
-      {/* Progress Metric Bar */}
       <div className="mt-1">
-        <div className="flex items-baseline justify-between text-[11.5px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 text-[11.5px]">
           <span className="font-mono tabular-nums text-ink">
-            {totalUsed.toLocaleString()}{" "}
-            <span className="text-ink-3">/ {MAX_TOKENS.toLocaleString()} tokens</span>
+            {totalUsed.toLocaleString()} {" "}
+            <span className="text-ink-3">
+              / {MAX_TOKENS.toLocaleString()} tokens
+            </span>
           </span>
           <span className="font-mono font-medium tabular-nums text-ink-2">
-            {percentUsed}% {zh ? "已占用" : "capacity"}
+            {percentUsed.toFixed(1)}% {zh ? "已占用" : "capacity"}
           </span>
         </div>
 
-        {/* Segmented Bar */}
-        <div className="mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full bg-field p-0.5">
-          {segments.map((seg) => {
-            const widthPct = (seg.tokens / MAX_TOKENS) * 100;
-            const isHovered = activeSegmentId === seg.id;
+        <div
+          role="progressbar"
+          aria-label={zh ? "上下文占用率" : "Context usage"}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percentUsed}
+          aria-valuetext={
+            zh
+              ? `${totalUsed.toLocaleString()} / ${MAX_TOKENS.toLocaleString()} tokens，已占用 ${percentUsed.toFixed(1)}%`
+              : `${totalUsed.toLocaleString()} of ${MAX_TOKENS.toLocaleString()} tokens, ${percentUsed.toFixed(1)}% used`
+          }
+          className="mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full bg-field p-0.5"
+        >
+          {segments.map((segment) => {
+            const widthPercent = (segment.tokens / MAX_TOKENS) * 100;
+            const isActive = activeSegmentId === segment.id;
             return (
-              <div
-                key={seg.id}
-                onMouseEnter={() => setActiveSegmentId(seg.id)}
-                onMouseLeave={() => setActiveSegmentId(null)}
-                className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 cursor-pointer"
+              <span
+                key={segment.id}
+                aria-hidden="true"
+                className="h-full first:rounded-l-full last:rounded-r-full transition-[opacity,transform] duration-300 motion-reduce:transition-none"
                 style={{
-                  width: `${widthPct}%`,
-                  backgroundColor: seg.color,
-                  opacity: activeSegmentId && !isHovered ? 0.45 : 1,
-                  transform: isHovered ? "scaleY(1.2)" : "scaleY(1)",
+                  width: `${widthPercent}%`,
+                  backgroundColor: segment.color,
+                  opacity: activeSegmentId && !isActive ? 0.45 : 1,
+                  transform: isActive ? "scaleY(1.2)" : "scaleY(1)",
                 }}
               />
             );
@@ -164,55 +213,69 @@ export default function ContextWindow({ lang: propLang }: { lang?: "en" | "zh" }
         </div>
       </div>
 
-      {/* Segment Breakdown Rows */}
       <div className="mt-4 flex flex-col divide-y divide-line/60">
-        {segments.map((seg) => {
-          const isSelected = activeSegmentId === seg.id;
-          const segPercent = ((seg.tokens / totalUsed) * 100).toFixed(0);
+        {segments.map((segment) => {
+          const isActive = activeSegmentId === segment.id;
+          const isSelected = selectedSegmentId === segment.id;
+          const segmentPercent = ((segment.tokens / totalUsed) * 100).toFixed(0);
           return (
-            <div
-              key={seg.id}
-              onMouseEnter={() => setActiveSegmentId(seg.id)}
-              onMouseLeave={() => setActiveSegmentId(null)}
-              className={`flex items-center justify-between py-2.5 px-2 -mx-2 rounded-control transition-colors cursor-pointer ${
-                isSelected ? "bg-hover" : "hover:bg-hover/60"
+            <button
+              key={segment.id}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() =>
+                setSelectedSegmentId((current) =>
+                  current === segment.id ? null : segment.id,
+                )
+              }
+              onMouseEnter={() => setPreviewSegmentId(segment.id)}
+              onMouseLeave={() => setPreviewSegmentId(null)}
+              onFocus={() => setPreviewSegmentId(segment.id)}
+              onBlur={() => setPreviewSegmentId(null)}
+              className={`-mx-2 grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-control px-2 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] motion-reduce:transition-none cursor-pointer ${
+                isActive ? "bg-hover" : "hover:bg-hover/60"
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <span className="flex min-w-0 items-start gap-2.5">
                 <span
-                  className="size-2 rounded-full shrink-0"
-                  style={{ backgroundColor: seg.color }}
+                  aria-hidden="true"
+                  className="mt-1.5 size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: segment.color }}
                 />
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[12px] font-medium text-ink truncate">
-                      {zh ? seg.labelZh : seg.labelEn}
+                <span className="flex min-w-0 flex-col">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[12px] font-medium text-ink">
+                      {zh ? segment.labelZh : segment.labelEn}
                     </span>
-                    <span className={`rounded-chip px-1.5 py-0.2 font-mono text-[10px] ${seg.badgeColor}`}>
-                      {segPercent}%
+                    <span
+                      className={`rounded-chip px-1.5 py-0.5 font-mono text-[10px] ${segment.badgeColor}`}
+                    >
+                      {segmentPercent}%
                     </span>
-                  </div>
-                  <span className="text-[11px] text-ink-3 truncate max-w-[260px]">
-                    {zh ? seg.descZh : seg.descEn}
                   </span>
-                </div>
-              </div>
-              <div className="flex flex-col items-end shrink-0 pl-2">
-                <span className="font-mono text-[11.5px] tabular-nums font-medium text-ink">
-                  {seg.tokens.toLocaleString()}
+                  <span className="text-[11px] leading-snug text-ink-3">
+                    {zh ? segment.descZh : segment.descEn}
+                  </span>
+                </span>
+              </span>
+              <span className="flex shrink-0 flex-col items-end pl-2">
+                <span className="font-mono text-[11.5px] font-medium tabular-nums text-ink">
+                  {segment.tokens.toLocaleString()}
                 </span>
                 <span className="font-mono text-[10px] text-ink-3">tokens</span>
-              </div>
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>
 
-      {/* Footer Info */}
-      <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[11px] text-ink-3">
         <span>{zh ? "自动压缩阈值: 85%" : "Auto-compaction threshold: 85%"}</span>
         <span className="font-mono">Claude 3.7 Sonnet</span>
       </div>
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
     </div>
   );
 }
