@@ -375,7 +375,14 @@ function task4VisualGuardViolations(source: string) {
         return resolveValue(declaration, seen);
       }
       const object = resolveValue(node.expression, new Set(seen));
-      if (!object || !ts.isObjectLiteralExpression(object)) return null;
+      if (!object) return null;
+      if (ts.isArrayLiteralExpression(object)) {
+        const index = staticArrayIndex(node.argumentExpression);
+        if (index === null) return null;
+        const item = arrayItems(object)?.[index];
+        return item ? resolveValue(item, new Set(seen)) : null;
+      }
+      if (!ts.isObjectLiteralExpression(object)) return null;
       const member = objectMember(object, name, new Set(seen));
       return member ? resolveValue(member, new Set(seen)) : null;
     }
@@ -386,6 +393,16 @@ function task4VisualGuardViolations(source: string) {
     if (!node) return null;
     const value = resolveValue(node);
     return value ? staticNodeText(value) : null;
+  }
+
+  function staticArrayIndex(node: ts.Node | undefined): number | null {
+    const value = node ? resolveValue(node) : null;
+    if (!value) return null;
+    const text = staticNodeText(value);
+    if (text === null) return null;
+    const index = Number(text);
+    if (!Number.isSafeInteger(index) || index < 0) return null;
+    return ts.isNumericLiteral(value) || String(index) === text ? index : null;
   }
 
   function expressionPath(
@@ -560,6 +577,35 @@ function task4VisualGuardViolations(source: string) {
       : null;
   }
 
+  function normalizedCall(call: ts.CallExpression) {
+    let expression = unwrapExpression(call.expression);
+    let args: ts.Expression[] | null = [...call.arguments];
+    while (true) {
+      let wrapper: "call" | "apply" | null = null;
+      let target: ts.Expression | null = null;
+      if (ts.isPropertyAccessExpression(expression)) {
+        if (expression.name.text === "call" || expression.name.text === "apply") {
+          wrapper = expression.name.text;
+          target = expression.expression;
+        }
+      } else if (ts.isElementAccessExpression(expression)) {
+        const name = staticText(expression.argumentExpression);
+        if (name === "call" || name === "apply") {
+          wrapper = name;
+          target = expression.expression;
+        }
+      }
+      if (!wrapper || !target) break;
+      if (wrapper === "call") {
+        args = args && args.length >= 1 ? args.slice(1) : null;
+      } else {
+        args = args && args.length === 2 ? arrayItems(args[1]) : null;
+      }
+      expression = unwrapExpression(target);
+    }
+    return { args, expression };
+  }
+
   function callable(node: ts.Node) {
     if (ts.isExpression(node)) {
       const expression = unwrapExpression(node);
@@ -607,7 +653,10 @@ function task4VisualGuardViolations(source: string) {
       return true;
     }
 
-    function inspectPageEvaluation(call: ts.CallExpression) {
+    function inspectPageEvaluation(
+      call: ts.CallExpression,
+      args: ts.Expression[] | null,
+    ) {
       const position = call.getStart(sourceFile);
       const kind = ranges.setup && position >= ranges.setup.start && position <= ranges.setup.end
         ? "setup"
@@ -619,8 +668,8 @@ function task4VisualGuardViolations(source: string) {
         violations.add("page evaluation boundary");
         return;
       }
-      const callback = call.arguments.length === 1
-        ? unwrapExpression(call.arguments[0])
+      const callback = args?.length === 1
+        ? unwrapExpression(args[0])
         : null;
       if (!callback || (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback))) {
         violations.add("clipboard evaluate validation");
@@ -658,14 +707,25 @@ function task4VisualGuardViolations(source: string) {
           }
         }
       } else if (ts.isCallExpression(node)) {
+        const normalized = normalizedCall(node);
+        const evaluationPath = expressionPath(normalized.expression);
+        const evaluationRoot = evaluationPath[0];
+        const evaluationMethod = evaluationPath.at(-1);
         const path = expressionPath(node.expression);
         const root = path[0];
         const method = path.at(-1);
         const pageEvaluation =
-          root === "page" && (method === "evaluate" || method === "evaluateHandle");
-        if (pageEvaluation) inspectPageEvaluation(node);
-        else if (method === "evaluate" || method === "evaluateHandle") {
-          violations.add(root === "canvas" ? "canvas evaluation" : "DOM evaluation");
+          evaluationRoot === "page" &&
+          (evaluationMethod === "evaluate" ||
+            evaluationMethod === "evaluateHandle");
+        if (pageEvaluation) inspectPageEvaluation(node, normalized.args);
+        else if (
+          evaluationMethod === "evaluate" ||
+          evaluationMethod === "evaluateHandle"
+        ) {
+          violations.add(
+            evaluationRoot === "canvas" ? "canvas evaluation" : "DOM evaluation",
+          );
         }
         if (method && replacementMethods.has(method)) {
           violations.add(method === "insertAdjacentHTML" ? "DOM rewrite" : "node replacement");
@@ -700,8 +760,16 @@ function task4VisualGuardViolations(source: string) {
         }
         if (!resolvedTarget && ts.isElementAccessExpression(callee)) {
           const name = staticText(callee.argumentExpression);
+          const index = staticArrayIndex(callee.argumentExpression);
           const object = resolveValue(callee.expression);
-          if (!name || (object && ts.isObjectLiteralExpression(object))) {
+          const declaration = declarationFor(callee.expression);
+          if (
+            !name ||
+            (object &&
+              (ts.isObjectLiteralExpression(object) ||
+                ts.isArrayLiteralExpression(object))) ||
+            (index !== null && declaration && !isParameterBinding(declaration))
+          ) {
             violations.add("unresolved action helper");
           }
         }
@@ -1045,6 +1113,66 @@ describe("registry-derived visual case inventory", () => {
     );
   });
 
+  test("rejects an external helper reached through a static array index", () => {
+    const source = `async function fabricate({ canvas }) {
+        await canvas.evaluate(() => {});
+      }
+      const helperSource = [fabricate];
+      /* TASK 4 VISUAL ACTIONS START */
+      const helpers = [...helperSource];
+      const alias = helpers;
+      const helperIndex = 0;
+      async function selected(args) { await alias[helperIndex](args); }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "external action helper",
+    );
+  });
+
+  test("fails closed when a static array helper target cannot be resolved", () => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      const helpers = [];
+      async function selected(args) { await helpers[0](args); }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "unresolved action helper",
+    );
+  });
+
+  test("resolves a valid in-range array helper", () => {
+    const original = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const source = original.replace(
+      "action: selectSecondSession",
+      "action: (args) => [selectSecondSession][0](args)",
+    );
+    expect(source).not.toBe(original);
+
+    expect(task4VisualGuardViolations(source)).toEqual([]);
+  });
+
+  test("does not classify an ordinary helper .call as page evaluation", () => {
+    const original = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const source = original.replace(
+      "action: selectSecondSession",
+      "action: (args) => selectSecondSession.call(undefined, args)",
+    );
+    expect(source).not.toBe(original);
+
+    expect(task4VisualGuardViolations(source)).toEqual([]);
+  });
+
   test("fails closed when a static member target cannot be resolved", () => {
     const source = `/* TASK 4 VISUAL ACTIONS START */
       const helpers = {};
@@ -1088,6 +1216,87 @@ describe("registry-derived visual case inventory", () => {
 
     expect(task4VisualGuardViolations(source)).toContain(
       "Task 4 registration inventory",
+    );
+  });
+
+  test.each([
+    ["dot call", "page.evaluate.call(page, () => {})"],
+    ["static bracket call", 'page["evaluate"]["call"](page, () => {})'],
+    ["dot apply", "page.evaluate.apply(page, [() => {}])"],
+    ["static bracket apply", 'page["evaluate"]["apply"](page, [() => {}])'],
+  ])("rejects page evaluation through %s", (_label, invocation) => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ page }) { await ${invocation}; }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "page evaluation boundary",
+    );
+  });
+
+  test("accepts exact clipboard callbacks through call/apply wrappers", () => {
+    const original = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const source = original
+      .replace(
+        "await page.evaluate(() => {\n      globalThis.__naiTask4FeedbackCopyGlobals",
+        "await page.evaluate.call(page, () => {\n      globalThis.__naiTask4FeedbackCopyGlobals",
+      )
+      .replace(
+        "await page.evaluate(() => {\n      const originals = globalThis.__naiTask4FeedbackCopyGlobals",
+        'await page["evaluate"]["apply"](page, [() => {\n      const originals = globalThis.__naiTask4FeedbackCopyGlobals',
+      )
+      .replace(
+        `    });
+    /* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */`,
+        `    }]);
+    /* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */`,
+      );
+    expect(source).not.toBe(original);
+
+    expect(task4VisualGuardViolations(source)).toEqual([]);
+  });
+
+  test.each([
+    [
+      "dot call",
+      (source: string) =>
+        source.replace(
+          "await page.evaluate(() => {\n      globalThis.__naiTask4FeedbackCopyGlobals",
+          "await page.evaluate.call(page, () => {\n      globalThis.__naiTask4FeedbackCopyGlobals",
+        ),
+    ],
+    [
+      "static bracket apply",
+      (source: string) =>
+        source
+          .replace(
+            "await page.evaluate(() => {\n      globalThis.__naiTask4FeedbackCopyGlobals",
+            'await page["evaluate"]["apply"](page, [() => {\n      globalThis.__naiTask4FeedbackCopyGlobals',
+          )
+          .replace(
+            `    });
+    /* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */`,
+            `    }]);
+    /* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */`,
+          ),
+    ],
+  ])("validates a clipboard callback through %s", (_label, wrapSetup) => {
+    const original = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const wrapped = wrapSetup(original);
+    const source = wrapped.replace(
+      'throw new Error("visual copy denial");',
+      'throw new Error("visual copy denial");\n            console.log("tampered callback");',
+    );
+    expect(wrapped).not.toBe(original);
+    expect(source).not.toBe(wrapped);
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "clipboard evaluate validation",
     );
   });
 
