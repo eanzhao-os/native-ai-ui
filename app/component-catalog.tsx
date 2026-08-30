@@ -102,7 +102,7 @@ export const CATEGORIES: CategoryGroup[] = [
       { id: "streaming-text", labelEn: "Streaming Text", labelZh: "逐字流式文本与引用", descEn: "Word-by-word reveal with citations", descZh: "逐词显现并附引用", Component: StreamingText },
       { id: "prompt-bar", labelEn: "Prompt Bar", labelZh: "多模态输入栏", descEn: "Composer with shader sweep on send", descZh: "发送时带光谱扫过的输入栏", Component: PromptBar },
       { id: "chat", labelEn: "Chat Composer", labelZh: "对话消息与气泡输入", descEn: "Interactive chat panel with replies", descZh: "可交互的对话面板", Component: ChatComposer },
-      { id: "code-block", labelEn: "Code Block", labelZh: "代码块与一键运行", descEn: "Syntax block with copy & run", descZh: "支持复制与运行的代码块", Component: CodeBlock },
+      { id: "code-block", labelEn: "Code Block", labelZh: "代码块与复制", descEn: "Syntax block with copy", descZh: "支持复制的代码块", Component: CodeBlock },
       { id: "feedback-actions", labelEn: "Feedback Actions", labelZh: "消息评价操作组", descEn: "Per-message rating controls", descZh: "逐条消息的评价控件", Component: FeedbackActions },
       { id: "attachment-queue", labelEn: "Attachment Queue", labelZh: "附件摄取队列", descEn: "Upload, parse, and index file states", descZh: "上传、解析与索引文件状态", Component: AttachmentQueue },
     ],
