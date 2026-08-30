@@ -144,6 +144,52 @@ async function focusWithKeyboard({ canvas, page }, control, message) {
   }
 }
 
+async function assertMinimumHitArea(control, label) {
+  const box = await control.boundingBox();
+  if (!box) throw new Error(`${label} is not visibly measurable`);
+  if (box.width < 44 || box.height < 44) {
+    throw new Error(
+      `${label} hit area is ${box.width.toFixed(1)}×${box.height.toFixed(1)}; expected at least 44×44`,
+    );
+  }
+}
+
+async function assertButtonHitAreas(canvas, component) {
+  const controls = await canvas.getByRole("button").all();
+  for (let index = 0; index < controls.length; index += 1) {
+    await assertMinimumHitArea(controls[index], `${component} button ${index + 1}`);
+  }
+}
+
+async function assertChoiceLabelHitAreas(canvas, role, component) {
+  const controls = await canvas.getByRole(role).all();
+  for (let index = 0; index < controls.length; index += 1) {
+    await assertMinimumHitArea(
+      controls[index].locator(".."),
+      `${component} ${role} ${index + 1}`,
+    );
+  }
+}
+
+async function assertApprovalHitAreas(canvas) {
+  await assertButtonHitAreas(canvas, "Approval Card");
+  await assertChoiceLabelHitAreas(canvas, "radio", "Approval Card");
+  await assertChoiceLabelHitAreas(canvas, "checkbox", "Approval Card");
+  const custom = approvalCustomInput(canvas);
+  if ((await custom.count()) === 1) {
+    await assertMinimumHitArea(custom.locator(".."), "Approval Card custom answer");
+  }
+}
+
+async function assertClarificationHitAreas(canvas) {
+  await assertButtonHitAreas(canvas, "Clarification Card");
+  await assertChoiceLabelHitAreas(canvas, "radio", "Clarification Card");
+  const custom = clarificationCustomInput(canvas);
+  if ((await custom.count()) === 1) {
+    await assertMinimumHitArea(custom, "Clarification Card custom input");
+  }
+}
+
 async function openCompletedSubagent({ canvas }) {
   const control = canvas.getByRole("button", {
     name: /Web Researcher|网络检索子 Agent/,
@@ -155,7 +201,13 @@ async function openCompletedSubagent({ canvas }) {
     "true",
     "Completed subagent trace remained collapsed",
   );
-  await canvas.getByText(/Execution Trace|执行追踪日志/).waitFor();
+  const traceId = await control.getAttribute("aria-controls");
+  if (!traceId) {
+    throw new Error("Completed subagent disclosure has no controlled trace");
+  }
+  const trace = canvas.locator(`[id="${traceId}"]`);
+  await trace.waitFor({ state: "visible" });
+  await trace.getByText(/Execution Trace|执行追踪日志/).waitFor();
 }
 
 async function focusRunningSubagent(args) {
@@ -238,6 +290,7 @@ function toolWriteRow(canvas) {
 
 async function verifySettledTools({ canvas }) {
   await canvas.getByText(/^\+2 more$|^\+ 还有 2 项$/).waitFor();
+  await assertButtonHitAreas(canvas, "Tool Chips");
 }
 
 async function openToolDetail({ canvas }) {
@@ -250,6 +303,7 @@ async function openToolDetail({ canvas }) {
     "Tool detail remained collapsed",
   );
   await canvas.getByText(/const windows = slots\.filter/).waitFor();
+  await assertButtonHitAreas(canvas, "Tool Chips");
 }
 
 async function collapseToolRun({ canvas }) {
@@ -261,6 +315,7 @@ async function collapseToolRun({ canvas }) {
     "false",
     "Tool run remained expanded",
   );
+  await assertButtonHitAreas(canvas, "Tool Chips");
 }
 
 async function focusToolRow(args) {
@@ -269,6 +324,7 @@ async function focusToolRow(args) {
     toolWriteRow(args.canvas),
     "Tool row did not receive keyboard-visible focus",
   );
+  await assertButtonHitAreas(args.canvas, "Tool Chips");
 }
 
 function approvalCustomInput(canvas) {
@@ -287,6 +343,11 @@ async function fillApprovalCustom(canvas) {
 
 async function captureApprovalCustom({ canvas }) {
   await fillApprovalCustom(canvas);
+  const previous = canvas.getByRole("button", { name: /Previous|上一题/ });
+  if (!(await previous.isDisabled())) {
+    throw new Error("Approval first-question previous boundary remained enabled");
+  }
+  await assertApprovalHitAreas(canvas);
 }
 
 async function selectApprovalMixIns({ canvas }) {
@@ -294,26 +355,39 @@ async function selectApprovalMixIns({ canvas }) {
   await canvas
     .getByRole("button", { name: /Next question|继续下一题/ })
     .click();
-  const chocolate = canvas.getByRole("button", {
+  const chocolate = canvas.getByRole("checkbox", {
     name: /Chocolate chips|黑巧碎粒/,
   });
-  const sprinkles = canvas.getByRole("button", {
+  const sprinkles = canvas.getByRole("checkbox", {
     name: /Sprinkles|彩色糖针/,
   });
-  await chocolate.click();
-  await sprinkles.click();
-  await waitForControlAttribute(
-    chocolate,
-    "aria-pressed",
-    "true",
-    "Chocolate mix-in was not selected",
-  );
-  await waitForControlAttribute(
-    sprinkles,
-    "aria-pressed",
-    "true",
-    "Sprinkles mix-in was not selected",
-  );
+  const chocolateLabel = canvas
+    .locator("label")
+    .filter({ hasText: /Chocolate chips|黑巧碎粒/ });
+  const sprinklesLabel = canvas
+    .locator("label")
+    .filter({ hasText: /Sprinkles|彩色糖针/ });
+  await chocolateLabel.click();
+  await sprinklesLabel.click();
+  if (!(await chocolate.isChecked())) {
+    throw new Error("Chocolate mix-in was not selected");
+  }
+  if (!(await sprinkles.isChecked())) {
+    throw new Error("Sprinkles mix-in was not selected");
+  }
+
+  await canvas.getByRole("button", { name: /Previous|上一题/ }).click();
+  const restoredCustom = approvalCustomInput(canvas);
+  if (!(await restoredCustom.inputValue())) {
+    throw new Error("Approval previous navigation lost the first answer");
+  }
+  await canvas
+    .getByRole("button", { name: /Go to question 2|转到第 2 题/ })
+    .click();
+  if (!(await chocolate.isChecked()) || !(await sprinkles.isChecked())) {
+    throw new Error("Approval direct navigation lost multi-select answers");
+  }
+  await assertApprovalHitAreas(canvas);
 }
 
 async function submitApproval({ canvas }) {
@@ -328,10 +402,15 @@ async function submitApproval({ canvas }) {
     .getByRole("button", { name: /Send answers|提交答案/ })
     .click();
   await canvas.getByText(/Answers sent|审批决策已提交/).waitFor();
+  const startOver = canvas.getByRole("button", { name: /Start over|重新填写/ });
+  if ((await startOver.and(canvas.locator(":focus")).count()) !== 1) {
+    throw new Error("Approval confirmation did not move focus to Start over");
+  }
+  await assertApprovalHitAreas(canvas);
 }
 
 async function focusApprovalOption(args) {
-  const control = args.canvas.getByRole("button", {
+  const control = args.canvas.getByRole("radio", {
     name: /Three \(core line\)|3 款 \(核心经典线\)/,
   });
   await focusWithKeyboard(
@@ -339,12 +418,17 @@ async function focusApprovalOption(args) {
     control,
     "Approval option did not receive keyboard-visible focus",
   );
+  await assertApprovalHitAreas(args.canvas);
 }
 
 function clarificationCustomInput(canvas) {
   return canvas.getByRole("textbox", {
     name: /Custom migration rules|自定义迁移要求/,
   });
+}
+
+async function verifyInitialClarification({ canvas }) {
+  await assertClarificationHitAreas(canvas);
 }
 
 async function selectAlternateClarification({ canvas }) {
@@ -355,6 +439,7 @@ async function selectAlternateClarification({ canvas }) {
   if (!(await option.isChecked())) {
     throw new Error("Alternate clarification option was not selected");
   }
+  await assertClarificationHitAreas(canvas);
 }
 
 async function submitCustomClarification({ canvas }) {
@@ -368,6 +453,13 @@ async function submitCustomClarification({ canvas }) {
     .getByRole("button", { name: /Confirm & Proceed|确认并继续/ })
     .click();
   await canvas.getByText(value).waitFor();
+  const changeDecision = canvas.getByRole("button", {
+    name: /Change decision|修改决策/,
+  });
+  if ((await changeDecision.and(canvas.locator(":focus")).count()) !== 1) {
+    throw new Error("Clarification confirmation did not move focus to Change decision");
+  }
+  await assertClarificationHitAreas(canvas);
 }
 
 async function focusClarificationOption({ canvas, page }) {
@@ -382,6 +474,7 @@ async function focusClarificationOption({ canvas, page }) {
   if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
     throw new Error("Clarification option did not receive keyboard-visible focus");
   }
+  await assertClarificationHitAreas(canvas);
 }
 
 async function navigateFirstBranch({ canvas }) {
@@ -393,6 +486,7 @@ async function navigateFirstBranch({ canvas }) {
     throw new Error("Previous branch boundary remained enabled");
   }
   await canvas.getByText("GPT-5.2 · 10:41").waitFor();
+  await assertButtonHitAreas(canvas, "Message Branches");
 }
 
 async function navigateLastBranch({ canvas }) {
@@ -402,6 +496,7 @@ async function navigateLastBranch({ canvas }) {
     throw new Error("Next branch boundary remained enabled");
   }
   await canvas.getByText("Gemini 3.1 Pro · 10:43").waitFor();
+  await assertButtonHitAreas(canvas, "Message Branches");
 }
 
 async function continueBranch({ canvas }) {
@@ -413,6 +508,7 @@ async function continueBranch({ canvas }) {
   await canvas
     .getByText(/Continuing from branch 2|正从分支 2 继续/)
     .waitFor();
+  await assertButtonHitAreas(canvas, "Message Branches");
 }
 
 async function focusBranchContinue(args) {
@@ -424,6 +520,7 @@ async function focusBranchContinue(args) {
     control,
     "Branch continuation did not receive keyboard-visible focus",
   );
+  await assertButtonHitAreas(args.canvas, "Message Branches");
 }
 /* TASK 6 VISUAL ACTIONS END */
 
@@ -476,7 +573,7 @@ const TASK6_CASES = [
   [
     "clarification-card",
     [
-      { name: "initial", advanceMs: 0 },
+      { name: "initial", advanceMs: 0, action: verifyInitialClarification },
       { name: "alternate", advanceMs: 0, action: selectAlternateClarification },
       { name: "submitted", advanceMs: 0, action: submitCustomClarification },
       { name: "focused", advanceMs: 0, action: focusClarificationOption },

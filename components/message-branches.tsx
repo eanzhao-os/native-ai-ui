@@ -87,7 +87,7 @@ export default function MessageBranches({
               aria-label={zh ? "上一个分支" : "Previous branch"}
               disabled={branchIndex === 0}
               onClick={() => navigate(branchIndex - 1)}
-              className="flex h-7 w-8 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+              className="flex size-11 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
             >
               <span aria-hidden="true">←</span>
             </button>
@@ -96,7 +96,7 @@ export default function MessageBranches({
               aria-label={zh ? "下一个分支" : "Next branch"}
               disabled={branchIndex === BRANCHES.length - 1}
               onClick={() => navigate(branchIndex + 1)}
-              className="flex h-7 w-8 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
+              className="flex size-11 items-center justify-center rounded-control border border-line bg-surface text-sm text-ink-2 shadow-btn transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-35 motion-reduce:transition-none"
             >
               <span aria-hidden="true">→</span>
             </button>
@@ -106,7 +106,7 @@ export default function MessageBranches({
             type="button"
             onClick={() => setContinuingFrom(branchIndex)}
             aria-label={zh ? "从此分支继续" : "Continue from this branch"}
-            className="rounded-control bg-ink px-3 py-1.5 text-[10.5px] font-medium text-surface transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none"
+            className="flex min-h-11 items-center rounded-control bg-ink px-3 text-[10.5px] font-medium text-surface transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none"
           >
             {zh ? "从此分支继续" : "Continue from here"}
           </button>

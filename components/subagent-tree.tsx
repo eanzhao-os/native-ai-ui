@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -92,6 +92,7 @@ const SUBAGENTS: SubagentNode[] = [
 export default function SubagentTree({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("subagent-tree", propLang);
   const zh = lang === "zh";
+  const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [expandedId, setExpandedId] = useState<string | null>("sub-2");
 
   return (
@@ -132,6 +133,7 @@ export default function SubagentTree({ lang: propLang }: { lang?: "en" | "zh" })
         <div className="flex flex-col gap-3">
           {SUBAGENTS.map((agent) => {
             const isExpanded = expandedId === agent.id;
+            const traceId = `subagent-trace-${instanceId}-${agent.id}`;
             return (
               <div key={agent.id} className="relative">
                 <div className="absolute -left-3.5 top-4.5 h-px w-3.5 bg-line-strong" />
@@ -145,10 +147,10 @@ export default function SubagentTree({ lang: propLang }: { lang?: "en" | "zh" })
                 >
                   <button
                     type="button"
-                    aria-controls={`subagent-trace-${agent.id}`}
+                    aria-controls={traceId}
                     aria-expanded={isExpanded}
                     onClick={() => setExpandedId(isExpanded ? null : agent.id)}
-                    className="flex w-full cursor-pointer items-center justify-between p-3 text-left focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)]"
+                    className="flex min-h-11 w-full cursor-pointer items-center justify-between p-3 text-left focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)]"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       {agent.status === "completed" && (
@@ -222,33 +224,32 @@ export default function SubagentTree({ lang: propLang }: { lang?: "en" | "zh" })
                   </button>
 
                   {/* Expanded Trace Logs */}
-                  {isExpanded && (
-                    <div
-                      id={`subagent-trace-${agent.id}`}
-                      role="region"
-                      aria-label={zh ? `${agent.nameZh} 执行追踪` : `${agent.nameEn} execution trace`}
-                      className="border-t border-line/60 bg-inset/70 p-3 text-[11px]"
-                    >
-                      <div className="mb-2 flex items-center justify-between text-ink-3">
-                        <span className="font-mono text-[10px] uppercase tracking-wider">
-                          {zh ? "执行追踪日志 (Trace)" : "Execution Trace"}
+                  <div
+                    id={traceId}
+                    role="region"
+                    aria-label={zh ? `${agent.nameZh} 执行追踪` : `${agent.nameEn} execution trace`}
+                    hidden={!isExpanded}
+                    className="border-t border-line/60 bg-inset/70 p-3 text-[11px]"
+                  >
+                    <div className="mb-2 flex items-center justify-between text-ink-3">
+                      <span className="font-mono text-[10px] uppercase tracking-wider">
+                        {zh ? "执行追踪日志 (Trace)" : "Execution Trace"}
+                      </span>
+                      {agent.tokens !== "0" && (
+                        <span className="font-mono text-[10px] tabular-nums">
+                          {agent.tokens} tokens
                         </span>
-                        {agent.tokens !== "0" && (
-                          <span className="font-mono text-[10px] tabular-nums">
-                            {agent.tokens} tokens
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-2">
-                        {(zh ? agent.logsZh : agent.logsEn).map((log, i) => (
-                          <div key={i} className="flex items-start gap-1.5">
-                            <span className="text-ink-3 select-none">›</span>
-                            <span className="break-all">{log}</span>
-                          </div>
-                        ))}
-                      </div>
+                      )}
                     </div>
-                  )}
+                    <div className="flex flex-col gap-1 font-mono text-[10.5px] text-ink-2">
+                      {(zh ? agent.logsZh : agent.logsEn).map((log, i) => (
+                        <div key={i} className="flex items-start gap-1.5">
+                          <span className="text-ink-3 select-none">›</span>
+                          <span className="break-all">{log}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             );

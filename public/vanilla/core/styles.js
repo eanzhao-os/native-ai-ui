@@ -380,6 +380,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
       max-width: 96rem;
     }
   }
+  .-m-2\\.5 {
+    margin: calc(var(--spacing) * -2.5);
+  }
   .-mx-1 {
     margin-inline: calc(var(--spacing) * -1);
   }
@@ -568,6 +571,10 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     width: calc(var(--spacing) * 10);
     height: calc(var(--spacing) * 10);
   }
+  .size-11 {
+    width: calc(var(--spacing) * 11);
+    height: calc(var(--spacing) * 11);
+  }
   .size-28 {
     width: calc(var(--spacing) * 28);
     height: calc(var(--spacing) * 28);
@@ -645,9 +652,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .h-14 {
     height: calc(var(--spacing) * 14);
   }
-  .h-37 {
-    height: calc(var(--spacing) * 37);
-  }
   .h-64 {
     height: calc(var(--spacing) * 64);
   }
@@ -681,8 +685,14 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .min-h-7 {
     min-height: calc(var(--spacing) * 7);
   }
+  .min-h-11 {
+    min-height: calc(var(--spacing) * 11);
+  }
   .min-h-16 {
     min-height: calc(var(--spacing) * 16);
+  }
+  .min-h-37 {
+    min-height: calc(var(--spacing) * 37);
   }
   .min-h-44 {
     min-height: calc(var(--spacing) * 44);
@@ -2584,16 +2594,13 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
+  .focus-within\\:ring-accent:focus-within {
+    --tw-ring-color: var(--accent);
+  }
   .focus-within\\:ring-accent\\/20:focus-within {
     --tw-ring-color: var(--accent);
     @supports (color: color-mix(in lab, red, red)) {
       --tw-ring-color: color-mix(in oklab, var(--accent) 20%, transparent);
-    }
-  }
-  .focus-within\\:ring-accent\\/50:focus-within {
-    --tw-ring-color: var(--accent);
-    @supports (color: color-mix(in lab, red, red)) {
-      --tw-ring-color: color-mix(in oklab, var(--accent) 50%, transparent);
     }
   }
   @media (hover: hover) {
@@ -2720,11 +2727,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .focus\\:ring-accent\\/40:focus {
+  .focus\\:ring-accent:focus {
     --tw-ring-color: var(--accent);
-    @supports (color: color-mix(in lab, red, red)) {
-      --tw-ring-color: color-mix(in oklab, var(--accent) 40%, transparent);
-    }
   }
   .focus\\:outline-none:focus {
     --tw-outline-style: none;
@@ -2741,11 +2745,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .focus-visible\\:ring-accent\\/50:focus-visible {
+  .focus-visible\\:ring-accent:focus-visible {
     --tw-ring-color: var(--accent);
-    @supports (color: color-mix(in lab, red, red)) {
-      --tw-ring-color: color-mix(in oklab, var(--accent) 50%, transparent);
-    }
   }
   .focus-visible\\:ring-offset-2:focus-visible {
     --tw-ring-offset-width: 2px;

@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -46,6 +52,9 @@ const QUESTIONS_ZH = [
 export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("approval-card", propLang);
   const zh = lang === "zh";
+  const choiceGroupId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const optionRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const startOverRef = useRef<HTMLButtonElement>(null);
 
   const QUESTIONS = zh ? QUESTIONS_ZH : QUESTIONS_EN;
 
@@ -59,6 +68,10 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
   const selected = answers[qi] ?? [];
   const hasAnswer = selected.length > 0 || Boolean(custom[qi]?.trim());
 
+  useEffect(() => {
+    if (sent) startOverRef.current?.focus();
+  }, [sent]);
+
   const toggle = (index: number) => {
     setAnswers((current) => {
       const picked = current[qi] ?? [];
@@ -66,8 +79,8 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
         question.type === "radio"
           ? [index]
           : picked.includes(index)
-          ? picked.filter((item) => item !== index)
-          : [...picked, index];
+            ? picked.filter((item) => item !== index)
+            : [...picked, index];
       return { ...current, [qi]: next };
     });
     if (question.type === "radio") {
@@ -77,6 +90,33 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
         else setQi((current) => Math.min(QUESTIONS.length - 1, current + 1));
       }, 480);
     }
+  };
+
+  const handleChoiceKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    index: number,
+  ) => {
+    if (event.key === " ") {
+      event.preventDefault();
+      toggle(index);
+      return;
+    }
+    if (
+      question.type !== "radio" ||
+      !["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(
+        event.key,
+      )
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    const direction =
+      event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
+    const nextIndex =
+      (index + direction + question.options.length) % question.options.length;
+    optionRefs.current[nextIndex]?.focus();
+    toggle(nextIndex);
   };
 
   const reset = () => {
@@ -92,7 +132,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-control bg-surface px-3 py-2 text-[12.5px] font-medium text-ink shadow-btn transition-colors duration-150 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+        className="min-h-11 rounded-control bg-surface px-3 text-[12.5px] font-medium text-ink shadow-btn transition-colors duration-150 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer"
       >
         {zh ? "打开审批流卡片" : "Open approval"}
       </button>
@@ -103,7 +143,10 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
     <div className="flex min-h-[196px] w-full max-w-80 flex-col items-stretch">
       <div className="w-full self-start overflow-hidden rounded-card bg-surface shadow-card">
         {sent ? (
-          <div className="flex h-37 flex-col items-center justify-center gap-2">
+          <div
+            role="status"
+            className="flex min-h-37 flex-col items-center justify-center gap-2"
+          >
             <span
               className="flex size-6 items-center justify-center rounded-full bg-green text-white"
               style={{ animation: "pop-in 300ms cubic-bezier(0.23,1,0.32,1) both" }}
@@ -115,7 +158,12 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
             <span className="text-[13px] font-medium text-ink" style={{ animation: "fade-up 350ms cubic-bezier(0.23,1,0.32,1) 100ms both" }}>
               {zh ? "审批决策已提交" : "Answers sent"}
             </span>
-            <button type="button" onClick={reset} className="rounded-control px-1 text-[12px] font-medium text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer">
+            <button
+              ref={startOverRef}
+              type="button"
+              onClick={reset}
+              className="min-h-11 rounded-control px-3 text-[12px] font-medium text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer"
+            >
               {zh ? "重新填写" : "Start over"}
             </button>
           </div>
@@ -127,25 +175,35 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
                 type="button"
                 aria-label={zh ? "关闭审批" : "Dismiss"}
                 onClick={() => setOpen(false)}
-                className="primitive-icon-button shrink-0 text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+                className="-m-2.5 flex size-11 shrink-0 items-center justify-center rounded-control text-ink-3 transition-colors duration-100 hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="mt-2 flex flex-col gap-0.5">
+            <fieldset className="mt-2 flex flex-col gap-0.5">
+              <legend className="sr-only">{question.q}</legend>
               {question.options.map((option, i) => {
                 const on = selected.includes(i);
                 return (
-                  <button
+                  <label
                     key={option}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => toggle(i)}
-                    className="-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1 text-left transition-colors duration-100 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
+                    className="-mx-1.5 flex min-h-11 cursor-pointer items-center gap-2 rounded-control px-1.5 text-left transition-colors duration-100 hover:bg-hover focus-within:ring-2 focus-within:ring-accent"
                   >
+                    <input
+                      ref={(node) => {
+                        optionRefs.current[i] = node;
+                      }}
+                      type={question.type === "radio" ? "radio" : "checkbox"}
+                      name={`approval-${choiceGroupId}-${qi}`}
+                      checked={on}
+                      onChange={() => toggle(i)}
+                      onKeyDown={(event) => handleChoiceKeyDown(event, i)}
+                      className="sr-only"
+                    />
                     <span
+                      aria-hidden="true"
                       className={`flex size-4 shrink-0 items-center justify-center transition-colors duration-200
                         ${question.type === "radio" ? "rounded-full" : "rounded-[5px]"}
                         ${on ? "bg-ink text-canvas" : "shadow-[inset_0_0_0_1.5px_var(--line-strong)] text-transparent"}`}
@@ -159,10 +217,10 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
                     <span className={`text-[13px] transition-colors duration-200 ${on ? "text-ink" : "text-ink-2"}`}>
                       {option}
                     </span>
-                  </button>
+                  </label>
                 );
               })}
-              <label className="-mx-1.5 flex items-center gap-2 rounded-control px-1.5 py-1 transition-colors duration-100 focus-within:bg-hover focus-within:ring-2 focus-within:ring-accent/50 hover:bg-hover">
+              <label className="-mx-1.5 flex min-h-11 items-center gap-2 rounded-control px-1.5 transition-colors duration-100 focus-within:bg-hover focus-within:ring-2 focus-within:ring-accent hover:bg-hover">
                 <span aria-hidden="true" className="size-4 shrink-0" />
                 <input
                   value={custom[qi] ?? ""}
@@ -175,7 +233,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
                   className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
                 />
               </label>
-            </div>
+            </fieldset>
           </div>
         )}
 
@@ -187,7 +245,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
               aria-label={zh ? "上一题" : "Previous"}
               disabled={qi === 0 || sent}
               onClick={() => setQi((current) => Math.max(0, current - 1))}
-              className="flex size-6 items-center justify-center rounded-[5px] text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-35"
+              className="flex size-11 items-center justify-center rounded-control text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-35"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
@@ -200,15 +258,20 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
                   aria-current={i === qi && !sent ? "step" : undefined}
                   disabled={sent}
                   onClick={() => setQi(i)}
-                  className="rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-default"
-                  style={
-                    i === qi && !sent
-                      ? { width: 9, height: 9, border: "2.5px solid var(--ink)" }
-                      : sent || i < qi
-                        ? { width: 7, height: 7, background: "var(--ink-3)" }
-                        : { width: 7, height: 7, border: "1.5px solid var(--ink-3)" }
-                  }
-                />
+                  className="flex size-11 items-center justify-center rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="rounded-full transition-all duration-300"
+                    style={
+                      i === qi && !sent
+                        ? { width: 9, height: 9, border: "2.5px solid var(--ink)" }
+                        : sent || i < qi
+                          ? { width: 7, height: 7, background: "var(--ink-3)" }
+                          : { width: 7, height: 7, border: "1.5px solid var(--ink-3)" }
+                    }
+                  />
+                </button>
               ))}
             </span>
             <button
@@ -216,7 +279,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
               aria-label={zh ? "下一题" : "Next"}
               disabled={last || sent}
               onClick={() => setQi((current) => Math.min(QUESTIONS.length - 1, current + 1))}
-              className="flex size-6 items-center justify-center rounded-[5px] text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-35"
+              className="flex size-11 items-center justify-center rounded-control text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-35"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
             </button>
@@ -227,7 +290,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
               aria-label={last ? (zh ? "提交答案" : "Send answers") : (zh ? "继续下一题" : "Next question")}
               disabled={!hasAnswer}
               onClick={() => last ? setSent(true) : setQi((current) => current + 1)}
-              className="-mr-0.5 flex size-7 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed enabled:cursor-pointer"
+              className="flex size-11 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed enabled:cursor-pointer"
               style={{
                 background: hasAnswer ? "var(--ink)" : "var(--field)",
                 color: hasAnswer ? "var(--canvas)" : "var(--ink-3)",

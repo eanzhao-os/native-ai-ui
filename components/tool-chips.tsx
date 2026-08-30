@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -62,6 +62,8 @@ const DIFFS = [
 export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("tool-chips", propLang);
   const zh = lang === "zh";
+  const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const rowsId = `tool-chip-rows-${instanceId}`;
 
   const [step, setStep] = useState(0);
   const [open, setOpen] = useState(true);
@@ -86,10 +88,10 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
       {/* collapsed run header */}
       <button
         type="button"
-        aria-controls="tool-chip-rows"
+        aria-controls={rowsId}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="-mx-1.5 flex w-fit items-center gap-1.5 rounded-control px-1.5 py-1 text-[12.5px] text-ink-2 transition-colors duration-100 hover:bg-hover-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        className="-mx-1.5 flex h-11 w-fit items-center gap-1.5 rounded-control px-1.5 text-[12.5px] text-ink-2 transition-colors duration-100 hover:bg-hover-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>
           <path d="M6 9l6 6 6-6" />
@@ -99,7 +101,7 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
 
       {/* tool call rows */}
       <div
-        id="tool-chip-rows"
+        id={rowsId}
         aria-hidden={!open}
         inert={!open ? true : undefined}
         className="grid transition-[grid-template-rows,opacity] duration-300"
@@ -117,7 +119,7 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
                 type="button"
                 aria-expanded={rowOpen}
                 onClick={() => toggleRow(row.labelEn)}
-                className="group/row -mx-[3px] flex h-7 w-[calc(100%+6px)] min-w-0 items-center gap-2 rounded-control px-[3px] text-left transition-colors duration-100 hover:bg-hover-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                className="group/row -mx-[3px] flex h-11 w-[calc(100%+6px)] min-w-0 items-center gap-2 rounded-control px-[3px] text-left transition-colors duration-100 hover:bg-hover-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <span className="relative flex size-4 shrink-0 items-center justify-center text-ink-3">
                   <svg

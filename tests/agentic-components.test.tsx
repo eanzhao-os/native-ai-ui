@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import AgentTeams from "@/components/agent-teams";
 import ApprovalCard from "@/components/approval-card";
@@ -13,6 +13,14 @@ async function advanceTimerSteps(count: number, milliseconds: number) {
       await vi.advanceTimersByTimeAsync(milliseconds);
     });
   }
+}
+
+function controlledElement(control: HTMLElement) {
+  const id = control.getAttribute("aria-controls");
+  expect(id).toBeTruthy();
+  const target = document.getElementById(id!);
+  expect(target).not.toBeNull();
+  return target!;
 }
 
 afterEach(() => {
@@ -34,7 +42,44 @@ describe("SubagentTree", () => {
     const researcher = screen.getByRole("button", { name: /Web Researcher/ });
     fireEvent.click(researcher);
     expect(researcher.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("Execution Trace")).not.toBeNull();
+    expect(controlledElement(researcher).hidden).toBe(false);
+    expect(
+      within(controlledElement(researcher)).getByText("Execution Trace"),
+    ).not.toBeNull();
+  });
+
+  test("keeps disclosure IDREFs unique and valid across multiple instances", () => {
+    render(
+      <>
+        <SubagentTree />
+        <SubagentTree />
+      </>,
+    );
+
+    const controls = [
+      ...screen.getAllByRole("button", { name: /Web Researcher/ }),
+      ...screen.getAllByRole("button", { name: /Schema Architect/ }),
+      ...screen.getAllByRole("button", { name: /Security Linter/ }),
+    ];
+    const controlledIds = controls.map((control) =>
+      control.getAttribute("aria-controls"),
+    );
+
+    expect(new Set(controlledIds).size).toBe(controlledIds.length);
+    for (const control of controls) controlledElement(control);
+
+    const researchers = screen.getAllByRole("button", {
+      name: /Web Researcher/,
+    });
+    const schemas = screen.getAllByRole("button", { name: /Schema Architect/ });
+    expect(controlledElement(researchers[0]).hidden).toBe(true);
+    expect(controlledElement(schemas[0]).hidden).toBe(false);
+
+    fireEvent.click(researchers[0]);
+
+    expect(controlledElement(researchers[0]).hidden).toBe(false);
+    expect(controlledElement(schemas[0]).hidden).toBe(true);
+    expect(controlledElement(schemas[1]).hidden).toBe(false);
   });
 });
 
@@ -92,6 +137,42 @@ describe("ToolChips", () => {
     expect(writeRow.closest("[inert]")).not.toBeNull();
   });
 
+  test("keeps run disclosure IDREFs unique and valid across multiple instances", async () => {
+    vi.useFakeTimers();
+    render(
+      <>
+        <ToolChips />
+        <ToolChips />
+      </>,
+    );
+    await advanceTimerSteps(5, 700);
+
+    const toggles = screen.getAllByRole("button", {
+      name: "4 tool calls, 2 messages",
+    });
+    const controlledIds = toggles.map((control) =>
+      control.getAttribute("aria-controls"),
+    );
+
+    expect(new Set(controlledIds).size).toBe(toggles.length);
+    expect(controlledElement(toggles[0]).getAttribute("aria-hidden")).toBe(
+      "false",
+    );
+    expect(controlledElement(toggles[1]).getAttribute("aria-hidden")).toBe(
+      "false",
+    );
+
+    fireEvent.click(toggles[0]);
+
+    expect(controlledElement(toggles[0]).getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(controlledElement(toggles[0]).hasAttribute("inert")).toBe(true);
+    expect(controlledElement(toggles[1]).getAttribute("aria-hidden")).toBe(
+      "false",
+    );
+  });
+
   test("opens a tool detail through its disclosure control", async () => {
     vi.useFakeTimers();
     render(<ToolChips lang="zh" />);
@@ -121,6 +202,44 @@ describe("ToolChips", () => {
 });
 
 describe("ApprovalCard", () => {
+  test("exposes labeled radio and checkbox groups with keyboard operation", async () => {
+    vi.useFakeTimers();
+    render(<ApprovalCard />);
+
+    const flavorGroup = screen.getByRole("group", {
+      name: "How many flavors should we launch?",
+    });
+    const firstFlavor = within(flavorGroup).getByRole("radio", {
+      name: "Three (core line)",
+    }) as HTMLInputElement;
+    const secondFlavor = within(flavorGroup).getByRole("radio", {
+      name: "Five (full case)",
+    }) as HTMLInputElement;
+    const custom = screen.getByRole("textbox", { name: "Custom answer" });
+
+    fireEvent.change(custom, { target: { value: "Four seasonal flavors" } });
+    firstFlavor.focus();
+    fireEvent.keyDown(firstFlavor, { key: "ArrowDown" });
+
+    expect(secondFlavor.checked).toBe(true);
+    expect(document.activeElement).toBe(secondFlavor);
+    expect((custom as HTMLInputElement).value).toBe("");
+
+    await advanceTimerSteps(1, 480);
+
+    const mixInGroup = screen.getByRole("group", {
+      name: "Which mix-ins should we stock?",
+    });
+    const chocolate = within(mixInGroup).getByRole("checkbox", {
+      name: "Chocolate chips",
+    }) as HTMLInputElement;
+    chocolate.focus();
+    fireEvent.keyDown(chocolate, { key: " " });
+
+    expect(chocolate.checked).toBe(true);
+    expect(document.activeElement).toBe(chocolate);
+  });
+
   test("preserves custom and multi-select answers through submission", () => {
     render(<ApprovalCard />);
 
@@ -129,8 +248,8 @@ describe("ApprovalCard", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Next question" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Chocolate chips" }));
-    fireEvent.click(screen.getByRole("button", { name: "Sprinkles" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Chocolate chips" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Sprinkles" }));
     fireEvent.click(screen.getByRole("button", { name: "Next question" }));
 
     fireEvent.change(screen.getByRole("textbox", { name: "Custom answer" }), {
@@ -139,6 +258,69 @@ describe("ApprovalCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send answers" }));
 
     expect(screen.getByText("Answers sent")).not.toBeNull();
+  });
+
+  test("preserves answers across previous and direct progress navigation", () => {
+    render(<ApprovalCard />);
+
+    const previous = screen.getByRole("button", { name: "Previous" });
+    const next = screen.getByRole("button", { name: "Next" });
+    expect(previous.hasAttribute("disabled")).toBe(true);
+    expect(next.hasAttribute("disabled")).toBe(false);
+
+    const firstCustom = screen.getByRole("textbox", { name: "Custom answer" });
+    fireEvent.change(firstCustom, {
+      target: { value: "Four seasonal flavors" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next question" }));
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+
+    const chocolate = screen.getByRole("checkbox", {
+      name: "Chocolate chips",
+    }) as HTMLInputElement;
+    fireEvent.click(chocolate);
+    fireEvent.click(previous);
+
+    expect(
+      screen.getByRole("group", { name: "How many flavors should we launch?" }),
+    ).not.toBeNull();
+    expect(previous.hasAttribute("disabled")).toBe(true);
+    expect(
+      (screen.getByRole("textbox", { name: "Custom answer" }) as HTMLInputElement)
+        .value,
+    ).toBe("Four seasonal flavors");
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 2" }));
+    expect(
+      (screen.getByRole("checkbox", { name: "Chocolate chips" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 3" }));
+    expect(
+      screen.getByRole("group", { name: "Which market do we enter first?" }),
+    ).not.toBeNull();
+    expect(previous.hasAttribute("disabled")).toBe(false);
+    expect(next.hasAttribute("disabled")).toBe(true);
+  });
+
+  test("announces submission and moves focus to Start over", () => {
+    render(<ApprovalCard />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 3" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Custom answer" }), {
+      target: { value: "Campus pop-ups" },
+    });
+    const submit = screen.getByRole("button", { name: "Send answers" });
+    submit.focus();
+    fireEvent.click(submit);
+
+    expect(screen.getByRole("status").textContent).toContain("Answers sent");
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Start over" }),
+    );
   });
 
   test("localizes approval navigation and custom-answer names", () => {
@@ -169,6 +351,21 @@ describe("ClarificationCard", () => {
 
     fireEvent.change(custom, { target: { value: "" } });
     expect(recommended.checked).toBe(true);
+  });
+
+  test("announces submission and moves focus to Change decision", () => {
+    render(<ClarificationCard />);
+
+    const submit = screen.getByRole("button", { name: "Confirm & Proceed" });
+    submit.focus();
+    fireEvent.click(submit);
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "Decision Recorded",
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Change decision" }),
+    );
   });
 
   test("submits and resets an alternate decision", () => {
