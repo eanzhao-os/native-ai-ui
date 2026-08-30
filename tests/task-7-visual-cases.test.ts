@@ -32,6 +32,17 @@ type CallableNode =
   | ts.FunctionExpression
   | ts.MethodDeclaration;
 
+type ReturnableNode = CallableNode | ts.GetAccessorDeclaration;
+
+function isCallableNode(node: ts.Node): node is CallableNode {
+  return (
+    ts.isArrowFunction(node) ||
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isMethodDeclaration(node)
+  );
+}
+
 type LocalBindings = {
   checker: ts.TypeChecker;
   functions: Map<string, ts.FunctionDeclaration>;
@@ -41,13 +52,36 @@ type LocalBindings = {
 
 type Origin =
   | { kind: "absent" }
+  | {
+      context: OriginContext;
+      kind: "array-literal";
+      node: ts.ArrayLiteralExpression;
+    }
   | { kind: "list"; values: Origin[] }
   | { kind: "node"; context: OriginContext; node: ts.Node }
   | { fallback?: Origin; kind: "object"; properties: Map<string, Origin> }
+  | {
+      context: OriginContext;
+      kind: "object-literal";
+      node: ts.ObjectLiteralExpression;
+    }
+  | { excluded: Set<string>; kind: "object-rest"; source: Origin }
   | { kind: "trusted"; root: "canvas" | "derived" | "page" }
   | { kind: "unknown" };
 
 type OriginContext = Map<ts.Node, Origin>;
+
+type OriginResolution = {
+  active: Set<string>;
+  remaining: number;
+};
+
+type ResolvedCallable = {
+  callable: CallableNode;
+  context: OriginContext;
+};
+
+const MAX_ORIGIN_WORK = 512;
 
 type Registration = {
   cases: ts.ArrayLiteralExpression;
@@ -238,7 +272,7 @@ function localConstantValue(
   return declaration.initializer;
 }
 
-function directReturnExpression(callable: CallableNode) {
+function directReturnExpression(callable: ReturnableNode) {
   if (ts.isArrowFunction(callable) && !ts.isBlock(callable.body)) {
     return callable.body;
   }
@@ -251,6 +285,13 @@ function directReturnExpression(callable: CallableNode) {
   return returns.length === 1 ? returns[0].expression : undefined;
 }
 
+function directAccessorReturnExpression(accessor: ts.GetAccessorDeclaration) {
+  const statements = accessor.body?.statements;
+  if (statements?.length !== 1) return undefined;
+  const [statement] = statements;
+  return ts.isReturnStatement(statement) ? statement.expression : undefined;
+}
+
 function resolveCallable(
   node: ts.Node | undefined,
   bindings: LocalBindings,
@@ -258,14 +299,7 @@ function resolveCallable(
 ): CallableNode | undefined {
   if (!node) return undefined;
   const current = unwrapNode(node);
-  if (
-    ts.isArrowFunction(current) ||
-    ts.isFunctionExpression(current) ||
-    ts.isFunctionDeclaration(current) ||
-    ts.isMethodDeclaration(current)
-  ) {
-    return current;
-  }
+  if (isCallableNode(current)) return current;
   if (ts.isIdentifier(current)) {
     const binding = localBindingValue(current, bindings);
     const key = `callable:${binding?.pos ?? current.text}`;
@@ -421,21 +455,30 @@ function resolveObjectProperty(
   bindings: LocalBindings,
   seen: Set<string>,
 ): ts.Node | undefined {
+  let setter: ts.SetAccessorDeclaration | undefined;
   for (const property of [...object.properties].reverse()) {
     if (ts.isSpreadAssignment(property)) {
       const spread = resolveObject(property.expression, bindings, seen);
-      const resolved =
-        spread && resolveObjectProperty(spread, name, bindings, seen);
-      if (resolved) return resolved;
+      if (!spread) return setter ?? property.expression;
+      const resolved = resolveObjectProperty(spread, name, bindings, seen);
+      if (resolved) return setter ?? resolved;
       continue;
     }
     if (propertyNameText(property.name, bindings) !== name) continue;
+    if (ts.isGetAccessorDeclaration(property)) {
+      return directAccessorReturnExpression(property) ?? property;
+    }
+    if (ts.isSetAccessorDeclaration(property)) {
+      setter ??= property;
+      continue;
+    }
+    if (setter) return setter;
     if (ts.isPropertyAssignment(property)) return property.initializer;
     if (ts.isShorthandPropertyAssignment(property)) return property.name;
     if (ts.isMethodDeclaration(property)) return property;
-    return undefined;
+    return property;
   }
-  return undefined;
+  return setter;
 }
 
 function resolveNewMap(
@@ -598,6 +641,7 @@ function analyzeTask7VisualSource(source: string) {
   collectSetRegistrations(sourceFile);
 
   const absentOrigin: Origin = { kind: "absent" };
+  const trustedDerivedOrigin: Origin = { kind: "trusted", root: "derived" };
   const unknownOrigin: Origin = { kind: "unknown" };
 
   const runnerOrigin: Origin = {
@@ -608,12 +652,20 @@ function analyzeTask7VisualSource(source: string) {
     ]),
   };
 
+  function resolvedCallableFromOrigin(
+    origin: Origin,
+    seen = new Set<ts.Node>(),
+  ) {
+    if (origin.kind !== "node") return undefined;
+    const callable = resolveCallableWithOrigins(origin.node, origin.context, seen);
+    return callable ? { callable, context: origin.context } : undefined;
+  }
+
   function callableFromOrigin(
     origin: Origin,
     seen = new Set<ts.Node>(),
   ): CallableNode | undefined {
-    if (origin.kind !== "node") return undefined;
-    return resolveCallableWithOrigins(origin.node, origin.context, seen);
+    return resolvedCallableFromOrigin(origin, seen)?.callable;
   }
 
   function propertyOrigin(
@@ -785,15 +837,11 @@ function analyzeTask7VisualSource(source: string) {
       }
       return { kind: "node", context, node: current };
     }
-    if (
-      ts.isArrowFunction(current) ||
-      ts.isFunctionExpression(current) ||
-      ts.isFunctionDeclaration(current) ||
-      ts.isMethodDeclaration(current)
-    ) {
+    if (isCallableNode(current)) {
       return { kind: "node", context, node: current };
     }
     if (ts.isObjectLiteralExpression(current)) {
+      const accessorNames = new Set<string>();
       const properties = new Map<string, Origin>();
       let fallback: Origin | undefined;
       for (const property of current.properties) {
@@ -801,13 +849,16 @@ function analyzeTask7VisualSource(source: string) {
           const spread = originForNode(property.expression, context, seen);
           if (spread.kind === "object") {
             if (spread.fallback) {
+              accessorNames.clear();
               properties.clear();
               fallback = spread.fallback;
             }
             for (const [key, value] of spread.properties) {
+              accessorNames.delete(key);
               properties.set(key, value);
             }
           } else {
+            accessorNames.clear();
             properties.clear();
             fallback = spread;
           }
@@ -815,16 +866,33 @@ function analyzeTask7VisualSource(source: string) {
         }
         const name = propertyNameText(property.name, bindings);
         if (!name) {
+          accessorNames.clear();
           properties.clear();
           fallback = unknownOrigin;
           continue;
         }
         if (ts.isPropertyAssignment(property)) {
+          accessorNames.delete(name);
           properties.set(name, originForNode(property.initializer, context));
         } else if (ts.isShorthandPropertyAssignment(property)) {
+          accessorNames.delete(name);
           properties.set(name, originForNode(property.name, context));
         } else if (ts.isMethodDeclaration(property)) {
+          accessorNames.delete(name);
           properties.set(name, { kind: "node", context, node: property });
+        } else if (ts.isGetAccessorDeclaration(property)) {
+          const returned = directAccessorReturnExpression(property);
+          accessorNames.add(name);
+          properties.set(
+            name,
+            returned ? originForNode(returned, context) : unknownOrigin,
+          );
+        } else if (ts.isSetAccessorDeclaration(property)) {
+          if (!accessorNames.has(name)) properties.set(name, unknownOrigin);
+          accessorNames.add(name);
+        } else {
+          accessorNames.delete(name);
+          properties.set(name, unknownOrigin);
         }
       }
       return { fallback, kind: "object", properties };
@@ -888,14 +956,7 @@ function analyzeTask7VisualSource(source: string) {
     const current = unwrapNode(node);
     if (seen.has(current)) return undefined;
     seen.add(current);
-    if (
-      ts.isArrowFunction(current) ||
-      ts.isFunctionExpression(current) ||
-      ts.isFunctionDeclaration(current) ||
-      ts.isMethodDeclaration(current)
-    ) {
-      return current;
-    }
+    if (isCallableNode(current)) return current;
     if (ts.isIdentifier(current)) {
       const declaration = localDeclaration(current, bindings);
       const mapped = declaration && context.get(declaration);
@@ -1000,6 +1061,119 @@ function analyzeTask7VisualSource(source: string) {
       bindPattern(parameter.name, origin, context);
     }
     return context;
+  }
+
+  const runnerCallbackArguments = new Map<string, ReadonlySet<number>>([
+    ["addListener", new Set([1])],
+    ["evaluate", new Set([0])],
+    ["evaluateAll", new Set([0])],
+    ["evaluateHandle", new Set([0])],
+    ["exposeBinding", new Set([1])],
+    ["exposeFunction", new Set([1])],
+    ["on", new Set([1])],
+    ["once", new Set([1])],
+    ["prependListener", new Set([1])],
+    ["route", new Set([1])],
+    ["unroute", new Set([1])],
+    ["waitForFunction", new Set([0])],
+    ["waitForRequest", new Set([0])],
+    ["waitForResponse", new Set([0])],
+  ]);
+
+  function trustedPatternOrigin(name: ts.BindingName, rest = false): Origin {
+    if (ts.isIdentifier(name)) {
+      return rest
+        ? { kind: "list", values: [trustedDerivedOrigin] }
+        : trustedDerivedOrigin;
+    }
+    if (ts.isObjectBindingPattern(name)) {
+      const properties = new Map<string, Origin>();
+      for (const element of name.elements) {
+        if (element.dotDotDotToken) continue;
+        const key = element.propertyName
+          ? propertyNameText(element.propertyName, bindings)
+          : ts.isIdentifier(element.name)
+            ? element.name.text
+            : undefined;
+        if (key) properties.set(key, trustedPatternOrigin(element.name));
+      }
+      return { fallback: trustedDerivedOrigin, kind: "object", properties };
+    }
+    const values: Origin[] = [];
+    for (const element of name.elements) {
+      values.push(
+        ts.isOmittedExpression(element)
+          ? trustedDerivedOrigin
+          : trustedPatternOrigin(element.name),
+      );
+    }
+    return {
+      kind: "list",
+      values: values.length > 0 ? values : [trustedDerivedOrigin],
+    };
+  }
+
+  function runnerCallbackContext(
+    callable: CallableNode,
+    closureContext: OriginContext,
+  ) {
+    const context = new Map(closureContext);
+    for (const parameter of callable.parameters) {
+      bindPattern(
+        parameter.name,
+        trustedPatternOrigin(parameter.name, Boolean(parameter.dotDotDotToken)),
+        context,
+      );
+    }
+    return context;
+  }
+
+  function inspectRunnerCallback(
+    component: string,
+    callable: CallableNode,
+    closureContext: OriginContext,
+    activeCallables: Set<number>,
+  ) {
+    if (activeCallables.has(callable.pos)) return;
+    activeCallables.add(callable.pos);
+    inspectReachable(
+      component,
+      callable,
+      activeCallables,
+      runnerCallbackContext(callable, closureContext),
+    );
+    activeCallables.delete(callable.pos);
+  }
+
+  function inspectTrustedCallCallbacks(
+    component: string,
+    call: ts.CallExpression,
+    method: string | undefined,
+    activeCallables: Set<number>,
+    context: OriginContext,
+  ) {
+    const requiredCallbackIndexes = method
+      ? runnerCallbackArguments.get(method)
+      : undefined;
+    for (const [index, argument] of call.arguments.entries()) {
+      const origin = originForNode(argument, context);
+      const resolved = resolvedCallableFromOrigin(origin);
+      if (resolved) {
+        inspectRunnerCallback(
+          component,
+          resolved.callable,
+          resolved.context,
+          activeCallables,
+        );
+      } else if (requiredCallbackIndexes?.has(index)) {
+        recordViolation(
+          component,
+          "unresolved action helper",
+          argument,
+          originEvidence(origin) ?? argument,
+        );
+      }
+    }
   }
 
   function originTrust(
@@ -1136,6 +1310,8 @@ function analyzeTask7VisualSource(source: string) {
             recordViolation(component, "style mutation", node);
           }
 
+          const receiver = originForNode(callee.expression, context);
+          const receiverTrust = originTrust(receiver);
           if (callable) {
             inspectLocalCall(
               component,
@@ -1144,16 +1320,22 @@ function analyzeTask7VisualSource(source: string) {
               activeCallables,
               context,
             );
-          } else {
-            const receiver = originForNode(callee.expression, context);
-            if (originTrust(receiver) !== "trusted") {
-              recordViolation(
-                component,
-                "unresolved action helper",
-                node,
-                originEvidence(receiver) ?? node,
-              );
-            }
+          } else if (receiverTrust !== "trusted") {
+            recordViolation(
+              component,
+              "unresolved action helper",
+              node,
+              originEvidence(receiver) ?? node,
+            );
+          }
+          if (receiverTrust === "trusted") {
+            inspectTrustedCallCallbacks(
+              component,
+              node,
+              method,
+              activeCallables,
+              context,
+            );
           }
         }
       } else if (callable) {
@@ -1192,15 +1374,7 @@ function analyzeTask7VisualSource(source: string) {
     }
 
     ts.forEachChild(node, (child) => {
-      const callableChild =
-        ts.isArrowFunction(child) ||
-        ts.isFunctionExpression(child) ||
-        ts.isFunctionDeclaration(child) ||
-        ts.isMethodDeclaration(child);
-      const callbackArgument =
-        ts.isCallExpression(node) &&
-        node.arguments.some((argument) => unwrapNode(argument) === child);
-      if (callableChild && !callbackArgument) return;
+      if (isCallableNode(child)) return;
       inspectReachable(component, child, activeCallables, context);
     });
   };
@@ -2300,6 +2474,318 @@ describe("Task 7 React visual cases", () => {
         component: "context-spillover",
         kind: "unresolved action registration",
       },
+    ]);
+  });
+
+  test("keeps getter-returned imports untrusted through destructuring defaults", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      const source = {
+        get helper() {
+          return importedHelpers;
+        },
+      };
+      async function action({ canvas }) {
+        const { helper = safeLocal } = source;
+        await helper.inspect(canvas.getByRole("button"));
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "getter-default", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("preserves getter provenance through aliases, spreads, computed names, and property order", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      const helperKey = "helper";
+      const getterSource = {
+        get [helperKey]() {
+          return importedHelpers;
+        },
+      };
+      const getterAlias = getterSource;
+      const spreadAfterSafe = { helper: safeLocal, ...getterAlias };
+      const safeAfterSpread = { ...getterAlias, helper: safeLocal };
+      const getterAfterSafe = {
+        helper: safeLocal,
+        get [helperKey]() {
+          return importedHelpers;
+        },
+      };
+      const safeAfterGetter = {
+        get [helperKey]() {
+          return importedHelpers;
+        },
+        helper: safeLocal,
+      };
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        await spreadAfterSafe.helper.inspect(control);
+        await safeAfterSpread.helper.inspect(control);
+        await getterAfterSafe.helper.inspect(control);
+        await safeAfterGetter.helper.inspect(control);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "getter-order", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("fails closed for unresolved and setter-backed accessor values", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      const unresolvedSource = {
+        get helper() {
+          return loadHelpers();
+        },
+      };
+      const sideEffectSource = {
+        get helper() {
+          observe(importedHelpers);
+          return safeLocal;
+        },
+      };
+      const setterSource = {
+        set helper(value) {
+          consume(value);
+        },
+      };
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        const { helper: unresolvedHelper = safeLocal } = unresolvedSource;
+        const { helper: sideEffectHelper = safeLocal } = sideEffectSource;
+        const { helper: setterHelper = safeLocal } = setterSource;
+        await unresolvedHelper.inspect(control);
+        await sideEffectHelper.inspect(control);
+        await setterHelper.inspect(control);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "accessor-fail-closed", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("allows safe local getters and definitely absent defaults", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      const safeAccessor = {
+        get helper() {
+          return safeLocal;
+        },
+        set helper(value) {
+          void value;
+        },
+      };
+      const emptySource = {};
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        const { helper: getterHelper } = safeAccessor;
+        const { helper: defaultHelper = safeLocal } = emptySource;
+        await getterHelper.inspect(control);
+        await defaultHelper.inspect(control);
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "safe-accessors", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("resolves safe callable values returned by local getters", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function clickControl(control) {
+        await control.click();
+      }
+      const callbacks = {
+        get onRoute() {
+          return clickControl;
+        },
+      };
+      async function action({ canvas }) {
+        const callback = callbacks.onRoute;
+        await callback(canvas.getByRole("button"));
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "callable-getter", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("inspects direct and transparently wrapped runner callbacks", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      async function action({ page }) {
+        await page.route("**/direct", () => importedHelpers.inspect(page));
+        await page.route(
+          "**/wrapped",
+          (() => externalHelpers.inspect(page)),
+        );
+        await page.route("**/function", function callback() {
+          importedHelpers.actions.inspect(page);
+        });
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "direct-callbacks", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("inspects aliased method callbacks and nested callback factories", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const handlers = {
+        aliased: () => importedHelpers.inspect(),
+        method() {
+          importedHelpers.actions.inspect();
+        },
+      };
+      const callbackAlias = handlers.aliased;
+      const makeCallback = (helpers) => () => helpers.inspect();
+      const wrapCallback = (callback) => (...args) => callback(...args);
+      async function action({ page }) {
+        await page.route("**/alias", callbackAlias);
+        await page.route("**/method", handlers.method);
+        await page.route(
+          "**/factory",
+          wrapCallback(makeCallback(importedHelpers)),
+        );
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "callback-factories", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+      { component: "context-cards", kind: "unresolved action helper" },
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("rejects dynamic members and DOM fabrication inside runner callbacks", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const dynamicMember = chooseMember();
+      const dynamicCallback = () => externalHelpers[dynamicMember]();
+      const fabricate = (root) => {
+        root.innerHTML = "fabricated";
+      };
+      async function action({ page }) {
+        await page.route("**/dynamic", dynamicCallback);
+        await page.route("**/fabricated", fabricate);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "callback-violations", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "DOM rewrite" },
+      { component: "memory-inspector", kind: "unresolved action member" },
+    ]);
+  });
+
+  test("maps runner callback destructuring and rest parameters to trusted data", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function action({ page }) {
+        await page.route(
+          "**/*",
+          async ({ request, ...metadata }, ...routes) => {
+            await request.continue();
+            await metadata.response.finished();
+            await routes[0].continue();
+          },
+        );
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "callback-parameters", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("allows safe local runner callback aliases and factories", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const safeHelpers = {
+        async inspect(route) {
+          await route.continue();
+        },
+      };
+      const makeSafeCallback = ({ helpers }) =>
+        (...[route]) => helpers.inspect(route);
+      const safeCallback = makeSafeCallback({ helpers: safeHelpers });
+      async function action({ page }) {
+        await page.route("**/*", safeCallback);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "safe-callback", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("fails closed for imported, unbound, and dynamic runner callbacks", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import { importedCallback } from "./visual-helpers.mjs";
+      async function action({ page }) {
+        await page.route("**/imported", importedCallback);
+        await page.route("**/unbound", externalCallback);
+        await page.route("**/dynamic", chooseCallback());
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "unknown-callbacks", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
     ]);
   });
 
