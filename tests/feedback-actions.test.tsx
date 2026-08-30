@@ -122,12 +122,17 @@ describe("FeedbackActions", () => {
   });
 
   test.each(["resolve", "reject"] as const)(
-    "does not continue a pending clipboard %s after unmount",
+    "does not publish a stale copy status after a pending clipboard %s unmounts",
     async (outcome) => {
       vi.useFakeTimers();
       const pending = deferred<void>();
-      useClipboard(vi.fn(() => pending.promise));
+      const writeText = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockImplementationOnce(() => pending.promise);
+      useClipboard(writeText);
       const execCommand = useLegacyCopy(false);
+      const statuses: string[] = [];
       const unhandled: unknown[] = [];
       const onUnhandled = (event: PromiseRejectionEvent) => {
         unhandled.push(event.reason);
@@ -136,7 +141,19 @@ describe("FeedbackActions", () => {
       window.addEventListener("unhandledrejection", onUnhandled);
 
       try {
-        const view = render(<FeedbackActions />);
+        const view = render(
+          <FeedbackActions
+            onCopyStatusChange={(status: string) => statuses.push(status)}
+          />,
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Copy response" }));
+        await act(async () => {
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+        expect(screen.getByText("Copied")).not.toBeNull();
+        expect(statuses).toEqual(["copied"]);
+
         fireEvent.click(screen.getByRole("button", { name: "Copy response" }));
         view.unmount();
 
@@ -147,6 +164,7 @@ describe("FeedbackActions", () => {
           await Promise.resolve();
         });
 
+        expect(statuses).toEqual(["copied"]);
         expect(execCommand).not.toHaveBeenCalled();
         expect(vi.getTimerCount()).toBe(0);
         expect(unhandled).toEqual([]);

@@ -907,12 +907,16 @@ describe("Vanilla ES Modules & Web Components", () => {
     el.shadowRoot.querySelector(".reveal-btn").click();
     input = el.shadowRoot.querySelector(".secret-input");
     expect(input.type).toBe("text");
+    input.focus();
+    const stableInput = input;
 
     el.shadowRoot.querySelector('[data-signin="e2b"]').click();
     input = el.shadowRoot.querySelector(".secret-input");
     expect(el._flowKey).toBe("e2b");
     expect(el._secret).toBe("");
     expect(el._revealed).toBe(false);
+    expect(input).toBe(stableInput);
+    expect(el.shadowRoot.activeElement).toBe(input);
     expect(input.value).toBe("");
     expect(input.type).toBe("password");
 
@@ -995,6 +999,59 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(el.shadowRoot.querySelector("[data-injected]")).toBeNull();
     expect(el.shadowRoot.querySelector(".editor-area").value).toBe(injection);
     expect((globalThis as any).__naiInjected).toBeUndefined();
+  });
+
+  test("<nai-settings-editor> keeps its textarea stable through save, conflict, and refetch", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-settings-editor") as any;
+    document.body.appendChild(el);
+
+    const textarea = el.shadowRoot.querySelector(".editor-area");
+    textarea.value = '{\n  "theme": "dark"\n}';
+    textarea.dispatchEvent(new Event("input"));
+    textarea.focus();
+    textarea.setSelectionRange(5, 12);
+    textarea.scrollTop = 36;
+
+    el.shadowRoot.querySelector(".save-btn").click();
+    expect(el.shadowRoot.querySelector(".editor-area")).toBe(textarea);
+    expect(el.shadowRoot.activeElement).toBe(textarea);
+    expect([textarea.selectionStart, textarea.selectionEnd, textarea.scrollTop]).toEqual([
+      5,
+      12,
+      36,
+    ]);
+
+    vi.advanceTimersByTime(650 + 1500);
+    expect(el.shadowRoot.querySelector(".editor-area")).toBe(textarea);
+    expect(el.shadowRoot.activeElement).toBe(textarea);
+    expect([textarea.selectionStart, textarea.selectionEnd, textarea.scrollTop]).toEqual([
+      5,
+      12,
+      36,
+    ]);
+
+    textarea.value = '{\n  "theme": "dark",\n  "maxTokens": 12288\n}';
+    textarea.dispatchEvent(new Event("input"));
+    textarea.setSelectionRange(8, 18);
+    textarea.scrollTop = 48;
+    el.shadowRoot.querySelector(".save-btn").click();
+    vi.advanceTimersByTime(650);
+
+    expect(el._phase).toBe("conflict");
+    expect(el.shadowRoot.querySelector(".editor-area")).toBe(textarea);
+    expect(el.shadowRoot.activeElement).toBe(textarea);
+    expect([textarea.selectionStart, textarea.selectionEnd, textarea.scrollTop]).toEqual([
+      8,
+      18,
+      48,
+    ]);
+
+    el.shadowRoot.querySelector(".refetch-btn").click();
+    vi.advanceTimersByTime(900);
+    expect(el.shadowRoot.querySelector(".editor-area")).toBe(textarea);
+    expect(el.shadowRoot.activeElement).toBe(textarea);
+    expect(textarea.value).toContain('"temperature": 0.4');
   });
 
   test("<nai-settings-editor> preserves a conflicting draft until discard and refetch", () => {

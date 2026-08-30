@@ -123,6 +123,8 @@ export class NaiAuthorizationSurface extends NaiBaseElement {
   render() {
     const zh = this.isZh;
     const flowOpen = this._flowKey !== null && this._phase !== "idle";
+    const stableInput = this.shadowRoot?.querySelector(".secret-input");
+    const restoreInputFocus = this.shadowRoot?.activeElement === stableInput;
 
     this.setHtml(`
       <div class="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
@@ -233,7 +235,21 @@ export class NaiAuthorizationSurface extends NaiBaseElement {
       </div>
     `);
 
+    const renderedInput = this.shadowRoot?.querySelector(".secret-input");
+    if (stableInput && renderedInput) {
+      for (const attribute of [...stableInput.attributes]) {
+        if (!renderedInput.hasAttribute(attribute.name)) {
+          stableInput.removeAttribute(attribute.name);
+        }
+      }
+      for (const attribute of [...renderedInput.attributes]) {
+        stableInput.setAttribute(attribute.name, attribute.value);
+      }
+      renderedInput.replaceWith(stableInput);
+    }
+
     this._syncSecretInput();
+    if (restoreInputFocus && stableInput?.isConnected) stableInput.focus();
     this.shadowRoot?.querySelectorAll("[data-signin]").forEach((btn) => {
       btn.addEventListener("click", () => {
         this._beginFlow(btn.getAttribute("data-signin"));
@@ -253,10 +269,13 @@ export class NaiAuthorizationSurface extends NaiBaseElement {
       this.render();
       if (restoreFocus) this.shadowRoot?.querySelector(".reveal-btn")?.focus();
     });
-    this.shadowRoot?.querySelector(".secret-input")?.addEventListener("input", (event) => {
-      this._secret = event.target.value;
-      this._syncSecretInput();
-    });
+    const secretInput = this.shadowRoot?.querySelector(".secret-input");
+    if (secretInput && secretInput !== stableInput) {
+      secretInput.addEventListener("input", (event) => {
+        this._secret = event.target.value;
+        this._syncSecretInput();
+      });
+    }
     this.shadowRoot?.querySelector(".withdraw-btn")?.addEventListener("click", () => {
       this._withdrawFlow();
       this.render();

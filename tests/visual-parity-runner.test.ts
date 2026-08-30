@@ -56,6 +56,97 @@ function temporaryDirectory(prefix: string) {
   return path;
 }
 
+function markedSource(source: string, startMarker: string, endMarker: string) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker);
+  if (start < 0 || end <= start) return "";
+  return source.slice(start, end + endMarker.length);
+}
+
+function task4VisualGuardViolations(source: string) {
+  const actionSource = markedSource(
+    source,
+    "/* TASK 4 VISUAL ACTIONS START */",
+    "/* TASK 4 VISUAL ACTIONS END */",
+  );
+  const registrationSource = markedSource(
+    source,
+    "/* TASK 4 VISUAL REGISTRATIONS START */",
+    "/* TASK 4 VISUAL REGISTRATIONS END */",
+  );
+  const setupSource = markedSource(
+    actionSource,
+    "/* TASK 4 CLIPBOARD PAGE EVALUATE SETUP START */",
+    "/* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */",
+  );
+  const restoreSource = markedSource(
+    actionSource,
+    "/* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE START */",
+    "/* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */",
+  );
+  const violations = new Set<string>();
+
+  if (!actionSource) violations.add("missing action guard markers");
+  if (!registrationSource) violations.add("missing registration guard markers");
+
+  const guardedSource = `${actionSource}\n${registrationSource}`;
+  const forbidden = [
+    ["DOM rewrite", /(?:\b(?:innerHTML|outerHTML|textContent|innerText)\b\s*=|\.insertAdjacentHTML\s*\()/],
+    ["node replacement", /\.(?:replaceChildren|replaceChild|replaceWith|remove|removeChild|append|appendChild|prepend|before|after|insertBefore|insertAdjacentElement)\s*\(/],
+    ["DOM construction", /\bdocument\s*\.\s*(?:createElement|createDocumentFragment)\s*\(/],
+    ["style or hiding mutation", /(?:\.style\b|\.classList\b|\bclassName\s*=|setProperty\s*\(|setAttribute\s*\(\s*["'](?:style|hidden|aria-hidden)["']|\.hidden\s*=|\b(?:display|visibility|opacity)\s*:)/],
+    ["canonical replacement helper", /replaceWithCanonicalCard|canonicalize/],
+    ["stabilization helper", /stabilize[A-Z]|freezeCaseMotion/],
+  ] as const;
+  for (const [label, pattern] of forbidden) {
+    if (pattern.test(guardedSource)) violations.add(label);
+  }
+
+  const canvasEvaluation = /\bcanvas\s*(?:\.\s*(?:evaluate|evaluateHandle)|\[\s*["'](?:evaluate|evaluateHandle)["']\s*\])\s*\(/;
+  if (canvasEvaluation.test(guardedSource)) {
+    violations.add("canvas evaluation");
+  }
+
+  const pageEvaluation = /\bpage\s*(?:\.\s*(?:evaluate|evaluateHandle)|\[\s*["'](?:evaluate|evaluateHandle)["']\s*\])\s*\(/g;
+  const actionWithoutClipboardBoundary = actionSource
+    .replace(setupSource, "")
+    .replace(restoreSource, "");
+  if (
+    pageEvaluation.test(`${actionWithoutClipboardBoundary}\n${registrationSource}`)
+  ) {
+    violations.add("page evaluation boundary");
+  }
+
+  if (/copy-error|failFeedbackCopy/.test(guardedSource)) {
+    const setupEvaluations = setupSource.match(pageEvaluation)?.length ?? 0;
+    const restoreEvaluations = restoreSource.match(pageEvaluation)?.length ?? 0;
+    if (setupEvaluations !== 1 || restoreEvaluations !== 1) {
+      violations.add("page evaluation boundary");
+    }
+
+    const setupRequirements = [
+      /Object\.getOwnPropertyDescriptor\(navigator,\s*["']clipboard["']\)/,
+      /Object\.getOwnPropertyDescriptor\(document,\s*["']execCommand["']\)/,
+      /Object\.defineProperty\(navigator,\s*["']clipboard["']/,
+      /Object\.defineProperty\(document,\s*["']execCommand["']/,
+    ];
+    const restoreRequirements = [
+      /Object\.defineProperty\(navigator,\s*["']clipboard["']/,
+      /Object\.defineProperty\(document,\s*["']execCommand["']/,
+      /Reflect\.deleteProperty\(navigator,\s*["']clipboard["']\)/,
+      /Reflect\.deleteProperty\(document,\s*["']execCommand["']\)/,
+    ];
+    if (
+      setupRequirements.some((pattern) => !pattern.test(setupSource)) ||
+      restoreRequirements.some((pattern) => !pattern.test(restoreSource))
+    ) {
+      violations.add("clipboard evaluate validation");
+    }
+  }
+
+  return [...violations];
+}
+
 function rgbaImage(
   width: number,
   height: number,
@@ -160,34 +251,74 @@ describe("registry-derived visual case inventory", () => {
     ]);
   });
 
-  test("keeps Task 4 visual actions on the rendered component DOM", () => {
+  test("keeps Task 4 visual actions and registrations on the rendered component DOM", () => {
     const source = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
-    const startMarker = "/* TASK 4 VISUAL ACTIONS START */";
-    const endMarker = "/* TASK 4 VISUAL ACTIONS END */";
-    const start = source.indexOf(startMarker);
-    const end = source.indexOf(endMarker);
+    expect(task4VisualGuardViolations(source)).toEqual([]);
+  });
 
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-
-    const task4Source = source.slice(start, end + endMarker.length);
-    const forbidden = [
-      ["innerHTML", /\binnerHTML\b/],
-      ["replaceChildren", /\breplaceChildren\b/],
-      ["node removal", /\.(?:remove|removeChild|replaceWith)\s*\(/],
-      ["display hiding", /\bdisplay\s*(?:=|:)/],
-      ["visibility hiding", /\bvisibility\s*(?:=|:)/],
-      ["opacity hiding", /\bopacity\s*(?:=|:)/],
-      ["style mutation", /(?:\.style\b|setProperty\s*\()/],
-      ["canonical replacement helper", /replaceWithCanonicalCard|canonicalize/],
-      ["motion or SVG hiding helper", /freezeCaseMotion|stabilizeFeedback/],
-    ] as const;
-
-    expect(
-      forbidden
-        .filter(([, pattern]) => pattern.test(task4Source))
-        .map(([label]) => label),
-    ).toEqual([]);
+  test.each([
+    [
+      "registration evaluate bypass",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected() {}
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: ({ canvas }) => canvas.evaluate(() => {}) }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "canvas evaluation",
+    ],
+    [
+      "canvas evaluate bypass",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ canvas }) { await canvas.evaluate(() => {}); }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "canvas evaluation",
+    ],
+    [
+      "textContent rewrite",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { root.textContent = "fabricated"; }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "DOM rewrite",
+    ],
+    [
+      "outerHTML rewrite",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { root.outerHTML = "<div>fabricated</div>"; }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "DOM rewrite",
+    ],
+    [
+      "replaceChild bypass",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { root.replaceChild(next, current); }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "node replacement",
+    ],
+    [
+      "unauthorized page evaluate",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ page }) { await page.evaluate(() => document.body.remove()); }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "page evaluation boundary",
+    ],
+  ])("rejects the Task 4 %s", (_label, source, violation) => {
+    expect(task4VisualGuardViolations(source)).toContain(violation);
   });
 
   test("restores clipboard globals after the copy-error visual action", async () => {
@@ -247,6 +378,97 @@ describe("registry-derived visual case inventory", () => {
       expect(originalWriteText).toHaveBeenCalledWith("after visual action");
       expect(originalExecCommand).toHaveBeenCalledWith("copy");
     } finally {
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+      if (execCommandDescriptor) {
+        Object.defineProperty(document, "execCommand", execCommandDescriptor);
+      } else {
+        Reflect.deleteProperty(document, "execCommand");
+      }
+    }
+  });
+
+  test("restores exact clipboard globals after partial copy-error setup failure", async () => {
+    const action = CASES.get("feedback-actions")?.find(
+      ({ name }) => name === "copy-error",
+    )?.action;
+    expect(typeof action).toBe("function");
+
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      "clipboard",
+    );
+    const execCommandDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "execCommand",
+    );
+    const originalWriteText = vi.fn().mockResolvedValue(undefined);
+    const originalExecCommand = vi.fn(() => true);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: originalWriteText },
+    });
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: originalExecCommand,
+    });
+    const expectedClipboard = Object.getOwnPropertyDescriptor(
+      navigator,
+      "clipboard",
+    );
+    const expectedExecCommand = Object.getOwnPropertyDescriptor(
+      document,
+      "execCommand",
+    );
+
+    let evaluateCalls = 0;
+    const page = {
+      evaluate: async (callback: () => unknown) => {
+        evaluateCalls += 1;
+        if (evaluateCalls !== 1) return callback();
+
+        const originalDefineProperty = Object.defineProperty;
+        const defineProperty = vi
+          .spyOn(Object, "defineProperty")
+          .mockImplementation((target, property, attributes) => {
+            if (target === document && property === "execCommand") {
+              throw new Error("execCommand mock install failed");
+            }
+            return originalDefineProperty(target, property, attributes);
+          });
+        try {
+          return callback();
+        } finally {
+          defineProperty.mockRestore();
+        }
+      },
+    };
+    const canvas = {
+      getByRole: vi.fn(() => {
+        throw new Error("copy click must not run after setup failure");
+      }),
+      getByText: vi.fn(),
+    };
+
+    try {
+      await expect(
+        action?.({ advance: async () => {}, canvas, page }),
+      ).rejects.toThrow("execCommand mock install failed");
+
+      expect(evaluateCalls).toBe(2);
+      expect(Object.getOwnPropertyDescriptor(navigator, "clipboard")).toEqual(
+        expectedClipboard,
+      );
+      expect(Object.getOwnPropertyDescriptor(document, "execCommand")).toEqual(
+        expectedExecCommand,
+      );
+      expect(navigator.clipboard.writeText).toBe(originalWriteText);
+      expect(document.execCommand).toBe(originalExecCommand);
+    } finally {
+      Reflect.deleteProperty(globalThis, "__naiTask4FeedbackCopyGlobals");
       if (clipboardDescriptor) {
         Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
       } else {

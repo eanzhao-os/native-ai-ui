@@ -22,11 +22,14 @@ describe("AuthorizationSurface", () => {
     fireEvent.change(deepseekSecret, { target: { value: "dsk-old-secret" } });
     fireEvent.click(screen.getByRole("button", { name: "Reveal token" }));
     expect(deepseekSecret.type).toBe("text");
+    deepseekSecret.focus();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in to e2b" }));
 
     const e2bSecret = screen.getByLabelText("Access token") as HTMLInputElement;
     expect(screen.getByText("Authorize e2b")).not.toBeNull();
+    expect(e2bSecret).toBe(deepseekSecret);
+    expect(document.activeElement).toBe(e2bSecret);
     expect(e2bSecret.value).toBe("");
     expect(e2bSecret.type).toBe("password");
   });

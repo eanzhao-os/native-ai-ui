@@ -100,10 +100,7 @@ export default function AuthorizationSurface({
   const flowOpen = flowKey !== null && phase !== "idle";
 
   return (
-    <div
-      key={flowKey ?? "idle"}
-      className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card"
-    >
+    <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
       {/* header */}
       <div className="flex items-center justify-between border-b border-line pb-3.5">
         <div className="flex items-center gap-2">

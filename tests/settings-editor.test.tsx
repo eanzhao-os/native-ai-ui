@@ -52,6 +52,68 @@ describe("SettingsEditor", () => {
     expect(screen.getByText("revision 8")).not.toBeNull();
   });
 
+  test("keeps the interactive textarea stable through save, conflict, and refetch", async () => {
+    vi.useFakeTimers();
+    render(<SettingsEditor />);
+
+    const editor = screen.getByLabelText("Settings JSON") as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: FIRST_DRAFT } });
+    editor.focus();
+    editor.setSelectionRange(5, 12);
+    editor.scrollTop = 36;
+
+    fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
+    expect(screen.getByLabelText("Settings JSON")).toBe(editor);
+    expect(document.activeElement).toBe(editor);
+    expect([editor.selectionStart, editor.selectionEnd, editor.scrollTop]).toEqual([
+      5,
+      12,
+      36,
+    ]);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(650);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(screen.getByLabelText("Settings JSON")).toBe(editor);
+    expect(document.activeElement).toBe(editor);
+    expect([editor.selectionStart, editor.selectionEnd, editor.scrollTop]).toEqual([
+      5,
+      12,
+      36,
+    ]);
+
+    fireEvent.change(editor, { target: { value: CONFLICT_DRAFT } });
+    editor.setSelectionRange(8, 18);
+    editor.scrollTop = 48;
+    fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(650);
+    });
+
+    expect(screen.getByText("SETTINGS_CONFLICT")).not.toBeNull();
+    expect(screen.getByLabelText("Settings JSON")).toBe(editor);
+    expect(document.activeElement).toBe(editor);
+    expect([editor.selectionStart, editor.selectionEnd, editor.scrollTop]).toEqual([
+      8,
+      18,
+      48,
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Discard changes and refetch" }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(900);
+    });
+
+    expect(screen.getByLabelText("Settings JSON")).toBe(editor);
+    expect(document.activeElement).toBe(editor);
+    expect(editor.value).toBe(REMOTE_DRAFT);
+  });
+
   test("preserves a conflicting draft until explicit discard and refetch", async () => {
     vi.useFakeTimers();
     render(<SettingsEditor />);

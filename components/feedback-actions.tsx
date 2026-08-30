@@ -55,9 +55,11 @@ async function copyText(text: string, isCurrent: () => boolean) {
 export default function FeedbackActions({
   lang: propLang,
   visualCase,
+  onCopyStatusChange,
 }: {
   lang?: "en" | "zh";
   visualCase?: string;
+  onCopyStatusChange?: (status: CopyStatus) => void;
 }) {
   const lang = useLang("feedback-actions", propLang);
   const zh = lang === "zh";
@@ -98,11 +100,14 @@ export default function FeedbackActions({
     );
     if (!isCurrent()) return;
 
-    setCopyStatus(copied ? "copied" : "copy-error");
+    const status = copied ? "copied" : "copy-error";
+    setCopyStatus(status);
+    onCopyStatusChange?.(status);
     resetTimer.current = setTimeout(() => {
       if (!isCurrent()) return;
       resetTimer.current = null;
       setCopyStatus("idle");
+      onCopyStatusChange?.("idle");
     }, STATUS_HOLD_MS);
   };
 

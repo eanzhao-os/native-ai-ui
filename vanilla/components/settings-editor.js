@@ -63,16 +63,118 @@ export class NaiSettingsEditor extends NaiBaseElement {
   _syncTextarea() {
     const textarea = this.shadowRoot?.querySelector(".editor-area");
     if (!textarea) return;
-    textarea.value = this._draft;
+    if (textarea.value !== this._draft) textarea.value = this._draft;
     textarea.readOnly = this._phase !== "edit";
   }
 
   _syncDraftControls() {
     this._syncTextarea();
     const save = this.shadowRoot?.querySelector(".save-btn");
-    if (save) save.disabled = this._phase !== "edit" || this._draft === this._saved;
+    const disabled = this._phase !== "edit" || this._draft === this._saved;
+    if (save && save.disabled !== disabled) save.disabled = disabled;
+  }
+
+  _syncView() {
+    const zh = this.isZh;
+    const conflictLike = this._phase === "conflict" || this._phase === "refetching";
+    const tone =
+      this._phase === "conflict" ? "bg-orange-tint text-orange"
+      : this._phase === "saved" ? "bg-green-tint text-green"
+      : "bg-field text-ink-2";
+
+    const description = this.shadowRoot?.querySelector(".namespace-description");
+    if (description) {
+      const text = zh
+        ? "配置命名空间 · 乐观并发"
+        : "Configuration namespace · optimistic concurrency";
+      if (description.textContent !== text) description.textContent = text;
+    }
+    const revision = this.shadowRoot?.querySelector(".revision-chip");
+    const revisionText = `revision ${this._revision}`;
+    if (revision && revision.textContent?.trim() !== revisionText) {
+      revision.textContent = revisionText;
+    }
+
+    const textarea = this.shadowRoot?.querySelector(".editor-area");
+    if (textarea) {
+      const label = zh ? "设置 JSON" : "Settings JSON";
+      if (textarea.getAttribute("aria-label") !== label) {
+        textarea.setAttribute("aria-label", label);
+      }
+      const className = `editor-area w-full resize-none rounded-control border px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] outline-none transition-colors duration-200 ${
+        conflictLike
+          ? "border-orange/50 bg-orange-tint/25 text-ink-2"
+          : "border-line bg-inset text-ink focus:border-accent focus:bg-surface"
+      }`;
+      if (textarea.className !== className) textarea.className = className;
+    }
+
+    const footer = this.shadowRoot?.querySelector(".editor-footer");
+    let alert = this.shadowRoot?.querySelector('[role="alert"]');
+    if (this._phase === "conflict") {
+      if (!alert && footer) {
+        const template = document.createElement("template");
+        template.innerHTML = `
+          <div role="alert" class="mt-2 flex items-center justify-between rounded-control border border-orange/35 bg-orange-tint px-3 py-2"
+            style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;">
+            <span class="conflict-message text-[11.5px] font-medium text-ink"></span>
+            <span class="font-mono text-[10px] text-orange">SETTINGS_CONFLICT</span>
+          </div>`;
+        footer.before(template.content.firstElementChild);
+        alert = this.shadowRoot?.querySelector('[role="alert"]');
+      }
+      const message = alert?.querySelector(".conflict-message");
+      if (message) {
+        message.textContent = zh
+          ? "预期 revision 已过期 — 草稿仍保留"
+          : "expectedRevision is stale — your draft is preserved";
+      }
+    } else {
+      alert?.remove();
+    }
+
+    const actions = this.shadowRoot?.querySelector(".editor-actions");
+    const save = this.shadowRoot?.querySelector(".save-btn");
+    let refetch = this.shadowRoot?.querySelector(".refetch-btn");
+    if (this._phase === "conflict") {
+      if (!refetch && actions && save) {
+        refetch = document.createElement("button");
+        refetch.type = "button";
+        refetch.className = "refetch-btn rounded-control border border-line-strong bg-surface px-2.5 py-1 text-[11px] font-medium text-ink shadow-btn transition-colors hover:bg-hover cursor-pointer";
+        refetch.addEventListener("click", () => this._discardAndRefetch());
+        actions.insertBefore(refetch, save);
+      }
+      if (refetch) {
+        refetch.setAttribute("aria-label", zh ? "放弃修改并重新读取" : "Discard changes and refetch");
+        refetch.textContent = zh ? "放弃修改并刷新" : "Discard & refetch";
+      }
+    } else {
+      refetch?.remove();
+    }
+
+    if (save) {
+      const label = zh ? "保存 revision" : "Save revision";
+      const text = zh ? "保存" : "Save";
+      if (save.getAttribute("aria-label") !== label) {
+        save.setAttribute("aria-label", label);
+      }
+      if (save.textContent !== text) save.textContent = text;
+    }
+
     const status = this.shadowRoot?.querySelector(".status-chip");
-    if (status && this._phase === "edit") status.textContent = this._statusText();
+    if (status) {
+      status.className = `status-chip flex items-center gap-1.5 rounded-chip px-2 py-0.5 text-[10.5px] font-medium ${tone}`;
+      status.replaceChildren();
+      if (this._phase === "saving" || this._phase === "refetching") {
+        const spinner = document.createElement("span");
+        spinner.className = "size-3 rounded-full border-[1.5px] border-line-strong border-t-ink-2";
+        spinner.style.animation = "spin 700ms linear infinite";
+        status.appendChild(spinner);
+      }
+      status.append(this._statusText());
+    }
+
+    this._syncDraftControls();
   }
 
   _save() {
@@ -131,6 +233,11 @@ export class NaiSettingsEditor extends NaiBaseElement {
   }
 
   render() {
+    if (this.shadowRoot?.querySelector(".max-w-lg.rounded-card")) {
+      this._syncView();
+      return;
+    }
+
     const zh = this.isZh;
     const conflictLike = this._phase === "conflict" || this._phase === "refetching";
     const tone =
@@ -147,16 +254,16 @@ export class NaiSettingsEditor extends NaiBaseElement {
             </span>
             <div>
               <h3 class="font-mono text-[13px] font-semibold text-ink">${NAMESPACE}</h3>
-              <p class="text-[11px] text-ink-3">${zh ? "配置命名空间 · 乐观并发" : "Configuration namespace · optimistic concurrency"}</p>
+              <p class="namespace-description text-[11px] text-ink-3">${zh ? "配置命名空间 · 乐观并发" : "Configuration namespace · optimistic concurrency"}</p>
             </div>
           </div>
-          <span class="revision-chip rounded-chip border border-line bg-surface px-2 py-0.5 font-mono text-[10px] tabular-nums text-ink-3">
+          <span class="revision-chip rounded-chip border border-line bg-surface px-2 py-0.5 font-mono text-[10px] tabular-nums text-ink-3" style="transform: translateZ(0px);">
             revision ${this._revision}
           </span>
         </div>
 
         <div class="p-3">
-          <textarea spellcheck="false" rows="7" style="appearance: none;"
+          <textarea spellcheck="false" rows="7" style="appearance: none; transform: translateZ(0px);"
             aria-label="${zh ? "设置 JSON" : "Settings JSON"}"
             class="editor-area w-full resize-none rounded-control border px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] outline-none transition-colors duration-200 ${
               conflictLike
@@ -167,21 +274,21 @@ export class NaiSettingsEditor extends NaiBaseElement {
           ${this._phase === "conflict" ? `
             <div role="alert" class="mt-2 flex items-center justify-between rounded-control border border-orange/35 bg-orange-tint px-3 py-2"
               style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;">
-              <span class="text-[11.5px] font-medium text-ink">
+              <span class="conflict-message text-[11.5px] font-medium text-ink">
                 ${zh ? "预期 revision 已过期 — 草稿仍保留" : "expectedRevision is stale — your draft is preserved"}
               </span>
               <span class="font-mono text-[10px] text-orange">SETTINGS_CONFLICT</span>
             </div>
           ` : ""}
 
-          <div class="mt-2.5 flex items-center justify-between">
+          <div class="editor-footer mt-2.5 flex items-center justify-between">
             <span class="status-chip flex items-center gap-1.5 rounded-chip px-2 py-0.5 text-[10.5px] font-medium ${tone}">
               ${this._phase === "saving" || this._phase === "refetching" ? `
                 <span class="size-3 rounded-full border-[1.5px] border-line-strong border-t-ink-2" style="animation: spin 700ms linear infinite;"></span>
               ` : ""}
               ${this._statusText()}
             </span>
-            <div class="flex items-center gap-2">
+            <div class="editor-actions flex items-center gap-2">
               ${this._phase === "conflict" ? `
                 <button type="button" aria-label="${zh ? "放弃修改并重新读取" : "Discard changes and refetch"}"
                   class="refetch-btn rounded-control border border-line-strong bg-surface px-2.5 py-1 text-[11px] font-medium text-ink shadow-btn transition-colors hover:bg-hover cursor-pointer">
@@ -198,13 +305,13 @@ export class NaiSettingsEditor extends NaiBaseElement {
       </div>
     `);
 
-    this._syncDraftControls();
     this.shadowRoot?.querySelector(".editor-area")?.addEventListener("input", (event) => {
       this._draft = event.target.value;
       this._syncDraftControls();
     });
     this.shadowRoot?.querySelector(".save-btn")?.addEventListener("click", () => this._save());
     this.shadowRoot?.querySelector(".refetch-btn")?.addEventListener("click", () => this._discardAndRefetch());
+    this._syncView();
   }
 }
 

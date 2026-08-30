@@ -147,46 +147,62 @@ async function dislikeFeedback({ canvas }) {
 }
 
 async function failFeedbackCopy({ canvas, page }) {
-  await page.evaluate(() => {
-    globalThis.__naiTask4FeedbackCopyGlobals = {
-      clipboard: Object.getOwnPropertyDescriptor(navigator, "clipboard"),
-      execCommand: Object.getOwnPropertyDescriptor(document, "execCommand"),
-    };
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: async () => {
-          throw new Error("visual copy denial");
-        },
-      },
-    });
-    Object.defineProperty(document, "execCommand", {
-      configurable: true,
-      value: () => false,
-    });
-  });
-
   try {
+    /* TASK 4 CLIPBOARD PAGE EVALUATE SETUP START */
+    await page.evaluate(() => {
+      globalThis.__naiTask4FeedbackCopyGlobals = {
+        clipboard: Object.getOwnPropertyDescriptor(navigator, "clipboard"),
+        execCommand: Object.getOwnPropertyDescriptor(document, "execCommand"),
+      };
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async () => {
+            throw new Error("visual copy denial");
+          },
+        },
+      });
+      Object.defineProperty(document, "execCommand", {
+        configurable: true,
+        value: () => false,
+      });
+    });
+    /* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */
+
     await canvas
       .getByRole("button", { name: /Copy response|复制回复/ })
       .click();
     await canvas.getByText(/Copy failed|复制失败/).waitFor();
   } finally {
+    /* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE START */
     await page.evaluate(() => {
       const originals = globalThis.__naiTask4FeedbackCopyGlobals;
       if (!originals) return;
-      if (originals.clipboard) {
-        Object.defineProperty(navigator, "clipboard", originals.clipboard);
-      } else {
-        Reflect.deleteProperty(navigator, "clipboard");
+      const errors = [];
+      try {
+        if (originals.clipboard) {
+          Object.defineProperty(navigator, "clipboard", originals.clipboard);
+        } else {
+          Reflect.deleteProperty(navigator, "clipboard");
+        }
+      } catch (error) {
+        errors.push(error);
       }
-      if (originals.execCommand) {
-        Object.defineProperty(document, "execCommand", originals.execCommand);
-      } else {
-        Reflect.deleteProperty(document, "execCommand");
+      try {
+        if (originals.execCommand) {
+          Object.defineProperty(document, "execCommand", originals.execCommand);
+        } else {
+          Reflect.deleteProperty(document, "execCommand");
+        }
+      } catch (error) {
+        errors.push(error);
       }
       Reflect.deleteProperty(globalThis, "__naiTask4FeedbackCopyGlobals");
+      if (errors.length > 0) {
+        throw new AggregateError(errors, "Could not restore copy-error globals");
+      }
     });
+    /* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */
   }
 }
 /* TASK 4 VISUAL ACTIONS END */
@@ -206,6 +222,7 @@ export const CASES = new Map([
       { name: "elapsed", advanceMs: 2600 },
     ],
   ],
+  /* TASK 4 VISUAL REGISTRATIONS START */
   [
     "session-list",
     [
@@ -241,6 +258,7 @@ export const CASES = new Map([
       { name: "copy-error", advanceMs: 0, action: failFeedbackCopy },
     ],
   ],
+  /* TASK 4 VISUAL REGISTRATIONS END */
 ]);
 
 export function casesForComponent(componentId) {
