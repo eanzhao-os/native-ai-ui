@@ -482,6 +482,66 @@ describe("registry-derived visual case inventory", () => {
     }
   });
 
+  test("defines deterministic Task 5A Core states", () => {
+    expect(CASES.get("thinking")?.map(({ name, advanceMs }) => ({
+      advanceMs,
+      name,
+    }))).toEqual([
+      { name: "settled", advanceMs: 6000 },
+      { name: "expanded", advanceMs: 6000 },
+    ]);
+    expect(CASES.get("streaming-text")?.map(({ name, advanceMs }) => ({
+      advanceMs,
+      name,
+    }))).toEqual([
+      { name: "settled", advanceMs: 0 },
+      { name: "sources-open", advanceMs: 0 },
+    ]);
+    expect(CASES.get("prompt-bar")?.map(({ name, advanceMs }) => ({
+      advanceMs,
+      name,
+    }))).toEqual([
+      { name: "ready", advanceMs: 0 },
+      { name: "submitted", advanceMs: 0 },
+    ]);
+  });
+
+  test("keeps Task 5A visual actions and registrations on real UI", () => {
+    const source = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const marked = (startMarker: string, endMarker: string) => {
+      const start = source.indexOf(startMarker);
+      const end = source.indexOf(endMarker, start);
+      if (start < 0 || end <= start) return "";
+      return source.slice(start, end + endMarker.length);
+    };
+    const actions = marked(
+      "/* TASK 5A VISUAL ACTIONS START */",
+      "/* TASK 5A VISUAL ACTIONS END */",
+    );
+    const registrations = marked(
+      "/* TASK 5A VISUAL REGISTRATIONS START */",
+      "/* TASK 5A VISUAL REGISTRATIONS END */",
+    );
+
+    expect(actions).not.toBe("");
+    expect(registrations).not.toBe("");
+
+    const guarded = `${actions}\n${registrations}`;
+    const forbidden = [
+      ["DOM evaluation", /\.(?:evaluate|evaluateHandle)\s*\(/],
+      ["DOM rewrite", /\b(?:innerHTML|outerHTML|textContent|innerText)\b\s*=/],
+      ["node replacement", /\.(?:replaceChildren|replaceChild|replaceWith|remove|removeChild|append|appendChild|prepend|before|after)\s*\(/],
+      ["style mutation", /(?:\.style\b|\.classList\b|setProperty\s*\()/],
+      ["stabilization helper", /stabilize[A-Z]|freezeCaseMotion|canonicalize/],
+    ] as const;
+
+    expect(
+      forbidden
+        .filter(([, pattern]) => pattern.test(guarded))
+        .map(([label]) => label),
+    ).toEqual([]);
+  });
+
   test("defines deterministic initial and settled cases for Code Block", () => {
     expect(DEFAULT_CASE).toEqual({ name: "settled", advanceMs: 2600 });
     expect(CASES.get("code-block")).toEqual([

@@ -16,6 +16,101 @@ async function freezeCaseMotion(canvas) {
   });
 }
 
+/* TASK 5A VISUAL ACTIONS START */
+async function expandSettledThinking({ canvas }) {
+  await canvas
+    .getByRole("button", {
+      name: /Thought for 4 seconds|已深度思考 4 秒/,
+    })
+    .click();
+  await canvas
+    .getByText(/Writing the scoop report|生成冰淇淋上架评估报告/)
+    .waitFor();
+}
+
+async function waitForStreamingSettled({ advance, canvas }) {
+  const sources = canvas.getByRole("button", {
+    name: /10 sources|10 处引用源/,
+  });
+  const actions = sources.locator("..");
+  let lastStyle = null;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    lastStyle = await actions.getAttribute("style");
+    if (/opacity:\s*1(?:;|$)/.test(lastStyle ?? "")) {
+      await canvas.getByText(/Follow-ups|猜您想问/).waitFor();
+      return sources;
+    }
+    await advance(100);
+  }
+  throw new Error(
+    `Streaming Text did not settle (actions style: ${lastStyle})`,
+  );
+}
+
+async function settleStreaming(args) {
+  await waitForStreamingSettled(args);
+}
+
+async function openStreamingSources(args) {
+  const sources = await waitForStreamingSettled(args);
+  await sources.click();
+  await args.canvas.getByText("Scoop Data").waitFor();
+}
+
+async function preparePrompt({ canvas }) {
+  const input = canvas.getByRole("textbox", {
+    name: /Prompt|提示词输入框/,
+  });
+  await input.click();
+  const label = await input.getAttribute("aria-label");
+  const draft =
+    label === "提示词输入框"
+      ? "对比开心果周末销量"
+      : "Compare pistachio weekends";
+  await input.fill(draft);
+  if ((await input.inputValue()) !== draft) {
+    throw new Error("Prompt ready state did not retain the draft");
+  }
+}
+
+async function submitPrompt(args) {
+  const input = args.canvas.getByRole("textbox", {
+    name: /Prompt|提示词输入框/,
+  });
+  await preparePrompt(args);
+  await args.canvas.getByRole("button", { name: /Send|发送/ }).click();
+  if ((await input.inputValue()) !== "") {
+    throw new Error("Prompt submission did not clear the composer");
+  }
+}
+/* TASK 5A VISUAL ACTIONS END */
+
+/* TASK 5A VISUAL REGISTRATIONS START */
+const TASK5A_CASES = [
+  [
+    "prompt-bar",
+    [
+      { name: "ready", advanceMs: 0, action: preparePrompt },
+      { name: "submitted", advanceMs: 0, action: submitPrompt },
+    ],
+  ],
+  [
+    "streaming-text",
+    [
+      { name: "settled", advanceMs: 0, action: settleStreaming },
+      { name: "sources-open", advanceMs: 0, action: openStreamingSources },
+    ],
+  ],
+  [
+    "thinking",
+    [
+      { name: "settled", advanceMs: 6000 },
+      { name: "expanded", advanceMs: 6000, action: expandSettledThinking },
+    ],
+  ],
+];
+/* TASK 5A VISUAL REGISTRATIONS END */
+
 /* TASK 4 VISUAL ACTIONS START */
 async function selectSecondSession({ canvas }) {
   await canvas
@@ -222,6 +317,7 @@ export const CASES = new Map([
       { name: "elapsed", advanceMs: 2600 },
     ],
   ],
+  ...TASK5A_CASES,
   /* TASK 4 VISUAL REGISTRATIONS START */
   [
     "session-list",
