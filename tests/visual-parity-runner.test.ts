@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import {
   existsSync,
@@ -12,6 +13,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import ts from "typescript";
 import registry from "../registry.json";
 import {
   buildBaseMatrix,
@@ -63,84 +65,686 @@ function markedSource(source: string, startMarker: string, endMarker: string) {
   return source.slice(start, end + endMarker.length);
 }
 
-function task4VisualGuardViolations(source: string) {
-  const actionSource = markedSource(
-    source,
-    "/* TASK 4 VISUAL ACTIONS START */",
-    "/* TASK 4 VISUAL ACTIONS END */",
-  );
-  const registrationSource = markedSource(
-    source,
-    "/* TASK 4 VISUAL REGISTRATIONS START */",
-    "/* TASK 4 VISUAL REGISTRATIONS END */",
-  );
-  const setupSource = markedSource(
-    actionSource,
-    "/* TASK 4 CLIPBOARD PAGE EVALUATE SETUP START */",
-    "/* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */",
-  );
-  const restoreSource = markedSource(
-    actionSource,
-    "/* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE START */",
-    "/* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */",
-  );
-  const violations = new Set<string>();
+type SourceRange = { start: number; end: number };
 
-  if (!actionSource) violations.add("missing action guard markers");
-  if (!registrationSource) violations.add("missing registration guard markers");
+type RegisteredAction = {
+  actionKey: string;
+  target: ts.Node;
+};
 
-  const guardedSource = `${actionSource}\n${registrationSource}`;
-  const forbidden = [
-    ["DOM rewrite", /(?:\b(?:innerHTML|outerHTML|textContent|innerText)\b\s*=|\.insertAdjacentHTML\s*\()/],
-    ["node replacement", /\.(?:replaceChildren|replaceChild|replaceWith|remove|removeChild|append|appendChild|prepend|before|after|insertBefore|insertAdjacentElement)\s*\(/],
-    ["DOM construction", /\bdocument\s*\.\s*(?:createElement|createDocumentFragment)\s*\(/],
-    ["style or hiding mutation", /(?:\.style\b|\.classList\b|\bclassName\s*=|setProperty\s*\(|setAttribute\s*\(\s*["'](?:style|hidden|aria-hidden)["']|\.hidden\s*=|\b(?:display|visibility|opacity)\s*:)/],
-    ["canonical replacement helper", /replaceWithCanonicalCard|canonicalize/],
-    ["stabilization helper", /stabilize[A-Z]|freezeCaseMotion/],
-  ] as const;
-  for (const [label, pattern] of forbidden) {
-    if (pattern.test(guardedSource)) violations.add(label);
-  }
+const TASK4_ACTION_START = "/* TASK 4 VISUAL ACTIONS START */";
+const TASK4_ACTION_END = "/* TASK 4 VISUAL ACTIONS END */";
+const TASK4_REGISTRATION_START = "/* TASK 4 VISUAL REGISTRATIONS START */";
+const TASK4_REGISTRATION_END = "/* TASK 4 VISUAL REGISTRATIONS END */";
+const TASK4_CLIPBOARD_SETUP_START = "/* TASK 4 CLIPBOARD PAGE EVALUATE SETUP START */";
+const TASK4_CLIPBOARD_SETUP_END = "/* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */";
+const TASK4_CLIPBOARD_RESTORE_START = "/* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE START */";
+const TASK4_CLIPBOARD_RESTORE_END = "/* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */";
 
-  const canvasEvaluation = /\bcanvas\s*(?:\.\s*(?:evaluate|evaluateHandle)|\[\s*["'](?:evaluate|evaluateHandle)["']\s*\])\s*\(/;
-  if (canvasEvaluation.test(guardedSource)) {
-    violations.add("canvas evaluation");
-  }
+const EXPECTED_TASK4_REGISTRATIONS = [
+  "authorization-surface/provider-switched/action",
+  "authorization-surface/settled/action",
+  "feedback-actions/copy-error/action",
+  "feedback-actions/disliked/action",
+  "feedback-actions/liked/action",
+  "feedback-actions/settled/static",
+  "session-list/selected/action",
+  "session-list/settled/static",
+  "settings-editor/conflict/action",
+  "settings-editor/refetched/action",
+  "settings-editor/settled/static",
+];
 
-  const pageEvaluation = /\bpage\s*(?:\.\s*(?:evaluate|evaluateHandle)|\[\s*["'](?:evaluate|evaluateHandle)["']\s*\])\s*\(/g;
-  const actionWithoutClipboardBoundary = actionSource
-    .replace(setupSource, "")
-    .replace(restoreSource, "");
-  if (
-    pageEvaluation.test(`${actionWithoutClipboardBoundary}\n${registrationSource}`)
+function markerRange(
+  source: string,
+  startMarker: string,
+  endMarker: string,
+): SourceRange | null {
+  const markerStart = source.indexOf(startMarker);
+  if (markerStart < 0) return null;
+  const markerEnd = source.indexOf(endMarker, markerStart + startMarker.length);
+  if (markerEnd < 0) return null;
+  return {
+    start: markerStart + startMarker.length,
+    end: markerEnd,
+  };
+}
+
+function unwrapExpression(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isSatisfiesExpression(current)
   ) {
-    violations.add("page evaluation boundary");
+    current = current.expression;
+  }
+  return current;
+}
+
+function staticNodeText(node: ts.Node | undefined): string | null {
+  if (!node) return null;
+  if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) return node.text;
+  if (
+    ts.isStringLiteralLike(node) ||
+    ts.isNumericLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node)
+  ) {
+    return node.text;
+  }
+  if (ts.isComputedPropertyName(node)) return staticNodeText(node.expression);
+  return null;
+}
+
+function nodeWithin(
+  node: ts.Node,
+  range: SourceRange,
+  sourceFile: ts.SourceFile,
+) {
+  return node.getStart(sourceFile) >= range.start && node.end <= range.end;
+}
+
+function functionLike(node: ts.Node): ts.FunctionLikeDeclaration | null {
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isArrowFunction(node) ||
+    ts.isMethodDeclaration(node)
+  ) {
+    return node;
+  }
+  return null;
+}
+
+function parseGuardProgram(source: string) {
+  const fileName = "/task4-visual-cases.mjs";
+  const options: ts.CompilerOptions = {
+    allowJs: true,
+    checkJs: true,
+    module: ts.ModuleKind.ESNext,
+    noLib: true,
+    noResolve: true,
+    target: ts.ScriptTarget.Latest,
+  };
+  const parsed = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const host: ts.CompilerHost = {
+    fileExists: (path) => path === fileName,
+    getCanonicalFileName: (path) => path,
+    getCurrentDirectory: () => "/",
+    getDefaultLibFileName: () => "lib.d.ts",
+    getDirectories: () => [],
+    getNewLine: () => "\n",
+    getSourceFile: (path) => (path === fileName ? parsed : undefined),
+    readFile: (path) => (path === fileName ? source : undefined),
+    useCaseSensitiveFileNames: () => true,
+    writeFile: () => {},
+  };
+  const program = ts.createProgram({
+    host,
+    options,
+    rootNames: [fileName],
+  });
+  const sourceFile = program.getSourceFile(fileName) ?? parsed;
+  return {
+    checker: program.getTypeChecker(),
+    diagnostics: program.getSyntacticDiagnostics(sourceFile),
+    sourceFile,
+  };
+}
+
+function structuralFingerprint(node: ts.Node, sourceFile: ts.SourceFile): unknown {
+  let value: string | null = null;
+  if (
+    ts.isIdentifier(node) ||
+    ts.isPrivateIdentifier(node) ||
+    ts.isStringLiteralLike(node) ||
+    ts.isNumericLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    ts.isRegularExpressionLiteral(node)
+  ) {
+    value = node.text;
+  }
+  return [
+    ts.SyntaxKind[node.kind],
+    value,
+    node.getChildren(sourceFile).map((child) =>
+      structuralFingerprint(child, sourceFile),
+    ),
+  ];
+}
+
+const EXPECTED_CLIPBOARD_CALLBACK_HASHES = {
+  setup: "e3c537969e0fd195c73f996fb0a7ed2b9d22cf323e164e909eb1918aabe234f1",
+  restore: "444b8e34edddf470d853d0e069c455a25a069fcb40a67813e437790be6b3f124",
+} as const;
+
+function structuralHash(node: ts.Node, sourceFile: ts.SourceFile) {
+  return createHash("sha256")
+    .update(JSON.stringify(structuralFingerprint(node, sourceFile)))
+    .digest("hex");
+}
+
+function task4VisualGuardViolations(source: string) {
+  const violations = new Set<string>();
+  const ranges = {
+    action: markerRange(source, TASK4_ACTION_START, TASK4_ACTION_END),
+    registration: markerRange(
+      source,
+      TASK4_REGISTRATION_START,
+      TASK4_REGISTRATION_END,
+    ),
+    setup: markerRange(
+      source,
+      TASK4_CLIPBOARD_SETUP_START,
+      TASK4_CLIPBOARD_SETUP_END,
+    ),
+    restore: markerRange(
+      source,
+      TASK4_CLIPBOARD_RESTORE_START,
+      TASK4_CLIPBOARD_RESTORE_END,
+    ),
+  };
+  if (!ranges.action) violations.add("missing action guard markers");
+  if (!ranges.registration) violations.add("missing registration guard markers");
+  if (!ranges.action || !ranges.registration) return [...violations];
+  const actionRange = ranges.action;
+  const registrationRange = ranges.registration;
+
+  const { checker, diagnostics, sourceFile } = parseGuardProgram(source);
+  if (diagnostics.length > 0) return ["syntax error"];
+
+  function isParameterBinding(declaration: ts.Declaration) {
+    let current: ts.Node = declaration;
+    while (
+      ts.isBindingElement(current) ||
+      ts.isObjectBindingPattern(current) ||
+      ts.isArrayBindingPattern(current)
+    ) {
+      current = current.parent;
+    }
+    return ts.isParameter(current);
   }
 
-  if (/copy-error|failFeedbackCopy/.test(guardedSource)) {
-    const setupEvaluations = setupSource.match(pageEvaluation)?.length ?? 0;
-    const restoreEvaluations = restoreSource.match(pageEvaluation)?.length ?? 0;
-    if (setupEvaluations !== 1 || restoreEvaluations !== 1) {
-      violations.add("page evaluation boundary");
+  function declarationFor(node: ts.Node): ts.Declaration | null {
+    let symbol = checker.getSymbolAtLocation(node);
+    if (ts.isShorthandPropertyAssignment(node)) {
+      symbol = checker.getShorthandAssignmentValueSymbol(node) ?? symbol;
+    }
+    const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+    return declaration?.getSourceFile() === sourceFile ? declaration : null;
+  }
+
+  function propertyKey(name: ts.PropertyName) {
+    return ts.isComputedPropertyName(name)
+      ? staticText(name.expression)
+      : staticNodeText(name);
+  }
+
+  function objectMember(
+    object: ts.ObjectLiteralExpression,
+    name: string,
+    seen: Set<ts.Node>,
+  ): ts.Node | null | undefined {
+    for (const property of [...object.properties].reverse()) {
+      if (ts.isSpreadAssignment(property)) {
+        const spread = resolveValue(property.expression, new Set(seen));
+        if (!spread || !ts.isObjectLiteralExpression(spread)) return null;
+        const match = objectMember(spread, name, new Set(seen));
+        if (match !== undefined) return match;
+      } else if (property.name && propertyKey(property.name) === name) {
+        if (ts.isPropertyAssignment(property)) return property.initializer;
+        if (ts.isShorthandPropertyAssignment(property)) return property;
+        if (ts.isMethodDeclaration(property)) return property;
+        return null;
+      }
+    }
+    return undefined;
+  }
+
+  function bindingValue(
+    binding: ts.BindingElement,
+    seen: Set<ts.Node>,
+  ): ts.Node | null {
+    if (isParameterBinding(binding)) return null;
+    if (binding.propertyName) {
+      const declaration = declarationFor(binding.propertyName);
+      if (declaration) return resolveValue(declaration, seen);
+    }
+    const declaration = binding.parent.parent;
+    if (!ts.isVariableDeclaration(declaration) || !declaration.initializer) {
+      return null;
+    }
+    const name = staticNodeText(binding.propertyName ?? binding.name);
+    const object = resolveValue(declaration.initializer, new Set(seen));
+    if (!name || !object || !ts.isObjectLiteralExpression(object)) return null;
+    const member = objectMember(object, name, new Set(seen));
+    return member ? resolveValue(member, new Set(seen)) : null;
+  }
+
+  function resolveValue(
+    node: ts.Node,
+    seen = new Set<ts.Node>(),
+  ): ts.Node | null {
+    if (seen.has(node)) return null;
+    seen.add(node);
+    if (ts.isExpression(node)) {
+      const expression = unwrapExpression(node);
+      if (expression !== node) return resolveValue(expression, seen);
+    }
+    if (
+      functionLike(node) ||
+      ts.isObjectLiteralExpression(node) ||
+      ts.isArrayLiteralExpression(node) ||
+      ts.isStringLiteralLike(node) ||
+      ts.isNumericLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node)
+    ) {
+      return node;
+    }
+    if (ts.isVariableDeclaration(node) || ts.isPropertyAssignment(node)) {
+      return node.initializer ? resolveValue(node.initializer, seen) : null;
+    }
+    if (ts.isShorthandPropertyAssignment(node)) {
+      const declaration = declarationFor(node);
+      return declaration ? resolveValue(declaration, seen) : null;
+    }
+    if (ts.isBindingElement(node)) return bindingValue(node, seen);
+    if (ts.isIdentifier(node)) {
+      const declaration = declarationFor(node);
+      return declaration && !isParameterBinding(declaration)
+        ? resolveValue(declaration, seen)
+        : null;
+    }
+    if (ts.isPropertyAccessExpression(node)) {
+      const declaration = declarationFor(node.name);
+      if (declaration) return resolveValue(declaration, seen);
+    }
+    if (ts.isElementAccessExpression(node)) {
+      const name = staticText(node.argumentExpression);
+      if (!name) return null;
+      const declaration = declarationFor(node.argumentExpression);
+      if (declaration && !ts.isVariableDeclaration(declaration)) {
+        return resolveValue(declaration, seen);
+      }
+      const object = resolveValue(node.expression, new Set(seen));
+      if (!object || !ts.isObjectLiteralExpression(object)) return null;
+      const member = objectMember(object, name, new Set(seen));
+      return member ? resolveValue(member, new Set(seen)) : null;
+    }
+    return null;
+  }
+
+  function staticText(node: ts.Node | undefined): string | null {
+    if (!node) return null;
+    const value = resolveValue(node);
+    return value ? staticNodeText(value) : null;
+  }
+
+  function expressionPath(
+    expression: ts.Expression,
+    seen = new Set<ts.Node>(),
+  ): string[] {
+    const current = unwrapExpression(expression);
+    if (seen.has(current)) return [];
+    seen.add(current);
+    if (ts.isIdentifier(current)) {
+      const declaration = declarationFor(current);
+      if (
+        declaration &&
+        ts.isVariableDeclaration(declaration) &&
+        declaration.initializer &&
+        !functionLike(unwrapExpression(declaration.initializer))
+      ) {
+        const alias = expressionPath(declaration.initializer, seen);
+        if (alias.length > 0) return alias;
+      }
+      if (declaration && ts.isBindingElement(declaration)) {
+        const parent = declaration.parent.parent;
+        if (ts.isVariableDeclaration(parent) && parent.initializer) {
+          const name = staticNodeText(declaration.propertyName ?? declaration.name);
+          const parentPath = expressionPath(parent.initializer, seen);
+          if (name && parentPath.length > 0) return [...parentPath, name];
+        }
+      }
+      return [current.text];
+    }
+    if (current.kind === ts.SyntaxKind.ThisKeyword) return ["this"];
+    if (ts.isPropertyAccessExpression(current)) {
+      return [...expressionPath(current.expression, seen), current.name.text];
+    }
+    if (ts.isElementAccessExpression(current)) {
+      const name = staticText(current.argumentExpression);
+      return name
+        ? [...expressionPath(current.expression, seen), name]
+        : expressionPath(current.expression, seen);
+    }
+    return [];
+  }
+
+  function arrayItems(node: ts.Node): ts.Expression[] | null {
+    const value = resolveValue(node);
+    if (!value || !ts.isArrayLiteralExpression(value)) return null;
+    const items: ts.Expression[] = [];
+    for (const item of value.elements) {
+      if (ts.isSpreadElement(item)) {
+        const spread = arrayItems(item.expression);
+        if (!spread) return null;
+        items.push(...spread);
+      } else {
+        items.push(item);
+      }
+    }
+    return items;
+  }
+
+  const inventory: string[] = [];
+  const actions: RegisteredAction[] = [];
+
+  function collectCase(component: string, expression: ts.Expression) {
+    const value = resolveValue(expression);
+    if (!value || !ts.isObjectLiteralExpression(value)) {
+      violations.add("unresolved action registration");
+      return;
+    }
+    const nameNode = objectMember(value, "name", new Set());
+    const actionNode = objectMember(value, "action", new Set());
+    const name = nameNode ? staticText(nameNode) : null;
+    if (!name || actionNode === null) {
+      violations.add("unresolved action registration");
+    }
+    const hasAction = actionNode !== undefined && actionNode !== null;
+    if (name) inventory.push(`${component}/${name}/${hasAction ? "action" : "static"}`);
+    if (hasAction) {
+      actions.push({
+        actionKey: `${component}/${name ?? "<unknown>"}`,
+        target: actionNode,
+      });
+    }
+  }
+
+  function collectRegistration(node: ts.Node) {
+    if (ts.isExpressionStatement(node)) return collectRegistration(node.expression);
+    if (ts.isVariableStatement(node)) {
+      for (const declaration of node.declarationList.declarations) {
+        if (declaration.initializer) collectRegistration(declaration.initializer);
+      }
+      return;
+    }
+    if (ts.isSpreadElement(node)) {
+      const spread = arrayItems(node.expression);
+      if (!spread) violations.add("unresolved action registration");
+      else for (const item of spread) collectRegistration(item);
+      return;
+    }
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+      for (const argument of node.arguments ?? []) collectRegistration(argument);
+      return;
+    }
+    const items = arrayItems(node);
+    if (!items) {
+      violations.add("unresolved action registration");
+      return;
+    }
+    const component = items[0] ? staticText(items[0]) : null;
+    if (component && items[1]) {
+      const cases = arrayItems(items[1]);
+      if (!cases) violations.add("unresolved action registration");
+      else for (const item of cases) collectCase(component, item);
+      return;
+    }
+    for (const item of items) collectRegistration(item);
+  }
+
+  function collectRegistrationRoots(node: ts.Node) {
+    if (
+      node.end <= registrationRange.start ||
+      node.getStart(sourceFile) >= registrationRange.end
+    ) {
+      return;
+    }
+    if (
+      node !== sourceFile &&
+      nodeWithin(node, registrationRange, sourceFile) &&
+      !nodeWithin(node.parent, registrationRange, sourceFile)
+    ) {
+      collectRegistration(node);
+      return;
+    }
+    ts.forEachChild(node, collectRegistrationRoots);
+  }
+  collectRegistrationRoots(sourceFile);
+  if (
+    JSON.stringify([...inventory].sort()) !==
+    JSON.stringify(EXPECTED_TASK4_REGISTRATIONS)
+  ) {
+    violations.add("Task 4 registration inventory");
+  }
+
+  const rewriteProperties = new Set([
+    "checked", "innerHTML", "innerText", "outerHTML", "outerText",
+    "selectedIndex", "src", "textContent", "value",
+  ]);
+  const styleProperties = new Set([
+    "ariaHidden", "className", "display", "hidden", "inert", "opacity",
+    "scrollLeft", "scrollTop", "visibility",
+  ]);
+  const replacementMethods = new Set([
+    "after", "append", "appendChild", "before", "insertAdjacentElement",
+    "insertAdjacentHTML", "insertBefore", "prepend", "remove", "removeChild",
+    "replaceChild", "replaceChildren", "replaceWith",
+  ]);
+  const constructionMethods = new Set([
+    "adoptNode", "cloneNode", "createComment", "createDocumentFragment",
+    "createElement", "createElementNS", "createTextNode", "importNode",
+  ]);
+  const styleMethods = new Set([
+    "removeAttribute", "removeProperty", "setAttribute", "setProperty",
+    "toggleAttribute",
+  ]);
+
+  function mutationCategory(path: string[]) {
+    const property = path.at(-1);
+    if (!property) return null;
+    if (rewriteProperties.has(property)) return "DOM rewrite";
+    return styleProperties.has(property) ||
+        path.some((part) => ["classList", "dataset", "style"].includes(part))
+      ? "style or hiding mutation"
+      : null;
+  }
+
+  function callable(node: ts.Node) {
+    if (ts.isExpression(node)) {
+      const expression = unwrapExpression(node);
+      if (ts.isPropertyAccessExpression(expression)) {
+        if (["call", "apply"].includes(expression.name.text)) {
+          return callable(expression.expression);
+        }
+      } else if (ts.isElementAccessExpression(expression)) {
+        const name = staticText(expression.argumentExpression);
+        if (name === "call" || name === "apply") return callable(expression.expression);
+      }
+    }
+    const value = resolveValue(node);
+    return value ? functionLike(value) : null;
+  }
+
+  type ActionState = {
+    actionKey: string;
+    active: Set<ts.FunctionLikeDeclaration>;
+    evaluations: Array<"setup" | "restore" | "invalid">;
+    reachedAction: boolean;
+  };
+
+  function inspectFunction(
+    functionNode: ts.FunctionLikeDeclaration,
+    state: ActionState,
+    allowInline = false,
+  ) {
+    if (state.active.has(functionNode)) {
+      violations.add("unresolved action helper");
+      return;
+    }
+    const guarded = nodeWithin(functionNode, actionRange, sourceFile);
+    if (!guarded && !(allowInline && nodeWithin(functionNode, registrationRange, sourceFile))) {
+      violations.add("external action helper");
+      return;
+    }
+    if (guarded) state.reachedAction = true;
+    state.active.add(functionNode);
+
+    function inspectReachable(node: ts.Node) {
+      const target = callable(node);
+      if (!target) return false;
+      inspectFunction(target, state);
+      return true;
     }
 
-    const setupRequirements = [
-      /Object\.getOwnPropertyDescriptor\(navigator,\s*["']clipboard["']\)/,
-      /Object\.getOwnPropertyDescriptor\(document,\s*["']execCommand["']\)/,
-      /Object\.defineProperty\(navigator,\s*["']clipboard["']/,
-      /Object\.defineProperty\(document,\s*["']execCommand["']/,
-    ];
-    const restoreRequirements = [
-      /Object\.defineProperty\(navigator,\s*["']clipboard["']/,
-      /Object\.defineProperty\(document,\s*["']execCommand["']/,
-      /Reflect\.deleteProperty\(navigator,\s*["']clipboard["']\)/,
-      /Reflect\.deleteProperty\(document,\s*["']execCommand["']\)/,
-    ];
+    function inspectPageEvaluation(call: ts.CallExpression) {
+      const position = call.getStart(sourceFile);
+      const kind = ranges.setup && position >= ranges.setup.start && position <= ranges.setup.end
+        ? "setup"
+        : ranges.restore && position >= ranges.restore.start && position <= ranges.restore.end
+          ? "restore"
+          : "invalid";
+      state.evaluations.push(kind);
+      if (state.actionKey !== "feedback-actions/copy-error" || kind === "invalid") {
+        violations.add("page evaluation boundary");
+        return;
+      }
+      const callback = call.arguments.length === 1
+        ? unwrapExpression(call.arguments[0])
+        : null;
+      if (!callback || (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback))) {
+        violations.add("clipboard evaluate validation");
+        return;
+      }
+      const actual = structuralHash(callback, sourceFile);
+      const expected = EXPECTED_CLIPBOARD_CALLBACK_HASHES[kind];
+      if (actual !== expected) violations.add("clipboard evaluate validation");
+    }
+
+    function visit(node: ts.Node) {
+      if (node !== functionNode && functionLike(node)) return;
+      if (ts.isBinaryExpression(node)) {
+        const assignment =
+          node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+          node.operatorToken.kind <= ts.SyntaxKind.LastAssignment;
+        if (assignment) {
+          const category = mutationCategory(expressionPath(node.left));
+          if (category) violations.add(category);
+        }
+      } else if (ts.isDeleteExpression(node)) {
+        const category = mutationCategory(expressionPath(node.expression));
+        if (category) violations.add(category);
+      } else if (
+        ts.isVariableDeclaration(node) &&
+        ts.isObjectBindingPattern(node.name) &&
+        node.initializer
+      ) {
+        const root = expressionPath(node.initializer)[0];
+        for (const element of node.name.elements) {
+          const name = staticNodeText(element.propertyName ?? element.name);
+          if (name === "evaluate" || name === "evaluateHandle") {
+            if (root === "canvas") violations.add("canvas evaluation");
+            if (root === "page") violations.add("page evaluation boundary");
+          }
+        }
+      } else if (ts.isCallExpression(node)) {
+        const path = expressionPath(node.expression);
+        const root = path[0];
+        const method = path.at(-1);
+        const pageEvaluation =
+          root === "page" && (method === "evaluate" || method === "evaluateHandle");
+        if (pageEvaluation) inspectPageEvaluation(node);
+        else if (method === "evaluate" || method === "evaluateHandle") {
+          violations.add(root === "canvas" ? "canvas evaluation" : "DOM evaluation");
+        }
+        if (method && replacementMethods.has(method)) {
+          violations.add(method === "insertAdjacentHTML" ? "DOM rewrite" : "node replacement");
+        }
+        if (method && (styleMethods.has(method) || path.includes("classList") || path.includes("style"))) {
+          violations.add("style or hiding mutation");
+        }
+        if (method && constructionMethods.has(method) && path.includes("document")) {
+          violations.add("DOM construction");
+        }
+        if (
+          (root === "Object" && method === "defineProperty") ||
+          (root === "Reflect" && (method === "set" || method === "deleteProperty"))
+        ) {
+          const category = mutationCategory([staticText(node.arguments[1]) ?? ""]);
+          if (category) violations.add(category);
+        }
+        if (root === "Object" && method === "assign" && node.arguments[0]) {
+          const category = mutationCategory(expressionPath(node.arguments[0]));
+          if (category) violations.add(category);
+        }
+        const resolvedTarget = inspectReachable(node.expression);
+        if (!pageEvaluation) {
+          for (const argument of node.arguments) inspectReachable(argument);
+        }
+        const callee = unwrapExpression(node.expression);
+        if (!resolvedTarget && ts.isIdentifier(callee)) {
+          const declaration = declarationFor(callee);
+          if (declaration && !isParameterBinding(declaration)) {
+            violations.add("unresolved action helper");
+          }
+        }
+        if (!resolvedTarget && ts.isElementAccessExpression(callee)) {
+          const name = staticText(callee.argumentExpression);
+          const object = resolveValue(callee.expression);
+          if (!name || (object && ts.isObjectLiteralExpression(object))) {
+            violations.add("unresolved action helper");
+          }
+        }
+        if (!resolvedTarget && ts.isPropertyAccessExpression(callee)) {
+          const object = resolveValue(callee.expression);
+          if (object && ts.isObjectLiteralExpression(object)) {
+            violations.add("unresolved action helper");
+          }
+        }
+      } else if (
+        ts.isNewExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        ["DOMParser", "MutationObserver"].includes(node.expression.text)
+      ) {
+        violations.add("DOM construction");
+      }
+      ts.forEachChild(node, visit);
+    }
+
+    visit(functionNode);
+    state.active.delete(functionNode);
+  }
+
+  for (const action of actions) {
+    const target = callable(action.target);
+    if (!target) {
+      violations.add("unresolved action registration");
+      continue;
+    }
+    const inline = nodeWithin(target, registrationRange, sourceFile);
+    const state: ActionState = {
+      actionKey: action.actionKey,
+      active: new Set(),
+      evaluations: [],
+      reachedAction: false,
+    };
+    inspectFunction(target, state, inline);
+    if (inline && !state.reachedAction) violations.add("external action helper");
     if (
-      setupRequirements.some((pattern) => !pattern.test(setupSource)) ||
-      restoreRequirements.some((pattern) => !pattern.test(restoreSource))
+      action.actionKey === "feedback-actions/copy-error" &&
+      state.evaluations.join(",") !== "setup,restore"
     ) {
-      violations.add("clipboard evaluate validation");
+      violations.add("page evaluation boundary");
     }
   }
 
@@ -317,8 +921,187 @@ describe("registry-derived visual case inventory", () => {
       /* TASK 4 VISUAL REGISTRATIONS END */`,
       "page evaluation boundary",
     ],
+    [
+      "optional canvas evaluate bypass",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ canvas }) { await canvas?.evaluate(() => {}); }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "canvas evaluation",
+    ],
+    [
+      "optional page evaluate bypass",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ page }) { await page?.evaluate(() => {}); }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "page evaluation boundary",
+    ],
+    [
+      "bracket textContent rewrite",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { root["textContent"] = "fabricated"; }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "DOM rewrite",
+    ],
+    [
+      "optional bracket canvas evaluate bypass",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ canvas }) { await canvas?.["evaluate"](() => {}); }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: selected }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "canvas evaluation",
+    ],
+    [
+      "external action helper",
+      `async function fabricate({ canvas }) {
+        await canvas.getByRole("button", { name: "Fabricate" }).click();
+      }
+      /* TASK 4 VISUAL ACTIONS START */
+      async function selected() {}
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["session-list", [{ action: fabricate }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "external action helper",
+    ],
+    [
+      "tampered clipboard setup callback",
+      `/* TASK 4 VISUAL ACTIONS START */
+      async function failFeedbackCopy({ page }) {
+        /* TASK 4 CLIPBOARD PAGE EVALUATE SETUP START */
+        await page.evaluate(() => {
+          globalThis.__naiTask4FeedbackCopyGlobals = {
+            clipboard: Object.getOwnPropertyDescriptor(navigator, "clipboard"),
+            execCommand: Object.getOwnPropertyDescriptor(document, "execCommand"),
+          };
+          Object.defineProperty(navigator, "clipboard", { value: {} });
+          Object.defineProperty(document, "execCommand", { value: () => false });
+          console.log("unexpected callback side effect");
+        });
+        /* TASK 4 CLIPBOARD PAGE EVALUATE SETUP END */
+        /* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE START */
+        await page.evaluate(() => {
+          const originals = globalThis.__naiTask4FeedbackCopyGlobals;
+          if (originals.clipboard) Object.defineProperty(navigator, "clipboard", originals.clipboard);
+          else Reflect.deleteProperty(navigator, "clipboard");
+          if (originals.execCommand) Object.defineProperty(document, "execCommand", originals.execCommand);
+          else Reflect.deleteProperty(document, "execCommand");
+          Reflect.deleteProperty(globalThis, "__naiTask4FeedbackCopyGlobals");
+        });
+        /* TASK 4 CLIPBOARD PAGE EVALUATE RESTORE END */
+      }
+      /* TASK 4 VISUAL ACTIONS END */
+      /* TASK 4 VISUAL REGISTRATIONS START */
+      ["feedback-actions", [{ name: "copy-error", action: failFeedbackCopy }]]
+      /* TASK 4 VISUAL REGISTRATIONS END */`,
+      "clipboard evaluate validation",
+    ],
   ])("rejects the Task 4 %s", (_label, source, violation) => {
     expect(task4VisualGuardViolations(source)).toContain(violation);
+  });
+
+  test("resolves an inline Task 4 wrapper only to its guarded action helper", () => {
+    const original = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const source = original.replace(
+      "action: selectSecondSession",
+      "action: (args) => selectSecondSession(args)",
+    );
+    expect(source).not.toBe(original);
+
+    expect(task4VisualGuardViolations(source)).toEqual([]);
+  });
+
+  test.each([
+    ["property", "helpers.fabricate"],
+    ["computed", 'alias["fabricate"]'],
+    ["object-literal", "({ fabricate }).fabricate"],
+  ])("rejects a reachable helper through %s member access", (_label, callTarget) => {
+    const source = `async function fabricate({ canvas }) {
+        await canvas.evaluate(() => {});
+      }
+      const helpers = { fabricate };
+      /* TASK 4 VISUAL ACTIONS START */
+      const alias = helpers;
+      async function selected(args) { await ${callTarget}(args); }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "external action helper",
+    );
+  });
+
+  test("fails closed when a static member target cannot be resolved", () => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      const helpers = {};
+      async function selected(args) { await helpers.fabricate(args); }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "unresolved action helper",
+    );
+  });
+
+  test("resolves referenced case arrays and registration spreads", () => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ canvas }) { await canvas.evaluate(() => {}); }
+      const sessionCases = [{ name: "selected", action: selected }];
+      const task4Components = [["session-list", [...sessionCases]]];
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ...task4Components
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain("canvas evaluation");
+  });
+
+  test("rejects an incomplete Task 4 registration inventory", () => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      async function selected() {}
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "Task 4 registration inventory",
+    );
+  });
+
+  test("rejects approved clipboard evaluations outside feedback copy-error", () => {
+    const original = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const source = original
+      .replace("action: selectSecondSession", "action: __task4ActionSwap")
+      .replace("action: failFeedbackCopy", "action: selectSecondSession")
+      .replace("action: __task4ActionSwap", "action: failFeedbackCopy");
+    expect(source).not.toBe(original);
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "page evaluation boundary",
+    );
   });
 
   test("restores clipboard globals after the copy-error visual action", async () => {
