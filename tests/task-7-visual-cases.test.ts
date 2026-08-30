@@ -193,12 +193,39 @@ function localBindingValue(
   const declaration = localDeclaration(identifier, bindings);
   if (declaration) {
     if (ts.isFunctionDeclaration(declaration)) return declaration;
-    if (ts.isVariableDeclaration(declaration)) return declaration.initializer;
+    if (ts.isVariableDeclaration(declaration)) {
+      if (declaration.initializer) return declaration.initializer;
+      const declarationList = declaration.parent;
+      const loop = declarationList.parent;
+      if (
+        ts.isVariableDeclarationList(declarationList) &&
+        ts.isForOfStatement(loop) &&
+        loop.initializer === declarationList
+      ) {
+        return loop.expression;
+      }
+    }
   }
   return (
     bindings.functions.get(identifier.text) ??
     bindings.initializers.get(identifier.text)
   );
+}
+
+function localConstantValue(
+  identifier: ts.Identifier,
+  bindings: LocalBindings,
+) {
+  const declaration = localDeclaration(identifier, bindings);
+  if (!declaration || !ts.isVariableDeclaration(declaration)) return undefined;
+  const declarationList = declaration.parent;
+  if (
+    !ts.isVariableDeclarationList(declarationList) ||
+    !(declarationList.flags & ts.NodeFlags.Const)
+  ) {
+    return undefined;
+  }
+  return declaration.initializer;
 }
 
 function directReturnExpression(callable: CallableNode) {
@@ -302,11 +329,13 @@ function resolveObject(
   return undefined;
 }
 
-function resolveString(
+type StaticMemberValue = string | number;
+
+function resolveStaticMemberValue(
   node: ts.Node | undefined,
   bindings: LocalBindings,
   seen = new Set<string>(),
-): string | undefined {
+): StaticMemberValue | undefined {
   if (!node) return undefined;
   const current = unwrapNode(node);
   if (
@@ -315,19 +344,65 @@ function resolveString(
   ) {
     return current.text;
   }
+  if (ts.isNumericLiteral(current)) return Number(current.text);
+  if (ts.isTemplateExpression(current)) {
+    let value = current.head.text;
+    for (const span of current.templateSpans) {
+      const expression = resolveStaticMemberValue(
+        span.expression,
+        bindings,
+        new Set(seen),
+      );
+      if (expression === undefined) return undefined;
+      value += `${expression}${span.literal.text}`;
+    }
+    return value;
+  }
   if (ts.isIdentifier(current)) {
-    const binding = localBindingValue(current, bindings);
-    const key = `string:${binding?.pos ?? current.text}`;
+    const binding = localConstantValue(current, bindings);
+    const key = `static-member:${binding?.pos ?? current.text}`;
     if (seen.has(key)) return undefined;
     seen.add(key);
-    return resolveString(binding, bindings, seen);
+    return resolveStaticMemberValue(binding, bindings, seen);
+  }
+  if (
+    ts.isBinaryExpression(current) &&
+    current.operatorToken.kind === ts.SyntaxKind.PlusToken
+  ) {
+    const left = resolveStaticMemberValue(
+      current.left,
+      bindings,
+      new Set(seen),
+    );
+    const right = resolveStaticMemberValue(
+      current.right,
+      bindings,
+      new Set(seen),
+    );
+    if (left === undefined || right === undefined) return undefined;
+    return typeof left === "number" && typeof right === "number"
+      ? left + right
+      : `${left}${right}`;
   }
   if (ts.isCallExpression(current) && current.arguments.length === 0) {
     const factory = resolveCallable(current.expression, bindings);
     if (!factory) return undefined;
-    return resolveString(directReturnExpression(factory), bindings, seen);
+    return resolveStaticMemberValue(
+      directReturnExpression(factory),
+      bindings,
+      seen,
+    );
   }
   return undefined;
+}
+
+function resolveString(
+  node: ts.Node | undefined,
+  bindings: LocalBindings,
+  seen = new Set<string>(),
+): string | undefined {
+  const value = resolveStaticMemberValue(node, bindings, seen);
+  return value === undefined ? undefined : String(value);
 }
 
 function resolveObjectProperty(
@@ -476,10 +551,30 @@ function analyzeTask7VisualSource(source: string) {
       ts.isCallExpression(node) &&
       (ts.isPropertyAccessExpression(node.expression) ||
         ts.isElementAccessExpression(node.expression)) &&
-      accessName(node.expression, bindings) === "set" &&
       refersToCases(node.expression.expression)
     ) {
-      addRegistration(node.arguments[0], node.arguments[1], node);
+      const member = accessName(node.expression, bindings);
+      if (member === "set") {
+        addRegistration(node.arguments[0], node.arguments[1], node);
+      } else if (
+        member === undefined &&
+        ts.isElementAccessExpression(node.expression)
+      ) {
+        const component = resolveString(node.arguments[0], bindings);
+        if (!component) {
+          recordViolation(
+            "<unresolved>",
+            "unresolved registration member",
+            node.expression,
+          );
+        } else if (TASK7_COMPONENT_SET.has(component)) {
+          recordViolation(
+            component,
+            "unresolved registration member",
+            node.expression,
+          );
+        }
+      }
     }
     ts.forEachChild(node, collectSetRegistrations);
   };
@@ -488,13 +583,13 @@ function analyzeTask7VisualSource(source: string) {
   const runtimeRoot = (
     node: ts.Node,
     seen = new Set<ts.Node>(),
-  ): string | undefined => {
+  ): ts.Identifier | undefined => {
     const current = unwrapNode(node);
     if (seen.has(current)) return undefined;
     seen.add(current);
     if (ts.isIdentifier(current)) {
       const binding = localBindingValue(current, bindings);
-      return binding ? runtimeRoot(binding, seen) : current.text;
+      return binding ? runtimeRoot(binding, seen) : current;
     }
     if (
       ts.isPropertyAccessExpression(current) ||
@@ -538,47 +633,63 @@ function analyzeTask7VisualSource(source: string) {
         ts.isElementAccessExpression(node.expression)
       ) {
         const method = accessName(node.expression, bindings);
-        if (["evaluate", "evaluateAll", "evaluateHandle"].includes(method ?? "")) {
-          recordViolation(component, "DOM evaluation", node);
-        }
-        if (
-          [
-            "after",
-            "append",
-            "appendChild",
-            "before",
-            "prepend",
-            "remove",
-            "removeChild",
-            "replaceChild",
-            "replaceChildren",
-            "replaceWith",
-          ].includes(method ?? "")
-        ) {
-          recordViolation(component, "node replacement", node);
-        }
-        if (method === "setProperty") {
-          recordViolation(component, "style mutation", node);
-        }
+        const unresolvedComputedMember =
+          ts.isElementAccessExpression(node.expression) && method === undefined;
+        if (unresolvedComputedMember) {
+          recordViolation(component, "unresolved action member", node.expression);
+        } else {
+          if (["evaluate", "evaluateAll", "evaluateHandle"].includes(method ?? "")) {
+            recordViolation(component, "DOM evaluation", node);
+          }
+          if (
+            [
+              "after",
+              "append",
+              "appendChild",
+              "before",
+              "prepend",
+              "remove",
+              "removeChild",
+              "replaceChild",
+              "replaceChildren",
+              "replaceWith",
+            ].includes(method ?? "")
+          ) {
+            recordViolation(component, "node replacement", node);
+          }
+          if (method === "setProperty") {
+            recordViolation(component, "style mutation", node);
+          }
 
-        const callable = resolveCallable(node.expression, bindings);
-        if (callable && !visitedCallables.has(callable.pos)) {
-          visitedCallables.add(callable.pos);
-          inspectReachable(component, callable, visitedCallables);
-        } else if (!callable) {
-          const receiver = unwrapNode(node.expression.expression);
-          const receiverObject = resolveObject(receiver, bindings);
-          const receiverBinding = ts.isIdentifier(receiver)
-            ? localBindingValue(receiver, bindings)
-            : undefined;
-          const root = runtimeRoot(receiver);
-          const approvedRuntimeRoot =
-            root !== undefined &&
-            ["canvas", "page", "Math", "JSON", "Number", "String"].includes(
-              root,
-            );
-          if (receiverObject || (receiverBinding && !approvedRuntimeRoot)) {
-            recordViolation(component, "unresolved action helper", node);
+          const callable = resolveCallable(node.expression, bindings);
+          if (callable && !visitedCallables.has(callable.pos)) {
+            visitedCallables.add(callable.pos);
+            inspectReachable(component, callable, visitedCallables);
+          } else if (!callable) {
+            const receiver = unwrapNode(node.expression.expression);
+            const root = runtimeRoot(receiver);
+            const rootDeclaration = root
+              ? localDeclaration(root, bindings)
+              : undefined;
+            const rootIsParameter =
+              rootDeclaration !== undefined &&
+              (ts.isParameter(rootDeclaration) ||
+                ts.isBindingElement(rootDeclaration));
+            const approvedPlaywrightRoot =
+              rootIsParameter &&
+              root !== undefined &&
+              ["canvas", "page"].includes(root.text);
+            const approvedGlobalRoot =
+              rootDeclaration === undefined &&
+              root !== undefined &&
+              ["Math", "JSON", "Number", "String"].includes(root.text);
+            if (
+              !approvedPlaywrightRoot &&
+              !approvedGlobalRoot &&
+              !rootIsParameter
+            ) {
+              recordViolation(component, "unresolved action helper", node);
+            }
           }
         }
       }
@@ -935,6 +1046,31 @@ describe("Task 7 React visual cases", () => {
     ]);
   });
 
+  test("fails closed for imported and unbound namespace helper calls", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      import * as page from "./page-helpers.mjs";
+      async function action({ canvas }) {
+        await importedHelpers.inspect(canvas);
+        await importedHelpers.actions.inspect(canvas);
+        await page.inspect(canvas);
+        await externalHelpers["inspect"](canvas);
+        await externalHelpers.actions["inspect"](canvas);
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "namespace-helpers", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+    ]);
+  });
+
   test("resolves computed evaluateAll aliases and rejects unresolved member helpers", () => {
     const fixture = analyzeTask7VisualSource(`
       const evaluationMethod = "evaluateAll";
@@ -959,6 +1095,136 @@ describe("Task 7 React visual cases", () => {
       { component: "context-window", kind: "DOM evaluation" },
       { component: "memory-inspector", kind: "unresolved action helper" },
     ]);
+  });
+
+  test("counts concatenated tuple and direct registration names", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const CASES = new Map([
+        ["memory-" + "inspector", [{ name: "tuple" }]],
+      ]);
+      CASES["s" + "et"]("memory-inspector", [{ name: "direct" }]);
+    `);
+
+    expect(fixture.registrationCounts.get("memory-inspector")).toBe(2);
+    expect(fixture.duplicateComponents).toEqual(["memory-inspector"]);
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("rejects concatenated evaluateAll member names", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const CASES = new Map([
+        ["context-window", [{
+          name: "computed-evaluation",
+          async action({ canvas }) {
+            await canvas["evaluate" + "All"]((nodes) => nodes.length);
+          },
+        }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "DOM evaluation" },
+    ]);
+  });
+
+  test("normalizes aliased and templated static member names", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const component = \`memory-inspector\`;
+      const setPrefix = \`s\`;
+      const setSuffix = ("et");
+      const setMethod = \`${"${setPrefix}"}${"${setSuffix}"}\`;
+      const evaluationPrefix = "evaluate";
+      const evaluationSuffix = \`All\`;
+      const evaluationMethod = \`${"${evaluationPrefix}"}${"${evaluationSuffix}"}\`;
+      const CASES = new Map([[component, [{
+        name: "computed-evaluation",
+        async action({ canvas }) {
+          await canvas[evaluationMethod]((nodes) => nodes.length);
+        },
+      }]]]);
+      const registry = CASES;
+      registry[setMethod](component, [{ name: "duplicate" }]);
+    `);
+
+    expect(fixture.registrationCounts.get("memory-inspector")).toBe(2);
+    expect(fixture.duplicateComponents).toEqual(["memory-inspector"]);
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "DOM evaluation" },
+    ]);
+  });
+
+  test("fails closed for dynamic computed registration and action members", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const dynamicMember = chooseMember();
+      const helpers = {
+        inspect: async (canvas) => canvas.getByRole("button").count(),
+      };
+      const CASES = new Map([["context-window", [{
+        name: "dynamic-action",
+        async action({ canvas, page }) {
+          await canvas[dynamicMember]();
+          await page[dynamicMember]();
+          await helpers[dynamicMember](canvas);
+        },
+      }]]]);
+      CASES[dynamicMember]("context-window", [{ name: "dynamic-registration" }]);
+    `);
+
+    expect(fixture.registrationCounts.get("context-window")).toBe(1);
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action member" },
+      { component: "context-window", kind: "unresolved action member" },
+      { component: "context-window", kind: "unresolved action member" },
+      { component: "context-window", kind: "unresolved registration member" },
+    ]);
+  });
+
+  test("fails closed for mutable computed member bindings", () => {
+    const fixture = analyzeTask7VisualSource(`
+      let mutableMember = "click";
+      mutableMember = chooseMember();
+      const CASES = new Map([["context-window", [{
+        name: "mutable-action",
+        async action({ canvas }) {
+          await canvas[mutableMember]();
+        },
+      }]]]);
+      CASES[mutableMember]("context-window", [{ name: "mutable-registration" }]);
+    `);
+
+    expect(fixture.registrationCounts.get("context-window")).toBe(1);
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action member" },
+      { component: "context-window", kind: "unresolved registration member" },
+    ]);
+  });
+
+  test("allows safe computed approved operations and numeric helper keys", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const rolePrefix = \`getBy\`;
+      const roleSuffix = "Role";
+      const roleMethod = \`${"${rolePrefix}"}${"${roleSuffix}"}\`;
+      const clickMethod = ("cl" + "ick");
+      const helperKey = 1;
+      const helpers = {
+        1: async (canvas) => {
+          const control = canvas[roleMethod]("button");
+          await control[clickMethod]();
+        },
+      };
+      async function action({ canvas, page }) {
+        await helpers[helperKey](canvas);
+        const pressMethod = "press";
+        await page["keyboard"][pressMethod]("Tab");
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "safe-computed", action }]],
+      ]);
+      CASES["g" + "et"]("context-cards");
+    `);
+
+    expect(fixture.registrationCounts.get("context-cards")).toBe(1);
+    expect(fixture.violations).toEqual([]);
   });
 
   test("inspects shorthand, method, spread, aliased helper, and nested evaluateAll actions", () => {

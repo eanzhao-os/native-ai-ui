@@ -210,7 +210,7 @@ describe("MemoryInspector", () => {
     });
   });
 
-  test("localizes filter, search, stable row action names, and live context", () => {
+  test("localizes filter, search, and stable row action names", () => {
     render(<MemoryInspector lang="zh" />);
 
     expect(screen.getByRole("button", { name: "全部记忆" })).not.toBeNull();
@@ -219,11 +219,56 @@ describe("MemoryInspector", () => {
       name: /置顶到 Prompt：偏好使用 React 19/,
     });
     expect(pin.getAttribute("aria-pressed")).toBe("true");
+  });
 
+  test("announces distinct localized equal-count filter transitions", () => {
+    render(<MemoryInspector lang="zh" />);
+
+    const status = screen.getByRole("status");
     fireEvent.click(screen.getByRole("button", { name: "规范" }));
-    expect(screen.getByRole("status").textContent).toContain("规范");
+    const rulesMessage = status.textContent;
+    expect(rulesMessage).toContain("规范");
+    expect(rulesMessage).toContain("显示 1 / 4 条记忆");
+
     fireEvent.click(screen.getByRole("button", { name: "事实" }));
-    expect(screen.getByRole("status").textContent).toContain("事实");
+    const factsMessage = status.textContent;
+    expect(factsMessage).toContain("事实");
+    expect(factsMessage).toContain("显示 1 / 4 条记忆");
+    expect(factsMessage).not.toBe(rulesMessage);
+  });
+
+  test("announces distinct localized equal-count search queries", () => {
+    render(<MemoryInspector lang="zh" />);
+
+    const search = screen.getByRole("searchbox", { name: "搜索记忆" });
+    const status = screen.getByRole("status");
+    fireEvent.change(search, { target: { value: "React 19" } });
+    const reactMessage = status.textContent;
+    expect(reactMessage).toContain("全部记忆，搜索“React 19”");
+    expect(reactMessage).toContain("显示 1 / 4 条记忆");
+
+    fireEvent.change(search, { target: { value: "Turborepo" } });
+    const turborepoMessage = status.textContent;
+    expect(turborepoMessage).toContain("全部记忆，搜索“Turborepo”");
+    expect(turborepoMessage).toContain("显示 1 / 4 条记忆");
+    expect(turborepoMessage).not.toBe(reactMessage);
+  });
+
+  test("announces changing localized totals for repeated Add Fact actions", () => {
+    render(<MemoryInspector lang="zh" />);
+
+    const add = screen.getByRole("button", { name: "添加事实" });
+    const status = screen.getByRole("status");
+    fireEvent.click(add);
+    const firstMessage = status.textContent;
+    expect(firstMessage).toContain("已添加事实");
+    expect(firstMessage).toContain("共 5 条记忆");
+
+    fireEvent.click(add);
+    const secondMessage = status.textContent;
+    expect(secondMessage).toContain("已添加事实");
+    expect(secondMessage).toContain("共 6 条记忆");
+    expect(secondMessage).not.toBe(firstMessage);
   });
 });
 
