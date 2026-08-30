@@ -123,7 +123,7 @@ export default function ClarificationCard({ lang: propLang }: { lang?: "en" | "z
           <button
             type="button"
             onClick={handleReset}
-            className="mt-3 text-[11px] text-ink-3 underline hover:text-ink cursor-pointer"
+            className="mt-3 rounded-control px-1 text-[11px] text-ink-2 underline hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
           >
             {zh ? "修改决策" : "Change decision"}
           </button>
@@ -138,7 +138,7 @@ export default function ClarificationCard({ lang: propLang }: { lang?: "en" | "z
                 <label
                   key={opt.id}
                   onClick={() => setSelectedId(opt.id)}
-                  className={`flex items-start gap-3 rounded-control border p-3 transition-all cursor-pointer ${
+                  className={`flex items-start gap-3 rounded-control border p-3 transition-all focus-within:ring-2 focus-within:ring-accent/50 cursor-pointer ${
                     isSelected
                       ? "border-accent bg-accent-tint/30 shadow-sm"
                       : "border-line bg-surface hover:border-line-strong hover:bg-hover/40"
@@ -149,7 +149,7 @@ export default function ClarificationCard({ lang: propLang }: { lang?: "en" | "z
                     name="clarification-choice"
                     checked={isSelected}
                     onChange={() => setSelectedId(opt.id)}
-                    className="mt-0.5 size-3.5 accent-accent"
+                    className="mt-0.5 size-3.5 accent-accent focus-visible:outline-none"
                   />
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -183,11 +183,12 @@ export default function ClarificationCard({ lang: propLang }: { lang?: "en" | "z
               type="text"
               placeholder={zh ? "或直接输入自定义迁移要求..." : "Or provide custom migration rules..."}
               value={customText}
+              aria-label={zh ? "自定义迁移要求" : "Custom migration rules"}
               onChange={(e) => {
                 setCustomText(e.target.value);
-                if (e.target.value) setSelectedId("custom");
+                setSelectedId(e.target.value ? "custom" : "soft");
               }}
-              className="w-full rounded-control border border-line bg-field px-3 py-2 text-[12px] text-ink placeholder:text-ink-3 focus:border-accent focus:bg-surface focus:outline-none transition-colors"
+              className="w-full rounded-control border border-line bg-field px-3 py-2 text-[12px] text-ink placeholder:text-ink-3 focus:border-accent focus:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/40 transition-colors"
             />
           </div>
 
@@ -199,14 +200,14 @@ export default function ClarificationCard({ lang: propLang }: { lang?: "en" | "z
                 setSelectedId("soft");
                 handleSubmit();
               }}
-              className="text-[11.5px] text-ink-3 hover:text-ink transition-colors cursor-pointer"
+              className="rounded-control px-1 text-[11.5px] text-ink-3 hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 cursor-pointer"
             >
               {zh ? "跳过 (采纳推荐)" : "Skip (Use Recommended)"}
             </button>
             <button
               type="button"
               onClick={handleSubmit}
-              className="flex items-center gap-1.5 rounded-control bg-accent px-3.5 py-1.5 text-[12px] font-medium text-white shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+              className="flex items-center gap-1.5 rounded-control bg-accent px-3.5 py-1.5 text-[12px] font-medium text-white shadow-sm hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface cursor-pointer"
             >
               <span>{zh ? "确认并继续" : "Confirm & Proceed"}</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

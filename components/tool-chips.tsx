@@ -86,9 +86,10 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
       {/* collapsed run header */}
       <button
         type="button"
+        aria-controls="tool-chip-rows"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="-mx-1.5 flex w-fit items-center gap-1.5 rounded-control px-1.5 py-1 text-[12.5px] text-ink-2 transition-colors duration-100 hover:bg-hover-2"
+        className="-mx-1.5 flex w-fit items-center gap-1.5 rounded-control px-1.5 py-1 text-[12.5px] text-ink-2 transition-colors duration-100 hover:bg-hover-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>
           <path d="M6 9l6 6 6-6" />
@@ -97,7 +98,13 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
       </button>
 
       {/* tool call rows */}
-      <div className="grid transition-[grid-template-rows,opacity] duration-300" style={{ gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0 }}>
+      <div
+        id="tool-chip-rows"
+        aria-hidden={!open}
+        inert={!open ? true : undefined}
+        className="grid transition-[grid-template-rows,opacity] duration-300"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0 }}
+      >
         {/* -mx-1 + px-1.5 keeps content at the same x while giving the
             row hover pills room inside this overflow-hidden clip box */}
         <div className="-mx-1 overflow-hidden px-1.5 pb-1">
@@ -110,7 +117,7 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
                 type="button"
                 aria-expanded={rowOpen}
                 onClick={() => toggleRow(row.labelEn)}
-                className="group/row -mx-[3px] flex h-7 w-[calc(100%+6px)] min-w-0 items-center gap-2 rounded-control px-[3px] text-left transition-colors duration-100 hover:bg-hover-2"
+                className="group/row -mx-[3px] flex h-7 w-[calc(100%+6px)] min-w-0 items-center gap-2 rounded-control px-[3px] text-left transition-colors duration-100 hover:bg-hover-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               >
                 <span className="relative flex size-4 shrink-0 items-center justify-center text-ink-3">
                   <svg
@@ -167,9 +174,8 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
           {DIFFS.map((d, i) => (
             <span
               key={d.file}
-              className="inline-flex h-7 max-w-full cursor-pointer items-center gap-1.5 rounded-chip
-                bg-surface px-2 font-mono text-[11.5px] text-ink shadow-btn
-                transition-colors duration-100 hover:bg-hover"
+              className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-chip
+                bg-surface px-2 font-mono text-[11.5px] text-ink shadow-btn"
               style={{ animation: `pop-in 250ms cubic-bezier(0.23,1,0.32,1) ${i * 80}ms both` }}
             >
               <span className="min-w-0 truncate">{d.file}</span>
@@ -177,15 +183,12 @@ export default function ToolChips({ lang: propLang }: { lang?: "en" | "zh" }) {
               {d.del > 0 && <span className="shrink-0 text-red tabular-nums">−{d.del}</span>}
             </span>
           ))}
-          <button
-            type="button"
-            className="inline-flex h-7 items-center rounded-chip px-1.5 font-mono text-[11.5px] text-ink-3
-              underline decoration-transparent underline-offset-2 transition-colors duration-100
-              hover:text-ink-2 hover:decoration-current"
+          <span
+            className="inline-flex h-7 items-center px-1.5 font-mono text-[11.5px] text-ink-3"
             style={{ animation: `fade-in 300ms ease-out ${DIFFS.length * 80}ms both` }}
           >
             {zh ? "+ 还有 2 项" : "+2 more"}
-          </button>
+          </span>
         </div>
       )}
         </div>

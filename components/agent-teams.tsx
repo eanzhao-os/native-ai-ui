@@ -212,8 +212,6 @@ export default function AgentTeams({ lang: propLang }: { lang?: "en" | "zh" }) {
                 className={`flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${
                   state === "in_progress"
                     ? "border-accent/40 bg-accent-tint/30"
-                    : state === "completed"
-                    ? "border-line bg-surface opacity-75"
                     : "border-line bg-surface"
                 }`}
                 style={{ animation: "fade-up 300ms cubic-bezier(0.23,1,0.32,1) both" }}

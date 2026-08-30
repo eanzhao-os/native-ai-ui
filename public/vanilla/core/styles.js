@@ -2222,12 +2222,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .decoration-line-strong {
     text-decoration-color: var(--line-strong);
   }
-  .decoration-transparent {
-    text-decoration-color: transparent;
-  }
-  .underline-offset-2 {
-    text-underline-offset: 2px;
-  }
   .antialiased {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -2255,9 +2249,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .opacity-70 {
     opacity: 70%;
-  }
-  .opacity-75 {
-    opacity: 75%;
   }
   .opacity-80 {
     opacity: 80%;
@@ -2599,6 +2590,12 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
       --tw-ring-color: color-mix(in oklab, var(--accent) 20%, transparent);
     }
   }
+  .focus-within\\:ring-accent\\/50:focus-within {
+    --tw-ring-color: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      --tw-ring-color: color-mix(in oklab, var(--accent) 50%, transparent);
+    }
+  }
   @media (hover: hover) {
     .hover\\:border-accent\\/40:hover {
       border-color: var(--accent);
@@ -2703,9 +2700,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     .hover\\:underline:hover {
       text-decoration-line: underline;
     }
-    .hover\\:decoration-current:hover {
-      text-decoration-color: currentcolor;
-    }
     .hover\\:opacity-75:hover {
       opacity: 75%;
     }
@@ -2722,12 +2716,43 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .focus\\:bg-surface:focus {
     background-color: var(--surface);
   }
+  .focus\\:ring-2:focus {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .focus\\:ring-accent\\/40:focus {
+    --tw-ring-color: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      --tw-ring-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    }
+  }
   .focus\\:outline-none:focus {
     --tw-outline-style: none;
     outline-style: none;
   }
   .focus-visible\\:text-accent-ink:focus-visible {
     color: var(--accent-ink);
+  }
+  .focus-visible\\:shadow-\\[inset_0_0_0_2px_var\\(--accent\\)\\]:focus-visible {
+    --tw-shadow: inset 0 0 0 2px var(--tw-shadow-color, var(--accent));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .focus-visible\\:ring-2:focus-visible {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .focus-visible\\:ring-accent\\/50:focus-visible {
+    --tw-ring-color: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      --tw-ring-color: color-mix(in oklab, var(--accent) 50%, transparent);
+    }
+  }
+  .focus-visible\\:ring-offset-2:focus-visible {
+    --tw-ring-offset-width: 2px;
+    --tw-ring-offset-shadow: var(--tw-ring-inset,) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  }
+  .focus-visible\\:ring-offset-surface:focus-visible {
+    --tw-ring-offset-color: var(--surface);
   }
   .focus-visible\\:outline-none:focus-visible {
     --tw-outline-style: none;
@@ -2747,6 +2772,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .active\\:scale-\\[0\\.98\\]:active {
     scale: 0.98;
+  }
+  .enabled\\:cursor-pointer:enabled {
+    cursor: pointer;
   }
   @media (hover: hover) {
     .enabled\\:hover\\:bg-hover:enabled:hover {

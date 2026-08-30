@@ -137,14 +137,19 @@ export default function SubagentTree({ lang: propLang }: { lang?: "en" | "zh" })
                 <div className="absolute -left-3.5 top-4.5 h-px w-3.5 bg-line-strong" />
 
                 <div
-                  onClick={() => setExpandedId(isExpanded ? null : agent.id)}
-                  className={`rounded-control border transition-all cursor-pointer ${
+                  className={`overflow-hidden rounded-control border transition-all ${
                     isExpanded
                       ? "border-line-strong bg-hover/40 shadow-sm"
                       : "border-line bg-surface hover:border-line-strong hover:bg-hover/20"
                   }`}
                 >
-                  <div className="flex items-center justify-between p-3">
+                  <button
+                    type="button"
+                    aria-controls={`subagent-trace-${agent.id}`}
+                    aria-expanded={isExpanded}
+                    onClick={() => setExpandedId(isExpanded ? null : agent.id)}
+                    className="flex w-full cursor-pointer items-center justify-between p-3 text-left focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)]"
+                  >
                     <div className="flex items-center gap-2.5 min-w-0">
                       {agent.status === "completed" && (
                         <span className="flex size-4.5 items-center justify-center rounded-full bg-green-tint text-green shrink-0">
@@ -214,11 +219,16 @@ export default function SubagentTree({ lang: propLang }: { lang?: "en" | "zh" })
                         <polyline points="6 9 12 15 18 9" />
                       </svg>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Expanded Trace Logs */}
                   {isExpanded && (
-                    <div className="border-t border-line/60 bg-inset/70 p-3 text-[11px]">
+                    <div
+                      id={`subagent-trace-${agent.id}`}
+                      role="region"
+                      aria-label={zh ? `${agent.nameZh} 执行追踪` : `${agent.nameEn} execution trace`}
+                      className="border-t border-line/60 bg-inset/70 p-3 text-[11px]"
+                    >
                       <div className="mb-2 flex items-center justify-between text-ink-3">
                         <span className="font-mono text-[10px] uppercase tracking-wider">
                           {zh ? "执行追踪日志 (Trace)" : "Execution Trace"}

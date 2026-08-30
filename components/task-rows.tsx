@@ -159,7 +159,7 @@ export default function TaskRows({
               type="button"
               aria-expanded={open}
               onClick={() => setManualOpen((current) => ({ ...current, [row.key]: !open }))}
-              className="flex h-11 w-full items-center gap-2.5 px-2.5 text-left transition-colors duration-100 hover:bg-hover cursor-pointer"
+              className="flex h-11 w-full items-center gap-2.5 px-2.5 text-left transition-colors duration-100 hover:bg-hover focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] cursor-pointer"
             >
               {row.badge}
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">

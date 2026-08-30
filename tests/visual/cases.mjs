@@ -124,6 +124,376 @@ const TASK5A_CASES = [
 ];
 /* TASK 5A VISUAL REGISTRATIONS END */
 
+/* TASK 6 VISUAL ACTIONS START */
+async function waitForControlAttribute(control, attribute, expected, message) {
+  let actual = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    actual = await control.getAttribute(attribute);
+    if (actual === expected) return;
+  }
+  throw new Error(`${message} (${attribute}=${actual})`);
+}
+
+async function focusWithKeyboard({ canvas, page }, control, message) {
+  await page.mouse.move(0, 0);
+  await control.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error(message);
+  }
+}
+
+async function openCompletedSubagent({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Web Researcher|网络检索子 Agent/,
+  });
+  await control.click();
+  await waitForControlAttribute(
+    control,
+    "aria-expanded",
+    "true",
+    "Completed subagent trace remained collapsed",
+  );
+  await canvas.getByText(/Execution Trace|执行追踪日志/).waitFor();
+}
+
+async function focusRunningSubagent(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Schema Architect|架构代码子 Agent/,
+  });
+  await focusWithKeyboard(
+    args,
+    control,
+    "Running subagent did not receive keyboard-visible focus",
+  );
+}
+
+async function verifyAgentHandoff({ canvas }) {
+  await canvas.getByText(/2\/4 tasks|2\/4 任务/).waitFor();
+  await canvas.getByText(/Add backoff unit tests|补退避策略单元测试/).waitFor();
+}
+
+async function verifyAgentCompletion({ canvas }) {
+  await canvas.getByText(/4\/4 tasks|4\/4 任务/).waitFor();
+  await canvas.getByText(/Review & sign off|评审并签收/).waitFor();
+}
+
+function taskRow(canvas, name) {
+  return canvas.getByRole("button", { name });
+}
+
+async function openTaskDetails({ canvas }) {
+  const control = taskRow(
+    canvas,
+    /Build reorder task list|生成自动补货计划清单/,
+  );
+  await control.click();
+  await waitForControlAttribute(
+    control,
+    "aria-expanded",
+    "true",
+    "Task details remained collapsed",
+  );
+  await canvas.getByText(/Reading POS export|读取 POS 导出数据/).waitFor();
+}
+
+async function verifyFailedTask({ canvas }) {
+  const control = taskRow(
+    canvas,
+    /Draft supplier emails|起草供应商跟进邮件/,
+  );
+  await control.getByText(/Failed|失败重试中/).waitFor();
+}
+
+async function verifyCompletedTask({ canvas }) {
+  const control = taskRow(
+    canvas,
+    /Draft supplier emails|起草供应商跟进邮件/,
+  );
+  await control.getByText(/Completed|已完成/).waitFor();
+}
+
+async function focusTaskRow(args) {
+  const control = taskRow(
+    args.canvas,
+    /Build reorder task list|生成自动补货计划清单/,
+  );
+  await focusWithKeyboard(
+    args,
+    control,
+    "Task row did not receive keyboard-visible focus",
+  );
+}
+
+function toolRunToggle(canvas) {
+  return canvas.getByRole("button", {
+    name: /4 tool calls, 2 messages|4 次工具调用，2 条消息/,
+  });
+}
+
+function toolWriteRow(canvas) {
+  return canvas.getByRole("button", { name: /Write 204 lines|写入 204 行/ });
+}
+
+async function verifySettledTools({ canvas }) {
+  await canvas.getByText(/^\+2 more$|^\+ 还有 2 项$/).waitFor();
+}
+
+async function openToolDetail({ canvas }) {
+  const control = toolWriteRow(canvas);
+  await control.click();
+  await waitForControlAttribute(
+    control,
+    "aria-expanded",
+    "true",
+    "Tool detail remained collapsed",
+  );
+  await canvas.getByText(/const windows = slots\.filter/).waitFor();
+}
+
+async function collapseToolRun({ canvas }) {
+  const control = toolRunToggle(canvas);
+  await control.click();
+  await waitForControlAttribute(
+    control,
+    "aria-expanded",
+    "false",
+    "Tool run remained expanded",
+  );
+}
+
+async function focusToolRow(args) {
+  await focusWithKeyboard(
+    args,
+    toolWriteRow(args.canvas),
+    "Tool row did not receive keyboard-visible focus",
+  );
+}
+
+function approvalCustomInput(canvas) {
+  return canvas.getByRole("textbox", { name: /Custom answer|自定义答案/ });
+}
+
+async function fillApprovalCustom(canvas) {
+  const input = approvalCustomInput(canvas);
+  const label = await input.getAttribute("aria-label");
+  const value = label === "自定义答案" ? "四款季节限定口味" : "Four seasonal flavors";
+  await input.fill(value);
+  if ((await input.inputValue()) !== value) {
+    throw new Error("Approval custom answer did not retain its value");
+  }
+}
+
+async function captureApprovalCustom({ canvas }) {
+  await fillApprovalCustom(canvas);
+}
+
+async function selectApprovalMixIns({ canvas }) {
+  await fillApprovalCustom(canvas);
+  await canvas
+    .getByRole("button", { name: /Next question|继续下一题/ })
+    .click();
+  const chocolate = canvas.getByRole("button", {
+    name: /Chocolate chips|黑巧碎粒/,
+  });
+  const sprinkles = canvas.getByRole("button", {
+    name: /Sprinkles|彩色糖针/,
+  });
+  await chocolate.click();
+  await sprinkles.click();
+  await waitForControlAttribute(
+    chocolate,
+    "aria-pressed",
+    "true",
+    "Chocolate mix-in was not selected",
+  );
+  await waitForControlAttribute(
+    sprinkles,
+    "aria-pressed",
+    "true",
+    "Sprinkles mix-in was not selected",
+  );
+}
+
+async function submitApproval({ canvas }) {
+  for (let question = 0; question < 2; question += 1) {
+    await fillApprovalCustom(canvas);
+    await canvas
+      .getByRole("button", { name: /Next question|继续下一题/ })
+      .click();
+  }
+  await fillApprovalCustom(canvas);
+  await canvas
+    .getByRole("button", { name: /Send answers|提交答案/ })
+    .click();
+  await canvas.getByText(/Answers sent|审批决策已提交/).waitFor();
+}
+
+async function focusApprovalOption(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Three \(core line\)|3 款 \(核心经典线\)/,
+  });
+  await focusWithKeyboard(
+    args,
+    control,
+    "Approval option did not receive keyboard-visible focus",
+  );
+}
+
+function clarificationCustomInput(canvas) {
+  return canvas.getByRole("textbox", {
+    name: /Custom migration rules|自定义迁移要求/,
+  });
+}
+
+async function selectAlternateClarification({ canvas }) {
+  const option = canvas.getByRole("radio", {
+    name: /Dual-Format Verification|双签名格式校验/,
+  });
+  await option.click();
+  if (!(await option.isChecked())) {
+    throw new Error("Alternate clarification option was not selected");
+  }
+}
+
+async function submitCustomClarification({ canvas }) {
+  const input = clarificationCustomInput(canvas);
+  const label = await input.getAttribute("aria-label");
+  const value = label === "自定义迁移要求"
+    ? "先迁移内部账号，再迁移外部用户"
+    : "Migrate staff accounts before customer sessions";
+  await input.fill(value);
+  await canvas
+    .getByRole("button", { name: /Confirm & Proceed|确认并继续/ })
+    .click();
+  await canvas.getByText(value).waitFor();
+}
+
+async function focusClarificationOption({ canvas, page }) {
+  const recommended = canvas.getByRole("radio", {
+    name: /Soft Token Migration|平滑双轨迁移/,
+  });
+  const control = canvas.getByRole("radio", {
+    name: /Dual-Format Verification|双签名格式校验/,
+  });
+  await recommended.focus();
+  await page.keyboard.press("ArrowDown");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error("Clarification option did not receive keyboard-visible focus");
+  }
+}
+
+async function navigateFirstBranch({ canvas }) {
+  const previous = canvas.getByRole("button", {
+    name: /Previous branch|上一个分支/,
+  });
+  await previous.click();
+  if (!(await previous.isDisabled())) {
+    throw new Error("Previous branch boundary remained enabled");
+  }
+  await canvas.getByText("GPT-5.2 · 10:41").waitFor();
+}
+
+async function navigateLastBranch({ canvas }) {
+  const next = canvas.getByRole("button", { name: /Next branch|下一个分支/ });
+  await next.click();
+  if (!(await next.isDisabled())) {
+    throw new Error("Next branch boundary remained enabled");
+  }
+  await canvas.getByText("Gemini 3.1 Pro · 10:43").waitFor();
+}
+
+async function continueBranch({ canvas }) {
+  await canvas
+    .getByRole("button", {
+      name: /Continue from this branch|从此分支继续/,
+    })
+    .click();
+  await canvas
+    .getByText(/Continuing from branch 2|正从分支 2 继续/)
+    .waitFor();
+}
+
+async function focusBranchContinue(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Continue from this branch|从此分支继续/,
+  });
+  await focusWithKeyboard(
+    args,
+    control,
+    "Branch continuation did not receive keyboard-visible focus",
+  );
+}
+/* TASK 6 VISUAL ACTIONS END */
+
+/* TASK 6 VISUAL REGISTRATIONS START */
+const TASK6_CASES = [
+  [
+    "subagent-tree",
+    [
+      { name: "running-expanded", advanceMs: 0 },
+      { name: "completed-expanded", advanceMs: 0, action: openCompletedSubagent },
+      { name: "focused", advanceMs: 0, action: focusRunningSubagent },
+    ],
+  ],
+  [
+    "agent-teams",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "handoff", advanceMs: 4200, action: verifyAgentHandoff },
+      { name: "completed", advanceMs: 8400, action: verifyAgentCompletion },
+    ],
+  ],
+  [
+    "task-rows",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "details", advanceMs: 0, action: openTaskDetails },
+      { name: "failed", advanceMs: 4000, action: verifyFailedTask },
+      { name: "completed", advanceMs: 5400, action: verifyCompletedTask },
+      { name: "focused", advanceMs: 0, action: focusTaskRow },
+    ],
+  ],
+  [
+    "tool-chips",
+    [
+      { name: "settled", advanceMs: 3600, action: verifySettledTools },
+      { name: "detail-open", advanceMs: 3600, action: openToolDetail },
+      { name: "collapsed", advanceMs: 3600, action: collapseToolRun },
+      { name: "focused", advanceMs: 3600, action: focusToolRow },
+    ],
+  ],
+  [
+    "approval-card",
+    [
+      { name: "custom-answer", advanceMs: 0, action: captureApprovalCustom },
+      { name: "multi-select", advanceMs: 0, action: selectApprovalMixIns },
+      { name: "submitted", advanceMs: 0, action: submitApproval },
+      { name: "focused", advanceMs: 0, action: focusApprovalOption },
+    ],
+  ],
+  [
+    "clarification-card",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "alternate", advanceMs: 0, action: selectAlternateClarification },
+      { name: "submitted", advanceMs: 0, action: submitCustomClarification },
+      { name: "focused", advanceMs: 0, action: focusClarificationOption },
+    ],
+  ],
+  [
+    "message-branches",
+    [
+      { name: "first", advanceMs: 0, action: navigateFirstBranch },
+      { name: "last", advanceMs: 0, action: navigateLastBranch },
+      { name: "continued", advanceMs: 0, action: continueBranch },
+      { name: "focused", advanceMs: 0, action: focusBranchContinue },
+    ],
+  ],
+];
+/* TASK 6 VISUAL REGISTRATIONS END */
+
 /* TASK 4 VISUAL ACTIONS START */
 async function selectSecondSession({ canvas }) {
   await canvas
@@ -315,6 +685,21 @@ async function failFeedbackCopy({ canvas, page }) {
 }
 /* TASK 4 VISUAL ACTIONS END */
 
+/**
+ * @typedef {{
+ *   action?: (args: {
+ *     advance: (milliseconds: number) => Promise<void>,
+ *     canvas: any,
+ *     framework?: string,
+ *     page: any,
+ *     section?: any,
+ *   }) => unknown,
+ *   advanceMs: number,
+ *   name: string,
+ * }} VisualCase
+ */
+
+/** @type {Map<string, VisualCase[]>} */
 export const CASES = new Map([
   [
     "code-block",
@@ -368,6 +753,7 @@ export const CASES = new Map([
     ],
   ],
   /* TASK 4 VISUAL REGISTRATIONS END */
+  ...TASK6_CASES,
 ]);
 
 export function casesForComponent(componentId) {
