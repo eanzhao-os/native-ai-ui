@@ -1496,6 +1496,28 @@ describe("registry-derived visual case inventory", () => {
       { name: "ready", advanceMs: 0 },
       { name: "submitted", advanceMs: 0 },
     ]);
+
+    expect(
+      [
+        ["thinking", "expanded"],
+        ["streaming-text", "sources-open"],
+        ["prompt-bar", "submitted"],
+      ].map(([component, caseName]) => ({
+        caseName,
+        component,
+        hasAction:
+          typeof CASES.get(component)?.find(({ name }) => name === caseName)
+            ?.action === "function",
+      })),
+    ).toEqual([
+      { component: "thinking", caseName: "expanded", hasAction: true },
+      {
+        component: "streaming-text",
+        caseName: "sources-open",
+        hasAction: true,
+      },
+      { component: "prompt-bar", caseName: "submitted", hasAction: true },
+    ]);
   });
 
   test("keeps Task 5A visual actions and registrations on real UI", () => {
@@ -1532,6 +1554,47 @@ describe("registry-derived visual case inventory", () => {
         .filter(([, pattern]) => pattern.test(guarded))
         .map(([label]) => label),
     ).toEqual([]);
+  });
+
+  test("rejects a Thinking expanded capture that remains aria-collapsed", async () => {
+    const action = CASES.get("thinking")?.find(
+      ({ name }) => name === "expanded",
+    )?.action;
+    const toggle = {
+      click: vi.fn().mockResolvedValue(undefined),
+      getAttribute: vi.fn().mockResolvedValue("false"),
+    };
+    const canvas = {
+      getByRole: vi.fn(() => toggle),
+      getByText: vi.fn(() => ({ waitFor: vi.fn().mockResolvedValue(undefined) })),
+    };
+
+    expect(typeof action).toBe("function");
+    await expect(
+      action?.({ advance: async () => {}, canvas, page: {} }),
+    ).rejects.toThrow("Thinking expanded state remained collapsed");
+  });
+
+  test("rejects a Streaming source capture that remains aria-collapsed", async () => {
+    const action = CASES.get("streaming-text")?.find(
+      ({ name }) => name === "sources-open",
+    )?.action;
+    const toggle = {
+      click: vi.fn().mockResolvedValue(undefined),
+      getAttribute: vi.fn().mockResolvedValue("false"),
+      locator: vi.fn(() => ({
+        getAttribute: vi.fn().mockResolvedValue("opacity: 1"),
+      })),
+    };
+    const canvas = {
+      getByRole: vi.fn(() => toggle),
+      getByText: vi.fn(() => ({ waitFor: vi.fn().mockResolvedValue(undefined) })),
+    };
+
+    expect(typeof action).toBe("function");
+    await expect(
+      action?.({ advance: async () => {}, canvas, page: {} }),
+    ).rejects.toThrow("Streaming source drawer remained collapsed");
   });
 
   test("defines deterministic initial and settled cases for Code Block", () => {

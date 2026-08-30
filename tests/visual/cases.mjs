@@ -17,12 +17,21 @@ async function freezeCaseMotion(canvas) {
 }
 
 /* TASK 5A VISUAL ACTIONS START */
+async function waitForExpanded(control, failureMessage) {
+  let actual = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    actual = await control.getAttribute("aria-expanded");
+    if (actual === "true") return;
+  }
+  throw new Error(`${failureMessage} (aria-expanded=${actual})`);
+}
+
 async function expandSettledThinking({ canvas }) {
-  await canvas
-    .getByRole("button", {
-      name: /Thought for 4 seconds|已深度思考 4 秒/,
-    })
-    .click();
+  const toggle = canvas.getByRole("button", {
+    name: /Thought for 4 seconds|已深度思考 4 秒/,
+  });
+  await toggle.click();
+  await waitForExpanded(toggle, "Thinking expanded state remained collapsed");
   await canvas
     .getByText(/Writing the scoop report|生成冰淇淋上架评估报告/)
     .waitFor();
@@ -54,6 +63,10 @@ async function settleStreaming(args) {
 async function openStreamingSources(args) {
   const sources = await waitForStreamingSettled(args);
   await sources.click();
+  await waitForExpanded(
+    sources,
+    "Streaming source drawer remained collapsed",
+  );
   await args.canvas.getByText("Scoop Data").waitFor();
 }
 
