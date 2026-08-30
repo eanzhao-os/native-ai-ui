@@ -2,6 +2,7 @@
 
 import {
   type KeyboardEvent,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -55,6 +56,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
   const choiceGroupId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const optionRefs = useRef<Array<HTMLInputElement | null>>([]);
   const startOverRef = useRef<HTMLButtonElement>(null);
+  const autoAdvanceTimerRef = useRef<number | null>(null);
 
   const QUESTIONS = zh ? QUESTIONS_ZH : QUESTIONS_EN;
 
@@ -68,9 +70,27 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
   const selected = answers[qi] ?? [];
   const hasAnswer = selected.length > 0 || Boolean(custom[qi]?.trim());
 
+  const cancelAutoAdvance = useCallback(() => {
+    if (autoAdvanceTimerRef.current === null) return;
+    window.clearTimeout(autoAdvanceTimerRef.current);
+    autoAdvanceTimerRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (sent) startOverRef.current?.focus();
   }, [sent]);
+
+  useEffect(() => cancelAutoAdvance, [cancelAutoAdvance, qi]);
+
+  const goToQuestion = (index: number) => {
+    cancelAutoAdvance();
+    setQi(index);
+  };
+
+  const submit = () => {
+    cancelAutoAdvance();
+    setSent(true);
+  };
 
   const toggle = (index: number) => {
     setAnswers((current) => {
@@ -85,9 +105,18 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
     });
     if (question.type === "radio") {
       setCustom((current) => ({ ...current, [qi]: "" }));
-      window.setTimeout(() => {
-        if (qi === QUESTIONS.length - 1) setSent(true);
-        else setQi((current) => Math.min(QUESTIONS.length - 1, current + 1));
+      cancelAutoAdvance();
+      const questionIndex = qi;
+      autoAdvanceTimerRef.current = window.setTimeout(() => {
+        autoAdvanceTimerRef.current = null;
+        if (questionIndex === QUESTIONS.length - 1) setSent(true);
+        else {
+          setQi((current) =>
+            current === questionIndex
+              ? Math.min(QUESTIONS.length - 1, current + 1)
+              : current,
+          );
+        }
       }, 480);
     }
   };
@@ -120,6 +149,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
   };
 
   const reset = () => {
+    cancelAutoAdvance();
     setQi(0);
     setAnswers({});
     setCustom({});
@@ -244,7 +274,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
               type="button"
               aria-label={zh ? "上一题" : "Previous"}
               disabled={qi === 0 || sent}
-              onClick={() => setQi((current) => Math.max(0, current - 1))}
+              onClick={() => goToQuestion(Math.max(0, qi - 1))}
               className="flex size-11 items-center justify-center rounded-control text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-35"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
@@ -257,7 +287,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
                   aria-label={zh ? `转到第 ${i + 1} 题` : `Go to question ${i + 1}`}
                   aria-current={i === qi && !sent ? "step" : undefined}
                   disabled={sent}
-                  onClick={() => setQi(i)}
+                  onClick={() => goToQuestion(i)}
                   className="flex size-11 items-center justify-center rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default"
                 >
                   <span
@@ -278,7 +308,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
               type="button"
               aria-label={zh ? "下一题" : "Next"}
               disabled={last || sent}
-              onClick={() => setQi((current) => Math.min(QUESTIONS.length - 1, current + 1))}
+              onClick={() => goToQuestion(Math.min(QUESTIONS.length - 1, qi + 1))}
               className="flex size-11 items-center justify-center rounded-control text-ink-3 transition-colors duration-100 enabled:hover:bg-hover enabled:hover:text-ink-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-35"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
@@ -289,7 +319,7 @@ export default function ApprovalCard({ lang: propLang }: { lang?: "en" | "zh" })
               type="button"
               aria-label={last ? (zh ? "提交答案" : "Send answers") : (zh ? "继续下一题" : "Next question")}
               disabled={!hasAnswer}
-              onClick={() => last ? setSent(true) : setQi((current) => current + 1)}
+              onClick={() => (last ? submit() : goToQuestion(qi + 1))}
               className="flex size-11 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed enabled:cursor-pointer"
               style={{
                 background: hasAnswer ? "var(--ink)" : "var(--field)",

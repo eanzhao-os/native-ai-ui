@@ -240,6 +240,173 @@ describe("ApprovalCard", () => {
     expect(document.activeElement).toBe(chocolate);
   });
 
+  test("advances one radio selection once after exactly 480 ms", async () => {
+    vi.useFakeTimers();
+    render(<ApprovalCard />);
+
+    fireEvent.keyDown(
+      screen.getByRole("radio", { name: "Three (core line)" }),
+      { key: " " },
+    );
+    expect(vi.getTimerCount()).toBe(1);
+
+    await advanceTimerSteps(1, 479);
+    expect(
+      screen.getByRole("group", { name: "How many flavors should we launch?" }),
+    ).not.toBeNull();
+    expect(vi.getTimerCount()).toBe(1);
+
+    await advanceTimerSteps(1, 1);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+
+    await advanceTimerSteps(1, 480);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+  });
+
+  test("keeps one pending auto-advance for rapid radio keyboard selections", async () => {
+    vi.useFakeTimers();
+    render(<ApprovalCard />);
+
+    const firstFlavor = screen.getByRole("radio", {
+      name: "Three (core line)",
+    }) as HTMLInputElement;
+    const secondFlavor = screen.getByRole("radio", {
+      name: "Five (full case)",
+    }) as HTMLInputElement;
+
+    firstFlavor.focus();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    fireEvent.keyDown(firstFlavor, { key: "ArrowDown" });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(secondFlavor.checked).toBe(true);
+    expect(vi.getTimerCount()).toBe(1);
+
+    fireEvent.keyDown(secondFlavor, { key: " " });
+    expect(vi.getTimerCount()).toBe(1);
+
+    await advanceTimerSteps(1, 480);
+
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+
+    await advanceTimerSteps(1, 480);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+  });
+
+  test("cancels pending auto-advance across manual and direct navigation", async () => {
+    vi.useFakeTimers();
+    render(<ApprovalCard />);
+
+    fireEvent.keyDown(
+      screen.getByRole("radio", { name: "Three (core line)" }),
+      { key: " " },
+    );
+    expect(vi.getTimerCount()).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+
+    await advanceTimerSteps(1, 480);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 3" }));
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Food trucks" }), {
+      key: " ",
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+
+    await advanceTimerSteps(1, 480);
+    expect(
+      screen.getByRole("group", { name: "Which mix-ins should we stock?" }),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 1" }));
+    fireEvent.keyDown(
+      screen.getByRole("radio", { name: "Three (core line)" }),
+      { key: " " },
+    );
+    expect(vi.getTimerCount()).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 3" }));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(
+      screen.getByRole("group", { name: "Which market do we enter first?" }),
+    ).not.toBeNull();
+
+    await advanceTimerSteps(1, 480);
+    expect(
+      screen.getByRole("group", { name: "Which market do we enter first?" }),
+    ).not.toBeNull();
+  });
+
+  test("cancels pending auto-advance on submission and reset", async () => {
+    vi.useFakeTimers();
+    render(<ApprovalCard />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Go to question 3" }));
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Food trucks" }), {
+      key: " ",
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Send answers" }));
+    expect(screen.getByRole("status").textContent).toContain("Answers sent");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(vi.getTimerCount()).toBe(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(
+      screen.getByRole("group", { name: "How many flavors should we launch?" }),
+    ).not.toBeNull();
+
+    await advanceTimerSteps(1, 480);
+    expect(
+      screen.getByRole("group", { name: "How many flavors should we launch?" }),
+    ).not.toBeNull();
+  });
+
+  test("cancels the pending auto-advance on unmount", () => {
+    vi.useFakeTimers();
+    const { unmount } = render(<ApprovalCard />);
+
+    fireEvent.keyDown(
+      screen.getByRole("radio", { name: "Three (core line)" }),
+      { key: " " },
+    );
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   test("preserves custom and multi-select answers through submission", () => {
     render(<ApprovalCard />);
 

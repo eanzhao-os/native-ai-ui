@@ -77,19 +77,62 @@ function collectCallables(sourceFile: ts.SourceFile) {
 
 function collectTask6Registrations(sourceFile: ts.SourceFile) {
   const registrations: Registration[] = [];
-  const visit = (node: ts.Node) => {
+  const arrayBindings = new Map<string, ts.ArrayLiteralExpression>();
+
+  const collectBindings = (node: ts.Node) => {
     if (
-      ts.isArrayLiteralExpression(node) &&
-      node.elements.length >= 2 &&
-      ts.isStringLiteral(node.elements[0]) &&
-      TASK6_COMPONENT_SET.has(node.elements[0].text) &&
-      ts.isArrayLiteralExpression(node.elements[1])
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isArrayLiteralExpression(node.initializer)
     ) {
-      registrations.push({
-        cases: node.elements[1],
-        component: node.elements[0].text,
-      });
+      arrayBindings.set(node.name.text, node.initializer);
     }
+    ts.forEachChild(node, collectBindings);
+  };
+  collectBindings(sourceFile);
+
+  const resolveCases = (node: ts.Expression | undefined) => {
+    if (!node) return undefined;
+    if (ts.isArrayLiteralExpression(node)) return node;
+    if (ts.isIdentifier(node)) return arrayBindings.get(node.text);
+    return undefined;
+  };
+
+  const addRegistration = (
+    componentNode: ts.Expression | undefined,
+    casesNode: ts.Expression | undefined,
+  ) => {
+    if (
+      !componentNode ||
+      !ts.isStringLiteral(componentNode) ||
+      !TASK6_COMPONENT_SET.has(componentNode.text)
+    ) {
+      return;
+    }
+    const cases = resolveCases(casesNode);
+    if (!cases) return;
+    registrations.push({ cases, component: componentNode.text });
+  };
+
+  const visit = (node: ts.Node) => {
+    if (ts.isArrayLiteralExpression(node) && node.elements.length >= 2) {
+      addRegistration(
+        node.elements[0] as ts.Expression,
+        node.elements[1] as ts.Expression,
+      );
+    }
+
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      node.expression.expression.text === "CASES" &&
+      node.expression.name.text === "set"
+    ) {
+      addRegistration(node.arguments[0], node.arguments[1]);
+    }
+
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
@@ -294,12 +337,13 @@ describe("Task 6 React visual cases", () => {
     }
   });
 
-  test("rejects duplicate Task 6 registrations in fixtures and the real source", () => {
+  test("rejects duplicate Task 6 registrations across tuple and direct set forms", () => {
     const fixture = analyzeTask6VisualSource(`
-      const cases = [
-        ["tool-chips", [{ name: "first" }]],
-        ["tool-chips", [{ name: "second" }]],
-      ];
+      const directCases = [{ name: "direct" }];
+      const CASES = new Map([
+        ["tool-chips", [{ name: "tuple" }]],
+      ]);
+      CASES.set("tool-chips", directCases);
     `);
     expect(fixture.duplicateComponents).toEqual(["tool-chips"]);
 
@@ -311,7 +355,7 @@ describe("Task 6 React visual cases", () => {
     }
   });
 
-  test("rejects dishonest helpers reachable from Task 6 actions", () => {
+  test("rejects dishonest helpers reachable from direct Task 6 registrations", () => {
     const fixture = analyzeTask6VisualSource(`
       async function rewriteCard({ canvas }) {
         await hiddenLegacyHelper(canvas);
@@ -321,9 +365,11 @@ describe("Task 6 React visual cases", () => {
           root.innerHTML = "fabricated";
         });
       }
-      const cases = [
-        ["approval-card", [{ name: "legacy", action: rewriteCard }]],
+      const legacyCases = [
+        { name: "legacy", action: rewriteCard },
       ];
+      const CASES = new Map();
+      CASES.set("approval-card", legacyCases);
     `);
     expect(fixture.violations.map(({ kind }) => kind)).toEqual([
       "DOM evaluation",
