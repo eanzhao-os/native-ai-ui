@@ -125,7 +125,10 @@ export default function SettingsEditor({
   const conflictLike = phase === "conflict" || phase === "refetching";
 
   return (
-    <div className="w-full max-w-lg rounded-card border border-line bg-surface shadow-card">
+    <div
+      key={`${phase}-${revision}`}
+      className="w-full max-w-lg self-start overflow-hidden rounded-card bg-surface shadow-card"
+    >
       <div className="flex items-center justify-between border-b border-line bg-inset px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -154,6 +157,7 @@ export default function SettingsEditor({
           aria-label={zh ? "设置 JSON" : "Settings JSON"}
           spellCheck={false}
           rows={7}
+          style={{ appearance: "none" }}
           className={`w-full resize-none rounded-control border px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] outline-none transition-colors duration-200 ${
             conflictLike
               ? "border-orange/50 bg-orange-tint/25 text-ink-2"

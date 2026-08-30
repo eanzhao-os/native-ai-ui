@@ -40,7 +40,7 @@ function legacyCopy(text: string) {
   }
 }
 
-async function copyText(text: string) {
+async function copyText(text: string, isCurrent: () => boolean) {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
@@ -49,7 +49,7 @@ async function copyText(text: string) {
       // A denied async clipboard attempt still gets the legacy fallback.
     }
   }
-  return legacyCopy(text);
+  return isCurrent() && legacyCopy(text);
 }
 
 export default function FeedbackActions({
@@ -69,26 +69,41 @@ export default function FeedbackActions({
   const [rating, setRating] = useState<Rating>(initialRating);
   const [copyStatus, setCopyStatus] = useState<CopyStatus>(initialCopyStatus);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(false);
+  const copyGeneration = useRef(0);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      copyGeneration.current += 1;
       if (resetTimer.current) clearTimeout(resetTimer.current);
-    },
-    [],
-  );
+      resetTimer.current = null;
+    };
+  }, []);
 
   const rate = (next: Exclude<Rating, null>) => {
     setRating((current) => (current === next ? null : next));
   };
 
   const copy = async () => {
-    const copied = await copyText(zh ? MESSAGE_ZH : MESSAGE_EN);
-    setCopyStatus(copied ? "copied" : "copy-error");
+    const generation = ++copyGeneration.current;
     if (resetTimer.current) clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(
-      () => setCopyStatus("idle"),
-      STATUS_HOLD_MS,
+    resetTimer.current = null;
+    const isCurrent = () =>
+      mounted.current && copyGeneration.current === generation;
+    const copied = await copyText(
+      zh ? MESSAGE_ZH : MESSAGE_EN,
+      isCurrent,
     );
+    if (!isCurrent()) return;
+
+    setCopyStatus(copied ? "copied" : "copy-error");
+    resetTimer.current = setTimeout(() => {
+      if (!isCurrent()) return;
+      resetTimer.current = null;
+      setCopyStatus("idle");
+    }, STATUS_HOLD_MS);
   };
 
   const hasStatus = rating !== null || copyStatus !== "idle";
@@ -104,7 +119,10 @@ export default function FeedbackActions({
             : "";
 
   return (
-    <div className="w-full max-w-95 rounded-card bg-surface p-4 shadow-card">
+    <div
+      className="w-full max-w-95 rounded-card bg-surface p-4 shadow-card"
+      style={{ transform: "translateZ(0)" }}
+    >
       <p className="text-[13px] leading-relaxed text-ink">
         {zh ? MESSAGE_ZH : MESSAGE_EN}
       </p>

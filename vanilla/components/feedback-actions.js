@@ -39,7 +39,7 @@ export class NaiFeedbackActions extends NaiBaseElement {
     super();
     this._rating = null; // "up" | "down" | null
     this._copyStatus = "idle"; // idle | copied | copy-error
-    this._copyResetVersion = 0;
+    this._copyOperationVersion = 0;
   }
 
   onMount() {
@@ -49,6 +49,10 @@ export class NaiFeedbackActions extends NaiBaseElement {
     else if (visualCase === "copy-error") this._copyStatus = "copy-error";
   }
 
+  onUnmount() {
+    this._copyOperationVersion += 1;
+  }
+
   _rate(next) {
     this._rating = this._rating === next ? null : next;
     this.render();
@@ -56,6 +60,9 @@ export class NaiFeedbackActions extends NaiBaseElement {
 
   async _copy() {
     const text = this.isZh ? MESSAGE_ZH : MESSAGE_EN;
+    const version = ++this._copyOperationVersion;
+    const isCurrent = () =>
+      this._mounted && this.isConnected && version === this._copyOperationVersion;
     let copied = false;
     if (navigator.clipboard?.writeText) {
       try {
@@ -65,13 +72,13 @@ export class NaiFeedbackActions extends NaiBaseElement {
         // A denied async clipboard attempt still gets the legacy fallback.
       }
     }
-    if (!copied) copied = legacyCopy(text);
+    if (!copied && isCurrent()) copied = legacyCopy(text);
+    if (!isCurrent()) return;
 
     this._copyStatus = copied ? "copied" : "copy-error";
     this.render();
-    const version = ++this._copyResetVersion;
     this.registerTimeout(() => {
-      if (version !== this._copyResetVersion) return;
+      if (!isCurrent()) return;
       this._copyStatus = "idle";
       this.render();
     }, STATUS_HOLD_MS);
@@ -94,7 +101,7 @@ export class NaiFeedbackActions extends NaiBaseElement {
               : "";
 
     this.setHtml(`
-      <div class="w-full max-w-95 rounded-card bg-surface p-4 shadow-card">
+      <div class="w-full max-w-95 rounded-card bg-surface p-4 shadow-card" style="transform: translateZ(0);">
         <p class="text-[13px] leading-relaxed text-ink">${zh ? MESSAGE_ZH : MESSAGE_EN}</p>
         <div class="mt-2 flex items-center gap-0.5" role="group" aria-label="${zh ? "消息操作" : "Message actions"}">
           <button type="button" class="copy-btn flex size-6 items-center justify-center rounded-[6px] transition-colors duration-100 cursor-pointer ${

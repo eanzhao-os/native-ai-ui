@@ -16,6 +16,7 @@ async function freezeCaseMotion(canvas) {
   });
 }
 
+/* TASK 4 VISUAL ACTIONS START */
 async function selectSecondSession({ canvas }) {
   await canvas
     .getByRole("button", {
@@ -24,51 +25,27 @@ async function selectSecondSession({ canvas }) {
     .click();
 }
 
-function replaceWithCanonicalCard(canvas, tag, markup) {
-  return canvas.evaluate((root, { tag, markup }) => {
-    const scope = root.querySelector(tag)?.shadowRoot ?? root;
-    const component = scope.querySelector(".max-w-lg.rounded-card");
-    component.innerHTML = markup;
-  }, { tag, markup });
-}
-
-async function stabilizeAuthorization({ canvas }) {
-  await freezeCaseMotion(canvas);
-  const zh = await canvas.evaluate(
-    () => document.documentElement.lang === "zh",
-  );
-  await replaceWithCanonicalCard(canvas, "nai-authorization-surface", `
-    <div class="flex items-center justify-between border-b border-line pb-3.5"><div><h3 class="text-[13px] font-semibold text-ink">${zh ? "授权与凭据目录" : "Authorization Directory"}</h3><p class="text-[11px] text-ink-3">${zh ? "凭据只写入不展示" : "Secrets are write-only"}</p></div><span class="font-mono text-[10px] text-ink-3">1/3</span></div>
-    <div class="mt-3 flex flex-col gap-2">${["deepseek", "openai", "e2b"].map((name) => `<div class="flex items-center justify-between rounded-control border border-line bg-surface px-3 py-2"><span class="font-mono text-[12.5px] text-ink">${name}</span><span class="text-[10.5px] text-ink-3">${name === "openai" ? (zh ? "已配置" : "Configured") : (zh ? "登录" : "Sign in")}</span></div>`).join("")}</div>
-    <div class="mt-3 rounded-control border border-line bg-inset/60 p-3"><div class="flex items-center justify-between"><span class="text-[12px] font-medium text-ink">${zh ? "授权 deepseek" : "Authorize deepseek"}</span><span class="text-[9.5px] text-ink-3">${zh ? "等待输入" : "awaiting input"}</span></div><div class="mt-2 h-8 rounded-control border border-line bg-field"></div><div class="mt-2.5 flex justify-end gap-2"><span class="text-[11px] text-ink-3">${zh ? "取消流程" : "Withdraw"}</span><span class="rounded-control bg-accent px-3 py-1 text-[11px] text-white">${zh ? "确认授权" : "Authorize"}</span></div></div>
-  `);
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-authorization-surface")?.shadowRoot ?? root;
-    const component = scope.querySelector(".max-w-lg.rounded-card");
-    component.style.overflow = "hidden";
-    component.style.borderColor = "transparent";
-    component.style.borderRadius = "0";
-    component.style.boxShadow = "none";
-  });
-}
-
-async function settleAuthorization({ canvas, page }) {
-  const secret = canvas.getByRole("textbox", {
-    name: /Access token|访问令牌/,
-  });
-  await secret.fill("dsk-live-fixed");
-  await secret.evaluate((element) => element.blur());
-  await stabilizeAuthorization({ canvas });
-  await page.waitForTimeout(200);
-}
-
-async function switchAuthorizationProvider({ canvas, page }) {
+async function settleAuthorization({ advance, canvas }) {
   await canvas
     .getByRole("button", { name: /Sign in to deepseek|登录 deepseek/ })
     .click();
-  const secret = canvas.getByRole("textbox", {
-    name: /Access token|访问令牌/,
-  });
+  await canvas
+    .getByRole("textbox", { name: /Access token|访问令牌/ })
+    .fill("dsk-live-fixed");
+  await canvas
+    .getByRole("button", { name: /Authorize|确认授权/, exact: true })
+    .click();
+  await advance(900);
+  await canvas
+    .getByText(/Authorized — credential written to the vault|授权完成，凭据已写入保险箱/)
+    .waitFor();
+}
+
+async function switchAuthorizationProvider({ canvas }) {
+  await canvas
+    .getByRole("button", { name: /Sign in to deepseek|登录 deepseek/ })
+    .click();
+  const secret = canvas.getByRole("textbox", { name: /Access token|访问令牌/ });
   await secret.fill("dsk-old-secret");
   await canvas
     .getByRole("button", { name: /Reveal token|显示令牌/ })
@@ -76,78 +53,42 @@ async function switchAuthorizationProvider({ canvas, page }) {
   await canvas
     .getByRole("button", { name: /Sign in to e2b|登录 e2b/ })
     .click();
+
+  await canvas.getByText(/Authorize e2b|授权 e2b/).waitFor();
   const switchedSecret = canvas.getByRole("textbox", {
     name: /Access token|访问令牌/,
   });
-  await switchedSecret.evaluate((element) => element.blur());
-  await stabilizeAuthorization({ canvas });
-  await page.waitForTimeout(200);
-}
+  if ((await switchedSecret.inputValue()) !== "") {
+    throw new Error("Provider switch retained the previous secret");
+  }
+  if ((await switchedSecret.getAttribute("type")) !== "password") {
+    throw new Error("Provider switch did not restore masking");
+  }
+  await canvas
+    .getByRole("button", { name: /Reveal token|显示令牌/ })
+    .waitFor();
 
-async function stabilizeSettingsBase({ canvas }) {
-  await freezeCaseMotion(canvas);
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-settings-editor")?.shadowRoot ?? root;
-    for (const icon of scope.querySelectorAll("svg")) {
-      icon.style.visibility = "hidden";
-    }
-    const component = scope.querySelector(".max-w-lg.rounded-card");
-    component.style.borderColor = "transparent";
-    component.style.borderRadius = "0";
-    component.style.boxShadow = "none";
+  await canvas
+    .getByRole("button", { name: /Withdraw|取消流程/ })
+    .click();
+  await canvas
+    .getByRole("button", { name: /Sign in to e2b|登录 e2b/ })
+    .click();
+  await canvas.getByText(/Authorize e2b|授权 e2b/).waitFor();
+
+  const restartedSecret = canvas.getByRole("textbox", {
+    name: /Access token|访问令牌/,
   });
-}
-
-async function canonicalizeSettings({ canvas }) {
-  await stabilizeSettingsBase({ canvas });
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-settings-editor")?.shadowRoot ?? root;
-    const component = scope.querySelector(".max-w-lg.rounded-card");
-    const textarea = component.querySelector("textarea");
-    const footer = component.querySelector(".mt-2\\.5.flex");
-    component.innerHTML = "";
-    component.style.background = "transparent";
-
-    const header = document.createElement("div");
-    header.className = "flex items-center justify-between px-4 py-3";
-    header.innerHTML = '<span class="font-mono text-[13px] font-semibold text-ink">llm</span><span class="font-mono text-[10px] text-ink-3">revision</span>';
-
-    const body = document.createElement("div");
-    body.className = "p-3";
-    const code = document.createElement("pre");
-    code.className = "h-40 bg-inset px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] text-ink";
-    code.style.background = "transparent";
-    code.style.border = "0";
-    code.style.height = "160px";
-    code.textContent = textarea?.value ?? "";
-    body.append(code);
-    if (footer) body.append(footer);
-    component.append(header, body);
-
-    for (const button of component.querySelectorAll("button")) {
-      button.style.visibility = "hidden";
-    }
-  });
-}
-
-async function stabilizeSettingsConflict(canvas) {
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-settings-editor")?.shadowRoot ?? root;
-    for (const element of scope.querySelectorAll("*")) {
-      if (
-        element.children.length === 0 &&
-        /Edited elsewhere|外部已修改/.test(element.textContent ?? "")
-      ) {
-        element.style.visibility = "hidden";
-      }
-    }
-  });
+  if ((await restartedSecret.inputValue()) !== "") {
+    throw new Error("Restarted provider flow retained a secret");
+  }
+  if ((await restartedSecret.getAttribute("type")) !== "password") {
+    throw new Error("Restarted provider flow did not restore masking");
+  }
 }
 
 async function driveSettingsConflict({ advance, canvas }) {
-  const editor = canvas.getByRole("textbox", {
-    name: /Settings JSON|设置 JSON/,
-  });
+  const editor = canvas.getByRole("textbox", { name: /Settings JSON|设置 JSON/ });
   const save = () =>
     canvas.getByRole("button", { name: /Save revision|保存 revision/ }).click();
 
@@ -163,8 +104,6 @@ async function driveSettingsConflict({ advance, canvas }) {
 
 async function reachSettingsConflict(args) {
   await driveSettingsConflict(args);
-  await canonicalizeSettings(args);
-  await stabilizeSettingsConflict(args.canvas);
 }
 
 async function refetchSettings({ advance, canvas }) {
@@ -175,40 +114,44 @@ async function refetchSettings({ advance, canvas }) {
     })
     .click();
   await advance(900);
-  await canonicalizeSettings({ canvas });
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-settings-editor")?.shadowRoot ?? root;
-    const component = scope.querySelector(".max-w-lg.rounded-card");
-    component.style.height = "224px";
-  });
-}
-
-async function stabilizeFeedback({ canvas }) {
-  await freezeCaseMotion(canvas);
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-feedback-actions")?.shadowRoot ?? root;
-    for (const icon of scope.querySelectorAll("svg")) {
-      icon.style.visibility = "hidden";
-    }
-  });
+  await canvas.getByText(/In sync|已同步/).waitFor();
+  await canvas.getByText("revision 9").waitFor();
+  const value = await canvas
+    .getByRole("textbox", { name: /Settings JSON|设置 JSON/ })
+    .inputValue();
+  if (!value.includes('"temperature": 0.4')) {
+    throw new Error("Refetch did not replace the draft with remote settings");
+  }
 }
 
 async function likeFeedback({ canvas }) {
-  await canvas
-    .getByRole("button", { name: /Good response|回答不错/ })
-    .click();
-  await stabilizeFeedback({ canvas });
+  const button = canvas.getByRole("button", {
+    name: /Good response|回答不错/,
+  });
+  await button.click();
+  await canvas.getByText(/Marked helpful|已标记为有用/).waitFor();
+  if ((await button.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Positive feedback did not become pressed");
+  }
 }
 
 async function dislikeFeedback({ canvas }) {
-  await canvas
-    .getByRole("button", { name: /Bad response|回答有问题/ })
-    .click();
-  await stabilizeFeedback({ canvas });
+  const button = canvas.getByRole("button", {
+    name: /Bad response|回答有问题/,
+  });
+  await button.click();
+  await canvas.getByText(/Marked unhelpful|已标记为有问题/).waitFor();
+  if ((await button.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Negative feedback did not become pressed");
+  }
 }
 
 async function failFeedbackCopy({ canvas, page }) {
   await page.evaluate(() => {
+    globalThis.__naiTask4FeedbackCopyGlobals = {
+      clipboard: Object.getOwnPropertyDescriptor(navigator, "clipboard"),
+      execCommand: Object.getOwnPropertyDescriptor(document, "execCommand"),
+    };
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
@@ -217,20 +160,36 @@ async function failFeedbackCopy({ canvas, page }) {
         },
       },
     });
-    document.execCommand = () => false;
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: () => false,
+    });
   });
-  await canvas
-    .getByRole("button", { name: /Copy response|复制回复/ })
-    .click();
-  await canvas.getByText(/Copy failed|复制失败/).waitFor();
-  await stabilizeFeedback({ canvas });
-}
 
-const freezeSettledCase = Object.freeze({
-  name: "settled",
-  advanceMs: 2600,
-  action: ({ canvas }) => freezeCaseMotion(canvas),
-});
+  try {
+    await canvas
+      .getByRole("button", { name: /Copy response|复制回复/ })
+      .click();
+    await canvas.getByText(/Copy failed|复制失败/).waitFor();
+  } finally {
+    await page.evaluate(() => {
+      const originals = globalThis.__naiTask4FeedbackCopyGlobals;
+      if (!originals) return;
+      if (originals.clipboard) {
+        Object.defineProperty(navigator, "clipboard", originals.clipboard);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+      if (originals.execCommand) {
+        Object.defineProperty(document, "execCommand", originals.execCommand);
+      } else {
+        Reflect.deleteProperty(document, "execCommand");
+      }
+      Reflect.deleteProperty(globalThis, "__naiTask4FeedbackCopyGlobals");
+    });
+  }
+}
+/* TASK 4 VISUAL ACTIONS END */
 
 export const CASES = new Map([
   [
@@ -250,14 +209,14 @@ export const CASES = new Map([
   [
     "session-list",
     [
-      freezeSettledCase,
+      { name: "settled", advanceMs: 2600 },
       { name: "selected", advanceMs: 0, action: selectSecondSession },
     ],
   ],
   [
     "authorization-surface",
     [
-      { name: "settled", advanceMs: 2600, action: settleAuthorization },
+      { name: "settled", advanceMs: 0, action: settleAuthorization },
       {
         name: "provider-switched",
         advanceMs: 0,
@@ -268,7 +227,7 @@ export const CASES = new Map([
   [
     "settings-editor",
     [
-      { name: "settled", advanceMs: 2600, action: canonicalizeSettings },
+      { name: "settled", advanceMs: 0 },
       { name: "conflict", advanceMs: 0, action: reachSettingsConflict },
       { name: "refetched", advanceMs: 0, action: refetchSettings },
     ],
@@ -276,7 +235,7 @@ export const CASES = new Map([
   [
     "feedback-actions",
     [
-      { name: "settled", advanceMs: 2600, action: stabilizeFeedback },
+      { name: "settled", advanceMs: 0 },
       { name: "liked", advanceMs: 0, action: likeFeedback },
       { name: "disliked", advanceMs: 0, action: dislikeFeedback },
       { name: "copy-error", advanceMs: 0, action: failFeedbackCopy },

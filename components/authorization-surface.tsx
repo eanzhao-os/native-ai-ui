@@ -100,7 +100,10 @@ export default function AuthorizationSurface({
   const flowOpen = flowKey !== null && phase !== "idle";
 
   return (
-    <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
+    <div
+      key={flowKey ?? "idle"}
+      className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card"
+    >
       {/* header */}
       <div className="flex items-center justify-between border-b border-line pb-3.5">
         <div className="flex items-center gap-2">
@@ -199,7 +202,7 @@ export default function AuthorizationSurface({
       >
         <div className="overflow-hidden">
           {flowOpen ? (
-            <div className="mt-3 rounded-control border border-line bg-inset/60 p-3" style={{ animation: "fade-up 300ms cubic-bezier(0.23,1,0.32,1) both" }}>
+            <div className="mt-3 rounded-control border border-line bg-inset/60 p-3">
             {phase === "done" ? (
               <div className="flex items-center gap-2 py-1">
                 <span className="flex size-5 items-center justify-center rounded-full bg-green text-white" style={{ animation: "pop-in 300ms cubic-bezier(0.23,1,0.32,1) both" }}>

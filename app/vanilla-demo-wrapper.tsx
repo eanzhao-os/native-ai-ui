@@ -50,7 +50,15 @@ export default function VanillaDemoWrapper({ id, lang, visualCase, className }: 
     config.tag,
     config.defaultAttrs,
     config.centerFullWidth,
+    config.alignStart,
   ]);
 
-  return <div ref={containerRef} className={`w-full flex items-center justify-center ${className || ""}`} />;
+  return (
+    <div
+      ref={containerRef}
+      className={`w-full flex items-center justify-center ${
+        config.alignStart ? "self-start" : ""
+      } ${className || ""}`}
+    />
+  );
 }

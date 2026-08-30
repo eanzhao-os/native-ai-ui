@@ -188,7 +188,7 @@ export class NaiAuthorizationSurface extends NaiBaseElement {
           style="grid-template-rows: ${flowOpen ? "1fr" : "0fr"}; opacity: ${flowOpen ? 1 : 0}; transition-timing-function: cubic-bezier(0.23,1,0.32,1);">
           <div class="overflow-hidden">
             ${flowOpen ? `
-              <div class="mt-3 rounded-control border border-line bg-inset/60 p-3" style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;">
+              <div class="mt-3 rounded-control border border-line bg-inset/60 p-3">
                 ${this._phase === "done" ? `
                   <div class="flex items-center gap-2 py-1">
                     <span class="flex size-5 items-center justify-center rounded-full bg-green text-white" style="animation: pop-in 300ms cubic-bezier(0.23,1,0.32,1) both;">
@@ -247,10 +247,11 @@ export class NaiAuthorizationSurface extends NaiBaseElement {
         this.render();
       });
     });
-    this.shadowRoot?.querySelector(".reveal-btn")?.addEventListener("click", () => {
+    this.shadowRoot?.querySelector(".reveal-btn")?.addEventListener("click", (event) => {
+      const restoreFocus = this.shadowRoot?.activeElement === event.currentTarget;
       this._revealed = !this._revealed;
-      const input = this.shadowRoot?.querySelector(".secret-input");
-      if (input) input.type = this._revealed ? "text" : "password";
+      this.render();
+      if (restoreFocus) this.shadowRoot?.querySelector(".reveal-btn")?.focus();
     });
     this.shadowRoot?.querySelector(".secret-input")?.addEventListener("input", (event) => {
       this._secret = event.target.value;

@@ -19,10 +19,22 @@ function useClipboard(writeText: (value: string) => Promise<void>) {
 }
 
 function useLegacyCopy(result: boolean) {
+  const execCommand = vi.fn(() => result);
   Object.defineProperty(document, "execCommand", {
     configurable: true,
-    value: vi.fn(() => result),
+    value: execCommand,
   });
+  return execCommand;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }
 
 afterEach(() => {
@@ -108,6 +120,41 @@ describe("FeedbackActions", () => {
     expect(await screen.findByText("复制失败")).not.toBeNull();
     expect(screen.queryByText("已复制")).toBeNull();
   });
+
+  test.each(["resolve", "reject"] as const)(
+    "does not continue a pending clipboard %s after unmount",
+    async (outcome) => {
+      vi.useFakeTimers();
+      const pending = deferred<void>();
+      useClipboard(vi.fn(() => pending.promise));
+      const execCommand = useLegacyCopy(false);
+      const unhandled: unknown[] = [];
+      const onUnhandled = (event: PromiseRejectionEvent) => {
+        unhandled.push(event.reason);
+        event.preventDefault();
+      };
+      window.addEventListener("unhandledrejection", onUnhandled);
+
+      try {
+        const view = render(<FeedbackActions />);
+        fireEvent.click(screen.getByRole("button", { name: "Copy response" }));
+        view.unmount();
+
+        await act(async () => {
+          if (outcome === "resolve") pending.resolve(undefined);
+          else pending.reject(new Error("denied after unmount"));
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        expect(execCommand).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+        expect(unhandled).toEqual([]);
+      } finally {
+        window.removeEventListener("unhandledrejection", onUnhandled);
+      }
+    },
+  );
 
   test("never claims a copy from the demo timer", () => {
     vi.useFakeTimers();

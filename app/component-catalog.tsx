@@ -218,6 +218,7 @@ export type VanillaComponentConfig = {
   tag: string;
   defaultAttrs?: Record<string, string>;
   centerFullWidth?: boolean;
+  alignStart?: boolean;
 };
 
 const VANILLA_DEFAULT_ATTRIBUTES: Record<string, Record<string, string>> = {
@@ -245,6 +246,7 @@ export const COMPONENT_TAGS: Record<string, VanillaComponentConfig> =
         tag: `nai-${id}`,
         defaultAttrs: VANILLA_DEFAULT_ATTRIBUTES[id],
         centerFullWidth: FULL_WIDTH_VANILLA_COMPONENTS.has(id),
+        alignStart: id === "settings-editor",
       },
     ]),
   );

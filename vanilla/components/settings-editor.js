@@ -139,7 +139,7 @@ export class NaiSettingsEditor extends NaiBaseElement {
       : "bg-field text-ink-2";
 
     this.setHtml(`
-      <div class="w-full max-w-lg rounded-card border border-line bg-surface shadow-card">
+      <div class="w-full max-w-lg self-start overflow-hidden rounded-card bg-surface shadow-card">
         <div class="flex items-center justify-between border-b border-line bg-inset px-4 py-3">
           <div class="flex items-center gap-2">
             <span class="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -156,7 +156,7 @@ export class NaiSettingsEditor extends NaiBaseElement {
         </div>
 
         <div class="p-3">
-          <textarea spellcheck="false" rows="7"
+          <textarea spellcheck="false" rows="7" style="appearance: none;"
             aria-label="${zh ? "设置 JSON" : "Settings JSON"}"
             class="editor-area w-full resize-none rounded-control border px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] outline-none transition-colors duration-200 ${
               conflictLike

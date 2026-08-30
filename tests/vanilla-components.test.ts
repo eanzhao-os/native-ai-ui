@@ -19,10 +19,22 @@ function useClipboard(writeText: (value: string) => Promise<void>) {
 }
 
 function useLegacyCopy(result: boolean) {
+  const execCommand = vi.fn(() => result);
   Object.defineProperty(document, "execCommand", {
     configurable: true,
-    value: vi.fn(() => result),
+    value: execCommand,
   });
+  return execCommand;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }
 
 afterEach(() => {
@@ -893,6 +905,7 @@ describe("Vanilla ES Modules & Web Components", () => {
     input.value = "dsk-old-secret";
     input.dispatchEvent(new Event("input"));
     el.shadowRoot.querySelector(".reveal-btn").click();
+    input = el.shadowRoot.querySelector(".secret-input");
     expect(input.type).toBe("text");
 
     el.shadowRoot.querySelector('[data-signin="e2b"]').click();
@@ -906,12 +919,50 @@ describe("Vanilla ES Modules & Web Components", () => {
     input.value = "e2b-secret";
     input.dispatchEvent(new Event("input"));
     el.shadowRoot.querySelector(".reveal-btn").click();
+    input = el.shadowRoot.querySelector(".secret-input");
     expect(input.type).toBe("text");
     el.shadowRoot.querySelector(".withdraw-btn").click();
 
     expect(el._secret).toBe("");
     expect(el._revealed).toBe(false);
     expect(el.shadowRoot.querySelector(".secret-input")).toBeNull();
+  });
+
+  test("<nai-authorization-surface> keeps reveal ARIA and SVG state in sync", () => {
+    const el = document.createElement("nai-authorization-surface") as any;
+    document.body.appendChild(el);
+
+    el.shadowRoot.querySelector('[data-signin="e2b"]').click();
+    let input = el.shadowRoot.querySelector(".secret-input");
+    let reveal = el.shadowRoot.querySelector(".reveal-btn");
+    input.value = "e2b-secret";
+    input.dispatchEvent(new Event("input"));
+    reveal.focus();
+
+    expect(input.type).toBe("password");
+    expect(reveal.getAttribute("aria-label")).toBe("Reveal token");
+    expect(reveal.querySelector('path[d^="M1 12"]')).not.toBeNull();
+    expect(reveal.querySelector("line")).toBeNull();
+
+    reveal.click();
+    input = el.shadowRoot.querySelector(".secret-input");
+    reveal = el.shadowRoot.querySelector(".reveal-btn");
+    expect(input.type).toBe("text");
+    expect(input.value).toBe("e2b-secret");
+    expect(reveal.getAttribute("aria-label")).toBe("Hide token");
+    expect(reveal.querySelector('path[d^="M17.94"]')).not.toBeNull();
+    expect(reveal.querySelector("line")).not.toBeNull();
+    expect(el.shadowRoot.activeElement).toBe(reveal);
+
+    reveal.click();
+    input = el.shadowRoot.querySelector(".secret-input");
+    reveal = el.shadowRoot.querySelector(".reveal-btn");
+    expect(input.type).toBe("password");
+    expect(input.value).toBe("e2b-secret");
+    expect(reveal.getAttribute("aria-label")).toBe("Reveal token");
+    expect(reveal.querySelector('path[d^="M1 12"]')).not.toBeNull();
+    expect(reveal.querySelector("line")).toBeNull();
+    expect(el.shadowRoot.activeElement).toBe(reveal);
   });
 
   test("<nai-authorization-surface> keeps credential text out of shadow DOM markup", () => {
@@ -1026,6 +1077,46 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(el.shadowRoot.querySelector('[role="status"]').textContent).toBe("Copy failed");
     expect(el.shadowRoot.textContent).not.toContain("Copied");
   });
+
+  test.each(["resolve", "reject"] as const)(
+    "<nai-feedback-actions> stops a pending clipboard %s after removal",
+    async (outcome) => {
+      vi.useFakeTimers();
+      const pending = deferred<void>();
+      useClipboard(vi.fn(() => pending.promise));
+      const execCommand = useLegacyCopy(false);
+      const el = document.createElement("nai-feedback-actions") as any;
+      document.body.appendChild(el);
+      const render = vi.spyOn(el, "render");
+      const renderCount = render.mock.calls.length;
+      const unhandled: unknown[] = [];
+      const onUnhandled = (event: PromiseRejectionEvent) => {
+        unhandled.push(event.reason);
+        event.preventDefault();
+      };
+      window.addEventListener("unhandledrejection", onUnhandled);
+
+      try {
+        el.shadowRoot.querySelector(".copy-btn").click();
+        el.remove();
+
+        if (outcome === "resolve") pending.resolve(undefined);
+        else pending.reject(new Error("denied after removal"));
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(render).toHaveBeenCalledTimes(renderCount);
+        expect(el._copyStatus).toBe("idle");
+        expect(el._cleanups).toEqual([]);
+        expect(execCommand).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+        expect(unhandled).toEqual([]);
+      } finally {
+        window.removeEventListener("unhandledrejection", onUnhandled);
+      }
+    },
+  );
 
   test("<nai-feedback-actions> never simulates copy success on a timer", () => {
     vi.useFakeTimers();

@@ -38,15 +38,16 @@ describe("SettingsEditor", () => {
     vi.useFakeTimers();
     render(<SettingsEditor />);
 
-    const editor = screen.getByLabelText("Settings JSON") as HTMLTextAreaElement;
-    fireEvent.change(editor, { target: { value: FIRST_DRAFT } });
+    const editor = () =>
+      screen.getByLabelText("Settings JSON") as HTMLTextAreaElement;
+    fireEvent.change(editor(), { target: { value: FIRST_DRAFT } });
     fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(650);
     });
 
-    expect(editor.value).toBe(FIRST_DRAFT);
+    expect(editor().value).toBe(FIRST_DRAFT);
     expect(screen.getByText("Saved revision 8")).not.toBeNull();
     expect(screen.getByText("revision 8")).not.toBeNull();
   });
@@ -55,8 +56,9 @@ describe("SettingsEditor", () => {
     vi.useFakeTimers();
     render(<SettingsEditor />);
 
-    const editor = screen.getByLabelText("Settings JSON") as HTMLTextAreaElement;
-    fireEvent.change(editor, { target: { value: FIRST_DRAFT } });
+    const editor = () =>
+      screen.getByLabelText("Settings JSON") as HTMLTextAreaElement;
+    fireEvent.change(editor(), { target: { value: FIRST_DRAFT } });
     fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(650);
@@ -65,26 +67,26 @@ describe("SettingsEditor", () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
 
-    fireEvent.change(editor, { target: { value: CONFLICT_DRAFT } });
+    fireEvent.change(editor(), { target: { value: CONFLICT_DRAFT } });
     fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(650);
     });
 
     expect(screen.getByText("SETTINGS_CONFLICT")).not.toBeNull();
-    expect(editor.value).toBe(CONFLICT_DRAFT);
+    expect(editor().value).toBe(CONFLICT_DRAFT);
     expect(screen.getByText("revision 8")).not.toBeNull();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Discard changes and refetch" }),
     );
-    expect(editor.value).toBe(CONFLICT_DRAFT);
+    expect(editor().value).toBe(CONFLICT_DRAFT);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(900);
     });
 
-    expect(editor.value).toBe(REMOTE_DRAFT);
+    expect(editor().value).toBe(REMOTE_DRAFT);
     expect(screen.getByText("revision 9")).not.toBeNull();
     expect(screen.queryByText("SETTINGS_CONFLICT")).toBeNull();
   });

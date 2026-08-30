@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import registry from "../registry.json";
 import {
   buildBaseMatrix,
@@ -136,6 +136,128 @@ describe("registry-derived visual case inventory", () => {
     });
 
     expect(matrix).toHaveLength(48 * 2 * 2);
+  });
+
+  test("defines representative behavior cases for the four interactive controls", () => {
+    expect(CASES.get("session-list")?.map(({ name }) => name)).toEqual([
+      "settled",
+      "selected",
+    ]);
+    expect(CASES.get("authorization-surface")?.map(({ name }) => name)).toEqual([
+      "settled",
+      "provider-switched",
+    ]);
+    expect(CASES.get("settings-editor")?.map(({ name }) => name)).toEqual([
+      "settled",
+      "conflict",
+      "refetched",
+    ]);
+    expect(CASES.get("feedback-actions")?.map(({ name }) => name)).toEqual([
+      "settled",
+      "liked",
+      "disliked",
+      "copy-error",
+    ]);
+  });
+
+  test("keeps Task 4 visual actions on the rendered component DOM", () => {
+    const source = readFileSync(resolve("tests/visual/cases.mjs"), "utf8");
+    const startMarker = "/* TASK 4 VISUAL ACTIONS START */";
+    const endMarker = "/* TASK 4 VISUAL ACTIONS END */";
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+
+    const task4Source = source.slice(start, end + endMarker.length);
+    const forbidden = [
+      ["innerHTML", /\binnerHTML\b/],
+      ["replaceChildren", /\breplaceChildren\b/],
+      ["node removal", /\.(?:remove|removeChild|replaceWith)\s*\(/],
+      ["display hiding", /\bdisplay\s*(?:=|:)/],
+      ["visibility hiding", /\bvisibility\s*(?:=|:)/],
+      ["opacity hiding", /\bopacity\s*(?:=|:)/],
+      ["style mutation", /(?:\.style\b|setProperty\s*\()/],
+      ["canonical replacement helper", /replaceWithCanonicalCard|canonicalize/],
+      ["motion or SVG hiding helper", /freezeCaseMotion|stabilizeFeedback/],
+    ] as const;
+
+    expect(
+      forbidden
+        .filter(([, pattern]) => pattern.test(task4Source))
+        .map(([label]) => label),
+    ).toEqual([]);
+  });
+
+  test("restores clipboard globals after the copy-error visual action", async () => {
+    const action = CASES.get("feedback-actions")?.find(
+      ({ name }) => name === "copy-error",
+    )?.action;
+    expect(typeof action).toBe("function");
+
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      "clipboard",
+    );
+    const execCommandDescriptor = Object.getOwnPropertyDescriptor(
+      document,
+      "execCommand",
+    );
+    const originalWriteText = vi.fn().mockResolvedValue(undefined);
+    const originalExecCommand = vi.fn(() => true);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: originalWriteText },
+    });
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: originalExecCommand,
+    });
+
+    let failed = false;
+    const page = {
+      evaluate: async (callback: () => unknown) => callback(),
+    };
+    const canvas = {
+      getByRole: () => ({
+        click: async () => {
+          let copied = false;
+          try {
+            await navigator.clipboard.writeText("during visual action");
+            copied = true;
+          } catch {
+            copied = document.execCommand("copy") === true;
+          }
+          failed = !copied;
+        },
+      }),
+      getByText: () => ({
+        waitFor: async () => expect(failed).toBe(true),
+      }),
+    };
+
+    try {
+      await action?.({ advance: async () => {}, canvas, page });
+
+      expect(navigator.clipboard.writeText).toBe(originalWriteText);
+      expect(document.execCommand).toBe(originalExecCommand);
+      await navigator.clipboard.writeText("after visual action");
+      expect(document.execCommand("copy")).toBe(true);
+      expect(originalWriteText).toHaveBeenCalledWith("after visual action");
+      expect(originalExecCommand).toHaveBeenCalledWith("copy");
+    } finally {
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+      if (execCommandDescriptor) {
+        Object.defineProperty(document, "execCommand", execCommandDescriptor);
+      } else {
+        Reflect.deleteProperty(document, "execCommand");
+      }
+    }
   });
 
   test("defines deterministic initial and settled cases for Code Block", () => {
