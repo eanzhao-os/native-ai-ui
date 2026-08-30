@@ -39,6 +39,16 @@ type LocalBindings = {
   sourceFile: ts.SourceFile;
 };
 
+type Origin =
+  | { kind: "absent" }
+  | { kind: "list"; values: Origin[] }
+  | { kind: "node"; context: OriginContext; node: ts.Node }
+  | { fallback?: Origin; kind: "object"; properties: Map<string, Origin> }
+  | { kind: "trusted"; root: "canvas" | "derived" | "page" }
+  | { kind: "unknown" };
+
+type OriginContext = Map<ts.Node, Origin>;
+
 type Registration = {
   cases: ts.ArrayLiteralExpression;
   component: string;
@@ -106,13 +116,13 @@ function accessName(
 }
 
 function parseVisualProgram(source: string) {
-  const fileName = "/task-7-visual-cases.mjs";
+  const fileName = "/task-7-visual-cases.ts";
   const parsed = ts.createSourceFile(
     fileName,
     source,
     ts.ScriptTarget.Latest,
     true,
-    ts.ScriptKind.JS,
+    ts.ScriptKind.TS,
   );
   const options: ts.CompilerOptions = {
     allowJs: true,
@@ -460,8 +470,13 @@ function analyzeTask7VisualSource(source: string) {
   const violations: VisualSourceViolation[] = [];
   const seenViolations = new Set<string>();
 
-  const recordViolation = (component: string, kind: string, node: ts.Node) => {
-    const key = `${component}:${kind}:${node.getStart(sourceFile)}`;
+  const recordViolation = (
+    component: string,
+    kind: string,
+    node: ts.Node,
+    identity = node,
+  ) => {
+    const key = `${component}:${kind}:${node.getStart(sourceFile)}:${identity.getStart(sourceFile)}`;
     if (seenViolations.has(key)) return;
     seenViolations.add(key);
     violations.push({ component, kind });
@@ -547,32 +562,34 @@ function analyzeTask7VisualSource(source: string) {
   };
 
   const collectSetRegistrations = (node: ts.Node) => {
-    if (
-      ts.isCallExpression(node) &&
-      (ts.isPropertyAccessExpression(node.expression) ||
-        ts.isElementAccessExpression(node.expression)) &&
-      refersToCases(node.expression.expression)
-    ) {
-      const member = accessName(node.expression, bindings);
-      if (member === "set") {
-        addRegistration(node.arguments[0], node.arguments[1], node);
-      } else if (
-        member === undefined &&
-        ts.isElementAccessExpression(node.expression)
+    if (ts.isCallExpression(node)) {
+      const callee = unwrapNode(node.expression);
+      if (
+        (ts.isPropertyAccessExpression(callee) ||
+          ts.isElementAccessExpression(callee)) &&
+        refersToCases(callee.expression)
       ) {
-        const component = resolveString(node.arguments[0], bindings);
-        if (!component) {
-          recordViolation(
-            "<unresolved>",
-            "unresolved registration member",
-            node.expression,
-          );
-        } else if (TASK7_COMPONENT_SET.has(component)) {
-          recordViolation(
-            component,
-            "unresolved registration member",
-            node.expression,
-          );
+        const member = accessName(callee, bindings);
+        if (member === "set") {
+          addRegistration(node.arguments[0], node.arguments[1], node);
+        } else if (
+          member === undefined &&
+          ts.isElementAccessExpression(callee)
+        ) {
+          const component = resolveString(node.arguments[0], bindings);
+          if (!component) {
+            recordViolation(
+              "<unresolved>",
+              "unresolved registration member",
+              callee,
+            );
+          } else if (TASK7_COMPONENT_SET.has(component)) {
+            recordViolation(
+              component,
+              "unresolved registration member",
+              callee,
+            );
+          }
         }
       }
     }
@@ -580,34 +597,481 @@ function analyzeTask7VisualSource(source: string) {
   };
   collectSetRegistrations(sourceFile);
 
-  const runtimeRoot = (
-    node: ts.Node,
+  const absentOrigin: Origin = { kind: "absent" };
+  const unknownOrigin: Origin = { kind: "unknown" };
+
+  const runnerOrigin: Origin = {
+    kind: "object",
+    properties: new Map([
+      ["canvas", { kind: "trusted", root: "canvas" }],
+      ["page", { kind: "trusted", root: "page" }],
+    ]),
+  };
+
+  function callableFromOrigin(
+    origin: Origin,
     seen = new Set<ts.Node>(),
-  ): ts.Identifier | undefined => {
+  ): CallableNode | undefined {
+    if (origin.kind !== "node") return undefined;
+    return resolveCallableWithOrigins(origin.node, origin.context, seen);
+  }
+
+  function propertyOrigin(
+    origin: Origin,
+    name: string,
+  ): Origin {
+    if (origin.kind === "trusted") {
+      return { kind: "trusted", root: "derived" };
+    }
+    if (origin.kind === "object") {
+      return origin.properties.get(name) ?? origin.fallback ?? absentOrigin;
+    }
+    if (origin.kind === "list") {
+      const index = Number(name);
+      return Number.isInteger(index) && index >= 0
+        ? origin.values[index] ?? absentOrigin
+        : unknownOrigin;
+    }
+    return origin.kind === "node" ? origin : unknownOrigin;
+  }
+
+  function bindPattern(
+    name: ts.BindingName,
+    origin: Origin,
+    context: OriginContext,
+  ) {
+    if (ts.isIdentifier(name)) {
+      context.set(localDeclaration(name, bindings) ?? name, origin);
+      return;
+    }
+
+    if (ts.isObjectBindingPattern(name)) {
+      const used = new Set<string>();
+      for (const element of name.elements) {
+        if (element.dotDotDotToken) {
+          if (origin.kind !== "object") {
+            bindPattern(element.name, unknownOrigin, context);
+            continue;
+          }
+          const properties = new Map(origin.properties);
+          for (const key of used) properties.delete(key);
+          bindPattern(
+            element.name,
+            { fallback: origin.fallback, kind: "object", properties },
+            context,
+          );
+          continue;
+        }
+        const key = element.propertyName
+          ? propertyNameText(element.propertyName, bindings)
+          : ts.isIdentifier(element.name)
+            ? element.name.text
+            : undefined;
+        let value = key ? propertyOrigin(origin, key) : unknownOrigin;
+        if (key) used.add(key);
+        if (value.kind === "absent" && element.initializer) {
+          value = originForNode(element.initializer, context);
+        }
+        bindPattern(element.name, value, context);
+      }
+      return;
+    }
+
+    let offset = 0;
+    for (let index = 0; index < name.elements.length; index += 1) {
+      const element = name.elements[index];
+      if (ts.isOmittedExpression(element)) {
+        offset += 1;
+        continue;
+      }
+      if (element.dotDotDotToken) {
+        const values =
+          origin.kind === "list" ? origin.values.slice(offset) : [];
+        bindPattern(
+          element.name,
+          origin.kind === "list" ? { kind: "list", values } : unknownOrigin,
+          context,
+        );
+        break;
+      }
+      let value = propertyOrigin(origin, String(offset));
+      if (value.kind === "absent" && element.initializer) {
+        value = originForNode(element.initializer, context);
+      }
+      bindPattern(element.name, value, context);
+      offset += 1;
+    }
+  }
+
+  function bindingElementOrigin(
+    declaration: ts.BindingElement,
+    context: OriginContext,
+  ) {
+    let pattern: ts.Node = declaration.parent;
+    let container = pattern.parent;
+    while (ts.isBindingElement(container)) {
+      pattern = container.parent;
+      container = pattern.parent;
+    }
+    if (!ts.isVariableDeclaration(container)) return unknownOrigin;
+    const origin = container.initializer
+      ? originForNode(container.initializer, context)
+      : forOfElementOrigin(container, context);
+    const derived = new Map(context);
+    bindPattern(container.name, origin, derived);
+    return derived.get(declaration) ?? unknownOrigin;
+  }
+
+  function forOfElementOrigin(
+    declaration: ts.VariableDeclaration,
+    context: OriginContext,
+  ) {
+    const declarationList = declaration.parent;
+    const loop = declarationList.parent;
+    if (
+      !ts.isVariableDeclarationList(declarationList) ||
+      !ts.isForOfStatement(loop) ||
+      loop.initializer !== declarationList
+    ) {
+      return unknownOrigin;
+    }
+    const iterable = originForNode(loop.expression, context);
+    if (iterable.kind === "trusted") {
+      return { kind: "trusted", root: "derived" } as Origin;
+    }
+    if (iterable.kind === "list") {
+      if (iterable.values.length === 1) return iterable.values[0];
+      if (
+        iterable.values.length > 0 &&
+        iterable.values.every((value) => value.kind === "trusted")
+      ) {
+        return { kind: "trusted", root: "derived" } as Origin;
+      }
+    }
+    return unknownOrigin;
+  }
+
+  function originForNode(
+    node: ts.Node | undefined,
+    context: OriginContext,
+    seen = new Set<ts.Node>(),
+  ): Origin {
+    if (!node) return unknownOrigin;
     const current = unwrapNode(node);
-    if (seen.has(current)) return undefined;
+    if (seen.has(current)) return unknownOrigin;
     seen.add(current);
+
+    if (ts.isAwaitExpression(current)) {
+      return originForNode(current.expression, context, seen);
+    }
+    if (ts.isSpreadElement(current)) {
+      return originForNode(current.expression, context, seen);
+    }
     if (ts.isIdentifier(current)) {
-      const binding = localBindingValue(current, bindings);
-      return binding ? runtimeRoot(binding, seen) : current;
+      const declaration = localDeclaration(current, bindings);
+      const mapped = declaration && context.get(declaration);
+      if (mapped) return mapped;
+      if (declaration && ts.isVariableDeclaration(declaration)) {
+        if (declaration.initializer) {
+          return originForNode(declaration.initializer, context, seen);
+        }
+        return forOfElementOrigin(declaration, context);
+      }
+      if (declaration && ts.isBindingElement(declaration)) {
+        return bindingElementOrigin(declaration, context);
+      }
+      if (declaration && ts.isFunctionDeclaration(declaration)) {
+        return { kind: "node", context, node: declaration };
+      }
+      return { kind: "node", context, node: current };
+    }
+    if (
+      ts.isArrowFunction(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isFunctionDeclaration(current) ||
+      ts.isMethodDeclaration(current)
+    ) {
+      return { kind: "node", context, node: current };
+    }
+    if (ts.isObjectLiteralExpression(current)) {
+      const properties = new Map<string, Origin>();
+      let fallback: Origin | undefined;
+      for (const property of current.properties) {
+        if (ts.isSpreadAssignment(property)) {
+          const spread = originForNode(property.expression, context, seen);
+          if (spread.kind === "object") {
+            if (spread.fallback) {
+              properties.clear();
+              fallback = spread.fallback;
+            }
+            for (const [key, value] of spread.properties) {
+              properties.set(key, value);
+            }
+          } else {
+            properties.clear();
+            fallback = spread;
+          }
+          continue;
+        }
+        const name = propertyNameText(property.name, bindings);
+        if (!name) {
+          properties.clear();
+          fallback = unknownOrigin;
+          continue;
+        }
+        if (ts.isPropertyAssignment(property)) {
+          properties.set(name, originForNode(property.initializer, context));
+        } else if (ts.isShorthandPropertyAssignment(property)) {
+          properties.set(name, originForNode(property.name, context));
+        } else if (ts.isMethodDeclaration(property)) {
+          properties.set(name, { kind: "node", context, node: property });
+        }
+      }
+      return { fallback, kind: "object", properties };
+    }
+    if (ts.isArrayLiteralExpression(current)) {
+      const values: Origin[] = [];
+      for (const element of current.elements) {
+        if (ts.isOmittedExpression(element)) {
+          values.push(absentOrigin);
+        } else if (ts.isSpreadElement(element)) {
+          const spread = originForNode(element.expression, context);
+          if (spread.kind !== "list") return unknownOrigin;
+          values.push(...spread.values);
+        } else {
+          values.push(originForNode(element, context));
+        }
+      }
+      return { kind: "list", values };
     }
     if (
       ts.isPropertyAccessExpression(current) ||
       ts.isElementAccessExpression(current)
     ) {
-      return runtimeRoot(current.expression, seen);
+      const name = accessName(current, bindings);
+      return name
+        ? propertyOrigin(originForNode(current.expression, context, seen), name)
+        : unknownOrigin;
     }
-    if (ts.isCallExpression(current) || ts.isNewExpression(current)) {
-      return runtimeRoot(current.expression, seen);
+    if (ts.isCallExpression(current)) {
+      const callee = unwrapNode(current.expression);
+      const callable = resolveCallableWithOrigins(callee, context);
+      if (callable) {
+        const returned = directReturnExpression(callable);
+        if (returned) {
+          return originForNode(
+            returned,
+            callContext(callable, current, context),
+          );
+        }
+      }
+      if (
+        ts.isPropertyAccessExpression(callee) ||
+        ts.isElementAccessExpression(callee)
+      ) {
+        const receiver = originForNode(callee.expression, context, seen);
+        if (receiver.kind === "trusted") {
+          return { kind: "trusted", root: "derived" };
+        }
+      }
+      return { kind: "node", context, node: current };
     }
-    if (ts.isAwaitExpression(current)) return runtimeRoot(current.expression, seen);
+    return { kind: "node", context, node: current };
+  }
+
+  function resolveCallableWithOrigins(
+    node: ts.Node | undefined,
+    context: OriginContext,
+    seen = new Set<ts.Node>(),
+  ): CallableNode | undefined {
+    if (!node) return undefined;
+    const current = unwrapNode(node);
+    if (seen.has(current)) return undefined;
+    seen.add(current);
+    if (
+      ts.isArrowFunction(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isFunctionDeclaration(current) ||
+      ts.isMethodDeclaration(current)
+    ) {
+      return current;
+    }
+    if (ts.isIdentifier(current)) {
+      const declaration = localDeclaration(current, bindings);
+      const mapped = declaration && context.get(declaration);
+      if (mapped) return callableFromOrigin(mapped, seen);
+      return resolveCallable(current, bindings);
+    }
+    if (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      const name = accessName(current, bindings);
+      if (!name) return undefined;
+      return callableFromOrigin(
+        propertyOrigin(originForNode(current.expression, context), name),
+        seen,
+      );
+    }
+    if (ts.isCallExpression(current) && current.arguments.length === 0) {
+      const factory = resolveCallableWithOrigins(
+        current.expression,
+        context,
+        seen,
+      );
+      return factory
+        ? resolveCallableWithOrigins(
+            directReturnExpression(factory),
+            callContext(factory, current, context),
+            seen,
+          )
+        : undefined;
+    }
+    return resolveCallable(current, bindings);
+  }
+
+  function expandedArgumentOrigins(
+    call: ts.CallExpression,
+    context: OriginContext,
+  ) {
+    const values: Origin[] = [];
+    let ambiguousFrom: number | undefined;
+    for (const argument of call.arguments) {
+      if (ambiguousFrom !== undefined) continue;
+      if (ts.isSpreadElement(argument)) {
+        const spread = originForNode(argument.expression, context);
+        if (spread.kind === "list") values.push(...spread.values);
+        else ambiguousFrom = values.length;
+      } else {
+        values.push(originForNode(argument, context));
+      }
+    }
+    return { ambiguousFrom, values };
+  }
+
+  function callContext(
+    callable: CallableNode,
+    call: ts.CallExpression,
+    callerContext: OriginContext,
+  ) {
+    const context = new Map(callerContext);
+    const { ambiguousFrom, values } = expandedArgumentOrigins(
+      call,
+      callerContext,
+    );
+    let argumentIndex = 0;
+    for (const parameter of callable.parameters) {
+      let origin: Origin;
+      const ambiguous =
+        ambiguousFrom !== undefined && argumentIndex >= ambiguousFrom;
+      if (parameter.dotDotDotToken) {
+        origin = ambiguous
+          ? unknownOrigin
+          : {
+              kind: "list",
+              values: values.slice(argumentIndex),
+            };
+        argumentIndex = values.length;
+      } else {
+        origin = ambiguous ? unknownOrigin : values[argumentIndex] ?? absentOrigin;
+        argumentIndex += 1;
+      }
+      if (origin.kind === "absent" && parameter.initializer) {
+        origin = originForNode(parameter.initializer, context);
+      }
+      bindPattern(parameter.name, origin, context);
+    }
+    return context;
+  }
+
+  function actionContext(callable: CallableNode) {
+    const context: OriginContext = new Map();
+    const first = callable.parameters[0];
+    if (first) {
+      const origin = first.dotDotDotToken
+        ? ({ kind: "list", values: [runnerOrigin] } as Origin)
+        : runnerOrigin;
+      bindPattern(first.name, origin, context);
+    }
+    for (const parameter of callable.parameters.slice(1)) {
+      const origin = parameter.initializer
+        ? originForNode(parameter.initializer, context)
+        : absentOrigin;
+      bindPattern(parameter.name, origin, context);
+    }
+    return context;
+  }
+
+  function originTrust(
+    origin: Origin,
+    seen = new Set<ts.Node>(),
+  ): "local" | "trusted" | "unknown" | "untrusted" {
+    if (origin.kind === "absent") return "unknown";
+    if (origin.kind === "trusted") return "trusted";
+    if (origin.kind === "object" || origin.kind === "list") return "local";
+    if (origin.kind === "unknown") return "unknown";
+
+    const current = unwrapNode(origin.node);
+    if (seen.has(current)) return "unknown";
+    seen.add(current);
+    if (
+      ts.isArrowFunction(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isFunctionDeclaration(current) ||
+      ts.isMethodDeclaration(current) ||
+      ts.isObjectLiteralExpression(current) ||
+      ts.isArrayLiteralExpression(current)
+    ) {
+      return "local";
+    }
+    if (ts.isIdentifier(current)) {
+      const declaration = localDeclaration(current, bindings);
+      const mapped = declaration && origin.context.get(declaration);
+      if (mapped) return originTrust(mapped, seen);
+      if (declaration && ts.isFunctionDeclaration(declaration)) return "local";
+      if (
+        declaration &&
+        (ts.isParameter(declaration) || ts.isBindingElement(declaration))
+      ) {
+        return "unknown";
+      }
+      if (declaration && ts.isVariableDeclaration(declaration)) {
+        return originTrust(originForNode(current, origin.context), seen);
+      }
+      if (!declaration) {
+        return ["Math", "JSON", "Number", "String"].includes(current.text)
+          ? "trusted"
+          : "untrusted";
+      }
+      return "untrusted";
+    }
+    const resolved = originForNode(current, origin.context);
+    if (
+      resolved.kind !== "node" ||
+      resolved.node !== current ||
+      resolved.context !== origin.context
+    ) {
+      return originTrust(resolved, seen);
+    }
+    return "unknown";
+  }
+
+  function originEvidence(origin: Origin): ts.Node | undefined {
+    if (origin.kind === "node") return origin.node;
+    if (origin.kind === "list") {
+      const candidates = origin.values
+        .map(originEvidence)
+        .filter((node): node is ts.Node => Boolean(node));
+      return candidates.length === 1 ? candidates[0] : undefined;
+    }
     return undefined;
-  };
+  }
 
   const inspectReachable = (
     component: string,
     node: ts.Node,
-    visitedCallables: Set<number>,
+    activeCallables: Set<number>,
+    context: OriginContext,
   ) => {
     if (
       ts.isIdentifier(node) &&
@@ -619,24 +1083,35 @@ function analyzeTask7VisualSource(source: string) {
     }
 
     if (ts.isCallExpression(node)) {
-      if (ts.isIdentifier(node.expression)) {
-        const callable = resolveCallable(node.expression, bindings);
-        if (!callable) {
-          recordViolation(component, "unresolved action helper", node);
-        } else if (!visitedCallables.has(callable.pos)) {
-          visitedCallables.add(callable.pos);
-          inspectReachable(component, callable, visitedCallables);
+      const callee = unwrapNode(node.expression);
+      const callable = resolveCallableWithOrigins(callee, context);
+      if (ts.isIdentifier(callee)) {
+        if (callable) {
+          inspectLocalCall(
+            component,
+            callable,
+            node,
+            activeCallables,
+            context,
+          );
+        } else {
+          const origin = originForNode(callee, context);
+          recordViolation(
+            component,
+            "unresolved action helper",
+            node,
+            originEvidence(origin) ?? node,
+          );
         }
-      }
-      if (
-        ts.isPropertyAccessExpression(node.expression) ||
-        ts.isElementAccessExpression(node.expression)
+      } else if (
+        ts.isPropertyAccessExpression(callee) ||
+        ts.isElementAccessExpression(callee)
       ) {
-        const method = accessName(node.expression, bindings);
+        const method = accessName(callee, bindings);
         const unresolvedComputedMember =
-          ts.isElementAccessExpression(node.expression) && method === undefined;
+          ts.isElementAccessExpression(callee) && method === undefined;
         if (unresolvedComputedMember) {
-          recordViolation(component, "unresolved action member", node.expression);
+          recordViolation(component, "unresolved action member", callee);
         } else {
           if (["evaluate", "evaluateAll", "evaluateHandle"].includes(method ?? "")) {
             recordViolation(component, "DOM evaluation", node);
@@ -661,37 +1136,36 @@ function analyzeTask7VisualSource(source: string) {
             recordViolation(component, "style mutation", node);
           }
 
-          const callable = resolveCallable(node.expression, bindings);
-          if (callable && !visitedCallables.has(callable.pos)) {
-            visitedCallables.add(callable.pos);
-            inspectReachable(component, callable, visitedCallables);
-          } else if (!callable) {
-            const receiver = unwrapNode(node.expression.expression);
-            const root = runtimeRoot(receiver);
-            const rootDeclaration = root
-              ? localDeclaration(root, bindings)
-              : undefined;
-            const rootIsParameter =
-              rootDeclaration !== undefined &&
-              (ts.isParameter(rootDeclaration) ||
-                ts.isBindingElement(rootDeclaration));
-            const approvedPlaywrightRoot =
-              rootIsParameter &&
-              root !== undefined &&
-              ["canvas", "page"].includes(root.text);
-            const approvedGlobalRoot =
-              rootDeclaration === undefined &&
-              root !== undefined &&
-              ["Math", "JSON", "Number", "String"].includes(root.text);
-            if (
-              !approvedPlaywrightRoot &&
-              !approvedGlobalRoot &&
-              !rootIsParameter
-            ) {
-              recordViolation(component, "unresolved action helper", node);
+          if (callable) {
+            inspectLocalCall(
+              component,
+              callable,
+              node,
+              activeCallables,
+              context,
+            );
+          } else {
+            const receiver = originForNode(callee.expression, context);
+            if (originTrust(receiver) !== "trusted") {
+              recordViolation(
+                component,
+                "unresolved action helper",
+                node,
+                originEvidence(receiver) ?? node,
+              );
             }
           }
         }
+      } else if (callable) {
+        inspectLocalCall(
+          component,
+          callable,
+          node,
+          activeCallables,
+          context,
+        );
+      } else {
+        recordViolation(component, "unresolved action helper", node);
       }
     }
 
@@ -717,23 +1191,64 @@ function analyzeTask7VisualSource(source: string) {
       recordViolation(component, "DOM rewrite", node);
     }
 
-    ts.forEachChild(node, (child) =>
-      inspectReachable(component, child, visitedCallables),
-    );
+    ts.forEachChild(node, (child) => {
+      const callableChild =
+        ts.isArrowFunction(child) ||
+        ts.isFunctionExpression(child) ||
+        ts.isFunctionDeclaration(child) ||
+        ts.isMethodDeclaration(child);
+      const callbackArgument =
+        ts.isCallExpression(node) &&
+        node.arguments.some((argument) => unwrapNode(argument) === child);
+      if (callableChild && !callbackArgument) return;
+      inspectReachable(component, child, activeCallables, context);
+    });
   };
+
+  function inspectLocalCall(
+    component: string,
+    callable: CallableNode,
+    call: ts.CallExpression,
+    activeCallables: Set<number>,
+    callerContext: OriginContext,
+  ) {
+    if (activeCallables.has(callable.pos)) return;
+    activeCallables.add(callable.pos);
+    inspectReachable(
+      component,
+      callable,
+      activeCallables,
+      callContext(callable, call, callerContext),
+    );
+    activeCallables.delete(callable.pos);
+  }
 
   const inspectAction = (
     component: string,
     node: ts.Node,
   ) => {
-    const callable = resolveCallable(node, bindings);
+    const registration = unwrapNode(node);
+    if (
+      ts.isIdentifier(registration) &&
+      /^(?:canonicalize|freezeCaseMotion|hideMatching|replaceWithCanonical|stabilize)/.test(
+        registration.text,
+      )
+    ) {
+      recordViolation(component, "stabilization helper", registration);
+    }
+    const context: OriginContext = new Map();
+    const callable = resolveCallableWithOrigins(node, context);
     if (!callable) {
       recordViolation(component, "unresolved action registration", node);
       return;
     }
-    const visited = new Set<number>([callable.pos]);
-    inspectReachable(component, node, visited);
-    inspectReachable(component, callable, visited);
+    const activeCallables = new Set<number>([callable.pos]);
+    inspectReachable(
+      component,
+      callable,
+      activeCallables,
+      actionContext(callable),
+    );
   };
 
   const inspectCaseObject = (
@@ -764,7 +1279,7 @@ function analyzeTask7VisualSource(source: string) {
       } else if (ts.isShorthandPropertyAssignment(property)) {
         inspectAction(component, property.name);
       } else if (ts.isMethodDeclaration(property)) {
-        inspectReachable(component, property, new Set<number>([property.pos]));
+        inspectAction(component, property);
       } else {
         recordViolation(component, "unresolved action registration", property);
       }
@@ -1068,6 +1583,512 @@ describe("Task 7 React visual cases", () => {
       { component: "context-spillover", kind: "unresolved action helper" },
       { component: "context-spillover", kind: "unresolved action helper" },
       { component: "context-spillover", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("normalizes parenthesized static and dynamic registration callees", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const dynamicMember = chooseMember();
+      const CASES = new Map([
+        ["context-window", [{ name: "tuple" }]],
+      ]);
+      (CASES["s" + "et"])("context-window", [{ name: "direct" }]);
+      (CASES[dynamicMember])("context-window", [{ name: "dynamic" }]);
+    `);
+
+    expect(fixture.registrationCounts.get("context-window")).toBe(2);
+    expect(fixture.duplicateComponents).toEqual(["context-window"]);
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved registration member" },
+    ]);
+  });
+
+  test("normalizes parenthesized and transparent action callees", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const CASES = new Map([["memory-inspector", [{
+        name: "wrapped-callees",
+        async action({ canvas }) {
+          (canvas["evaluate" + "All"])((nodes) => nodes.length);
+          (canvas.evaluateAll as typeof canvas.evaluateAll)((nodes) => nodes.length);
+          (<typeof canvas.evaluateAll> canvas.evaluateAll)((nodes) => nodes.length);
+          (canvas.evaluateAll!)((nodes) => nodes.length);
+          (importedHelpers.inspect)(canvas);
+          (importedHelpers.actions.inspect!)(canvas);
+          (importedHelpers.inspect as typeof importedHelpers.inspect)(canvas);
+          (<typeof importedHelpers.inspect> importedHelpers.inspect)(canvas);
+        },
+      }]]]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "DOM evaluation" },
+      { component: "memory-inspector", kind: "DOM evaluation" },
+      { component: "memory-inspector", kind: "DOM evaluation" },
+      { component: "memory-inspector", kind: "DOM evaluation" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("rejects destructured imported receivers", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const { actions } = importedHelpers;
+      async function action({ canvas }) {
+        await actions.inspect(canvas);
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "destructured-import", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-spillover", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("allows parenthesized safe CASES.get calls", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const CASES = new Map([
+        ["context-cards", [{ name: "safe" }]],
+      ]);
+      (CASES["g" + "et"])("context-cards");
+      ((CASES.get))("context-cards");
+    `);
+
+    expect(fixture.registrationCounts.get("context-cards")).toBe(1);
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("rejects imported and unbound namespaces passed through one wrapper", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const localHelpers = {
+        async inspect(canvas) {
+          await canvas.getByRole("button").count();
+        },
+      };
+      async function invoke(helper, canvas) {
+        await helper.inspect(canvas);
+      }
+      async function action({ canvas }) {
+        await invoke(localHelpers, canvas);
+        await invoke(importedHelpers, canvas);
+        await invoke(externalHelpers, canvas);
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "one-wrapper", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("keeps untrusted provenance through aliases, destructuring, rest, spread, and two wrappers", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      async function invoke({ helper: alias, runner: { canvas } }) {
+        await alias.actions.inspect(canvas);
+      }
+      async function relay(helper, ...roots) {
+        const payload = {
+          helper,
+          runner: { canvas: roots[0] },
+        };
+        await invoke(payload);
+      }
+      async function action({ canvas }) {
+        const namespaceAlias = importedHelpers;
+        await relay(namespaceAlias, ...[canvas]);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "two-wrappers", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("accepts runner roots and derived locator controls through local wrappers", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function clickControl(control) {
+        await control.click();
+      }
+      async function invokeRunner({ canvas, page, locator }) {
+        const control = locator.getByRole("button");
+        await clickControl(control);
+        await page.keyboard.press("Tab");
+        await canvas.getByRole("button").count();
+      }
+      async function relay(...[payload]) {
+        await invokeRunner(payload);
+      }
+      async function action({ canvas, page }) {
+        const locator = canvas.locator("button");
+        await relay(...[{ canvas, page, locator }]);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "trusted-wrappers", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("accepts inspectable safe local objects passed through a wrapper", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const localHelpers = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function invoke({ helpers, control }) {
+        await helpers.inspect(control);
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        const helpersAlias = localHelpers;
+        await invoke({ helpers: helpersAlias, control });
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "local-object", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("unwraps parenthesized and typed CASES callees before registration classification", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const dynamicMember = chooseMember();
+      const CASES = new Map([
+        ["context-window", [{ name: "initial" }]],
+      ]);
+      ((CASES[dynamicMember]))(
+        "context-window",
+        [{ name: "parenthesized-registration" }],
+      );
+      (CASES[dynamicMember] as typeof CASES.set)(
+        "context-window",
+        [{ name: "as-registration" }],
+      );
+      (<typeof CASES.set> CASES[dynamicMember])(
+        "context-window",
+        [{ name: "asserted-registration" }],
+      );
+      (CASES[dynamicMember]!)(
+        "context-window",
+        [{ name: "non-null-registration" }],
+      );
+    `);
+
+    expect(fixture.registrationCounts.get("context-window")).toBe(1);
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved registration member" },
+      { component: "context-window", kind: "unresolved registration member" },
+      { component: "context-window", kind: "unresolved registration member" },
+      { component: "context-window", kind: "unresolved registration member" },
+    ]);
+  });
+
+  test("allows parenthesized safe CASES.get calls", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const CASES = new Map([
+        ["context-cards", [{ name: "initial" }]],
+      ]);
+      (((CASES["g" + "et"])))("context-cards");
+    `);
+
+    expect(fixture.registrationCounts.get("context-cards")).toBe(1);
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("unwraps parenthesized action callees before DOM and helper classification", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      async function action({ canvas }) {
+        await ((canvas["evaluate" + "All"]))((nodes) => nodes.length);
+        await ((importedHelpers.inspect))(canvas);
+        await (externalHelpers.actions.inspect)(canvas);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "wrapped-callees", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "DOM evaluation" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("rejects destructured and aliased imported receivers", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const {
+        actions: importedActions,
+        ...importedRest
+      } = importedHelpers;
+      const aliasedActions = importedActions;
+      async function action({ canvas }) {
+        await aliasedActions.inspect(canvas);
+        await importedRest.inspect(canvas);
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "destructured-imports", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("fails closed for dynamic destructuring parameter mappings", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const dynamicKey = chooseMember();
+      const localHelpers = {
+        async inspect(canvas) {
+          await canvas.getByRole("button").count();
+        },
+      };
+      async function invoke({ [dynamicKey]: helper }, canvas) {
+        await helper.inspect(canvas);
+      }
+      async function action({ canvas }) {
+        await invoke({ helper: localHelpers }, canvas);
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "dynamic-destructuring", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("applies destructuring defaults only to definitely absent values", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const dynamicKey = chooseMember();
+      const localHelpers = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function invoke({ helper = localHelpers }, control) {
+        await helper.inspect(control);
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        await invoke({}, control);
+        await invoke({ [dynamicKey]: importedHelpers }, control);
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "destructuring-default", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("fails closed when unresolved spreads feed destructured rest parameters", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function invoke(...[{ helper, canvas }]) {
+        await helper.inspect(canvas);
+      }
+      async function action({ canvas }) {
+        await invoke(...externalArguments);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "unresolved-spread", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("fails closed when unresolved spreads shift later safe arguments", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const localHelpers = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function invoke(ignored, helper, control) {
+        await helper.inspect(control);
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        await invoke(...externalArguments, localHelpers, control);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "shifted-spread", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("distinguishes safe local callables from imported and unbound callbacks", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import { inspect as importedInspect } from "./visual-helpers.mjs";
+      async function clickControl(control) {
+        await control.click();
+      }
+      async function invoke(callback, control) {
+        await callback(control);
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        await invoke(clickControl, control);
+        await invoke(importedInspect, control);
+        await invoke(externalInspect, control);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "callable-provenance", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("preserves trusted provenance through wrapped Playwright calls", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function action({ canvas, page }) {
+        const locator = ((canvas.locator))("main");
+        const control = ((locator.getByRole))("button");
+        await ((control.click))();
+        await ((page.keyboard.press))("Tab");
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "wrapped-safe-calls", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("does not treat runner roots or derived controls as callables", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function invokeCanvas(callback) {
+        await callback();
+      }
+      async function invokeControl(callback) {
+        await callback();
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        await invokeCanvas(canvas);
+        await invokeControl(control);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "non-callable-roots", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("keeps imported object spreads untrusted unless a later local property overrides them", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      async function inspect(control) {
+        await control.click();
+      }
+      const unsafeHelpers = { inspect, ...importedHelpers };
+      const safeHelpers = { ...importedHelpers, inspect };
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        await unsafeHelpers.inspect(control);
+        await safeHelpers.inspect(control);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "object-spread-provenance", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("keeps unresolved computed object properties untrusted", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const dynamicKey = chooseMember();
+      async function inspect(control) {
+        await control.click();
+      }
+      const helpers = {
+        inspect,
+        [dynamicKey]: importedHelpers.inspect,
+      };
+      async function action({ canvas }) {
+        await helpers.inspect(canvas.getByRole("button"));
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "dynamic-object-member", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("maps safe for-of destructuring to derived controls", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function action({ canvas }) {
+        const entries = [{ control: canvas.getByRole("button") }];
+        for (const { control } of entries) {
+          await control.click();
+        }
+      }
+      const CASES = new Map([
+        ["context-spillover", [{ name: "for-of-destructuring", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("retains stabilization rejection through action aliases", () => {
+    const fixture = analyzeTask7VisualSource(`
+      async function inspectRealControl({ canvas }) {
+        await canvas.getByRole("button").count();
+      }
+      const stabilizeAlias = inspectRealControl;
+      const CASES = new Map([
+        ["context-window", [{ name: "stabilized", action: stabilizeAlias }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "stabilization helper" },
     ]);
   });
 
