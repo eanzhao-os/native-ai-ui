@@ -785,8 +785,11 @@ async function failFeedbackCopy({ canvas, page }) {
 /* TASK 7 VISUAL ACTIONS START */
 async function assertMinimumTarget(control, label) {
   const box = await control.boundingBox();
-  if (!box || box.width < 44 || box.height < 44) {
-    throw new Error(`${label} must expose a 44x44 minimum target`);
+  if (!box) throw new Error(`${label} is not visibly measurable`);
+  if (box.width < 44 || box.height < 44) {
+    throw new Error(
+      `${label} hit area is ${box.width.toFixed(1)}×${box.height.toFixed(1)}; expected at least 44×44`,
+    );
   }
 }
 
@@ -813,13 +816,10 @@ async function selectContextSegment({ canvas }) {
 
 async function pruneContextWindow({ canvas }) {
   const control = canvas.getByRole("button", {
-    name: /Prune history|精简历史/,
+    name: /History pruning|历史精简/,
   });
   await control.click();
-  const restoredControl = canvas.getByRole("button", {
-    name: /Restore context|恢复完整上下文/,
-  });
-  if ((await restoredControl.getAttribute("aria-pressed")) !== "true") {
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
     throw new Error("Context compaction did not become active");
   }
   const progress = canvas.getByRole("progressbar", {
@@ -828,7 +828,7 @@ async function pruneContextWindow({ canvas }) {
   if ((await progress.getAttribute("aria-valuenow")) !== "33.6") {
     throw new Error("Context progress did not report the pruned capacity");
   }
-  await assertMinimumTarget(restoredControl, "Context compaction control");
+  await assertMinimumTarget(control, "Context compaction control");
 }
 
 async function focusContextSegment({ canvas, page }) {
@@ -843,7 +843,23 @@ async function focusContextSegment({ canvas, page }) {
   });
 }
 
+async function assertMemoryFilterTargets(canvas) {
+  const group = canvas.getByRole("group", {
+    name: /Memory filters|记忆筛选/,
+  });
+  const controls = await group.getByRole("button").all();
+  if (controls.length !== 4) {
+    throw new Error(`Memory filters exposed ${controls.length} controls; expected 4`);
+  }
+  for (const control of controls) {
+    const label = await control.getAttribute("aria-label");
+    if (!label) throw new Error("Memory filter is missing an accessible name");
+    await assertMinimumTarget(control, label);
+  }
+}
+
 async function filterMemoryRules({ canvas }) {
+  await assertMemoryFilterTargets(canvas);
   const control = canvas.getByRole("button", {
     exact: true,
     name: /^(Rules|规范)$/,
@@ -855,7 +871,6 @@ async function filterMemoryRules({ canvas }) {
   if ((await canvas.getByRole("listitem").count()) !== 1) {
     throw new Error("Memory rule filter did not isolate one result");
   }
-  await assertMinimumTarget(control, "Memory filter");
 }
 
 async function searchMemory({ canvas }) {
@@ -872,7 +887,7 @@ async function searchMemory({ canvas }) {
 
 async function focusMemoryAction({ canvas, page }) {
   const control = canvas
-    .getByRole("button", { name: /^(Unpin|取消置顶):/ })
+    .getByRole("button", { name: /^(Pin to prompt:|置顶到 Prompt：)/ })
     .first();
   await assertKeyboardFocus({
     canvas,

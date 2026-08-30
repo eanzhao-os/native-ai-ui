@@ -73,6 +73,7 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
   const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
   const pinButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const nextMemoryIdRef = useRef(INITIAL_MEMORIES.length + 1);
 
   const filtered = memories.filter((memory) => {
     if (filter !== "all" && memory.category !== filter) return false;
@@ -124,7 +125,7 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
 
   const handleAddFact = () => {
     const fact: MemoryItem = {
-      id: `mem-${Date.now()}`,
+      id: `mem-${nextMemoryIdRef.current++}`,
       category: "fact",
       textEn: "Always provide TypeScript types for tool parameters.",
       textZh: "始终为 Tool 参数提供完整的 TypeScript 类型注解与 Zod 校验。",
@@ -132,9 +133,12 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
       updatedAtEn: "Just now",
       updatedAtZh: "刚刚",
     };
+    const nextTotal = memories.length + 1;
     setMemories((current) => [fact, ...current]);
     setAnnouncement(
-      zh ? `已添加事实：${fact.textZh}` : `Added fact: ${fact.textEn}`,
+      zh
+        ? `已添加事实：${fact.textZh}；共 ${nextTotal} 条记忆`
+        : `Added fact: ${fact.textEn}; ${nextTotal} memories total`,
     );
   };
 
@@ -152,9 +156,14 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
     return zh ? "事实" : "Facts";
   };
 
+  const resultContext = query
+    ? zh
+      ? `${filterLabel(filter)}，搜索“${query}”`
+      : `${filterLabel(filter)}, search "${query}"`
+    : filterLabel(filter);
   const resultSummary = zh
-    ? `显示 ${filtered.length} / ${memories.length} 条记忆`
-    : `${filtered.length} of ${memories.length} memories shown`;
+    ? `${resultContext}：显示 ${filtered.length} / ${memories.length} 条记忆`
+    : `${resultContext}: ${filtered.length} of ${memories.length} memories shown`;
 
   return (
     <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
@@ -201,7 +210,7 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
                 setFilter(tab);
                 setAnnouncement("");
               }}
-              className={`min-h-11 rounded-chip px-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none cursor-pointer ${
+              className={`min-h-11 min-w-11 rounded-chip px-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none cursor-pointer ${
                 filter === tab
                   ? "bg-surface text-ink shadow-sm"
                   : "text-ink-3 hover:text-ink-2"
@@ -239,13 +248,7 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
         ) : (
           filtered.map((item) => {
             const itemText = zh ? item.textZh : item.textEn;
-            const pinLabel = item.pinned
-              ? zh
-                ? "取消置顶"
-                : "Unpin"
-              : zh
-                ? "置顶到 Prompt"
-                : "Pin to prompt";
+            const pinLabel = zh ? "置顶到 Prompt" : "Pin to prompt";
             const forgetLabel = zh ? "遗忘此记忆" : "Forget this memory";
 
             return (
@@ -305,7 +308,9 @@ export default function MemoryInspector({ lang: propLang }: { lang?: "en" | "zh"
                       else pinButtonRefs.current.delete(item.id);
                     }}
                     type="button"
-                    aria-label={`${pinLabel}: ${itemText}`}
+                    aria-label={
+                      zh ? `${pinLabel}：${itemText}` : `${pinLabel}: ${itemText}`
+                    }
                     aria-pressed={Boolean(item.pinned)}
                     onClick={() => handleTogglePin(item.id)}
                     className={`flex size-11 items-center justify-center rounded-control text-ink-3 transition-colors hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none cursor-pointer ${

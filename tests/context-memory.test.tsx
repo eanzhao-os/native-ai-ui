@@ -44,16 +44,19 @@ describe("ContextWindow", () => {
     expect(history.getAttribute("aria-pressed")).toBe("true");
   });
 
-  test("reports pruned and restored capacity without losing segment data", () => {
+  test("reports pruned and restored capacity without changing the toggle name", () => {
     render(<ContextWindow />);
 
     const progress = screen.getByRole("progressbar", {
       name: "Context usage",
     });
-    const prune = screen.getByRole("button", { name: "Prune history" });
+    const prune = screen.getByRole("button", { name: "History pruning" });
+    expect(within(prune).getByText("Prune History")).not.toBeNull();
 
     prune.focus();
     fireEvent.click(prune);
+    expect(screen.getByRole("button", { name: "History pruning" })).toBe(prune);
+    expect(within(prune).getByText("Restore Context")).not.toBeNull();
     expect(prune.getAttribute("aria-pressed")).toBe("true");
     expect(progress.getAttribute("aria-valuenow")).toBe("33.6");
     expect(screen.getByText("7,583")).not.toBeNull();
@@ -63,7 +66,10 @@ describe("ContextWindow", () => {
     );
     expect(document.activeElement).toBe(prune);
 
-    fireEvent.click(screen.getByRole("button", { name: "Restore context" }));
+    fireEvent.click(prune);
+    expect(screen.getByRole("button", { name: "History pruning" })).toBe(prune);
+    expect(within(prune).getByText("Prune History")).not.toBeNull();
+    expect(prune.getAttribute("aria-pressed")).toBe("false");
     expect(progress.getAttribute("aria-valuenow")).toBe("45.9");
     expect(screen.getByText("16,850")).not.toBeNull();
     expect(screen.getByText("9,350")).not.toBeNull();
@@ -72,24 +78,29 @@ describe("ContextWindow", () => {
     );
   });
 
-  test("localizes progress and compaction controls", () => {
+  test("localizes progress and the stable compaction toggle name", () => {
     render(<ContextWindow lang="zh" />);
 
     expect(
       screen.getByRole("progressbar", { name: "上下文占用率" }),
     ).not.toBeNull();
-    expect(
-      screen.getByRole("button", { name: "精简历史" }),
-    ).not.toBeNull();
+    const prune = screen.getByRole("button", { name: "历史精简" });
+    expect(within(prune).getByText("精简历史")).not.toBeNull();
+    fireEvent.click(prune);
+    expect(screen.getByRole("button", { name: "历史精简" })).toBe(prune);
+    expect(within(prune).getByText("恢复完整上下文")).not.toBeNull();
+    expect(prune.getAttribute("aria-pressed")).toBe("true");
   });
 });
 
 describe("MemoryInspector", () => {
-  test("uses selected filters and search to retrieve matching memories", () => {
+  test("uses selected filters and search with distinct authoritative results", () => {
     render(<MemoryInspector />);
 
     const all = screen.getByRole("button", { name: "All memories" });
     const rules = screen.getByRole("button", { name: "Rules" });
+    const facts = screen.getByRole("button", { name: "Facts" });
+    const status = screen.getByRole("status");
     expect(all.getAttribute("aria-pressed")).toBe("true");
     expect(rules.getAttribute("aria-pressed")).toBe("false");
 
@@ -98,9 +109,18 @@ describe("MemoryInspector", () => {
     expect(rules.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByText(/Never print raw database/)).not.toBeNull();
-    expect(screen.getByRole("status").textContent).toContain(
-      "1 of 4 memories shown",
-    );
+    const rulesMessage = status.textContent;
+    expect(rulesMessage).toContain("Rules");
+    expect(rulesMessage).toContain("1 of 4 memories shown");
+
+    fireEvent.click(facts);
+    expect(facts.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText(/Project uses Turborepo/)).not.toBeNull();
+    const factsMessage = status.textContent;
+    expect(factsMessage).toContain("Facts");
+    expect(factsMessage).toContain("1 of 4 memories shown");
+    expect(factsMessage).not.toBe(rulesMessage);
 
     fireEvent.click(all);
     fireEvent.change(
@@ -109,37 +129,62 @@ describe("MemoryInspector", () => {
     );
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByText(/Project uses Turborepo/)).not.toBeNull();
+    expect(status.textContent).toContain('search "Turborepo"');
   });
 
-  test("reports pin state and toggles the exact memory", () => {
+  test("keeps the exact pin toggle name stable while pressed state changes", () => {
     render(<MemoryInspector />);
 
-    const unpin = screen.getAllByRole("button", { name: /Unpin/ })[0];
-    expect(unpin.getAttribute("aria-pressed")).toBe("true");
-
-    fireEvent.click(unpin);
-
     const pin = screen.getByRole("button", {
-      name: /Pin to prompt.*React 19/,
+      name: /Pin to prompt: Prefers functional React 19 components/,
     });
+    expect(pin.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(pin);
+
+    expect(
+      screen.getByRole("button", {
+        name: /Pin to prompt: Prefers functional React 19 components/,
+      }),
+    ).toBe(pin);
     expect(pin.getAttribute("aria-pressed")).toBe("false");
     expect(screen.getAllByText("Pinned")).toHaveLength(1);
     expect(screen.getByRole("status").textContent).toContain(
       "Unpinned memory",
     );
+
+    fireEvent.click(pin);
+    expect(
+      screen.getByRole("button", {
+        name: /Pin to prompt: Prefers functional React 19 components/,
+      }),
+    ).toBe(pin);
+    expect(pin.getAttribute("aria-pressed")).toBe("true");
   });
 
-  test("adds the advertised fact and updates the stored count", () => {
+  test("announces an updated total for every repeated Add Fact action", () => {
     render(<MemoryInspector />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add fact" }));
+    const add = screen.getByRole("button", { name: "Add fact" });
+    const status = screen.getByRole("status");
+    fireEvent.click(add);
 
     expect(screen.getByText("5 stored facts")).not.toBeNull();
     expect(screen.getAllByText("fact", { exact: true })).toHaveLength(2);
     expect(
       screen.getByText("Always provide TypeScript types for tool parameters."),
     ).not.toBeNull();
-    expect(screen.getByRole("status").textContent).toContain("Added fact");
+    const firstMessage = status.textContent;
+    expect(firstMessage).toContain("Added fact");
+    expect(firstMessage).toContain("5 memories total");
+
+    fireEvent.click(add);
+    expect(screen.getByText("6 stored facts")).not.toBeNull();
+    expect(screen.getAllByText("fact", { exact: true })).toHaveLength(3);
+    const secondMessage = status.textContent;
+    expect(secondMessage).toContain("Added fact");
+    expect(secondMessage).toContain("6 memories total");
+    expect(secondMessage).not.toBe(firstMessage);
   });
 
   test("announces forgetting and moves focus to the next memory action", async () => {
@@ -159,20 +204,26 @@ describe("MemoryInspector", () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(
         screen.getByRole("button", {
-          name: /Unpin: Never print raw database connection strings/,
+          name: /Pin to prompt: Never print raw database connection strings/,
         }),
       );
     });
   });
 
-  test("localizes filter, search, and row action names", () => {
+  test("localizes filter, search, stable row action names, and live context", () => {
     render(<MemoryInspector lang="zh" />);
 
     expect(screen.getByRole("button", { name: "全部记忆" })).not.toBeNull();
     expect(screen.getByRole("searchbox", { name: "搜索记忆" })).not.toBeNull();
-    expect(
-      screen.getAllByRole("button", { name: /取消置顶/ })[0],
-    ).not.toBeNull();
+    const pin = screen.getByRole("button", {
+      name: /置顶到 Prompt：偏好使用 React 19/,
+    });
+    expect(pin.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "规范" }));
+    expect(screen.getByRole("status").textContent).toContain("规范");
+    fireEvent.click(screen.getByRole("button", { name: "事实" }));
+    expect(screen.getByRole("status").textContent).toContain("事实");
   });
 });
 

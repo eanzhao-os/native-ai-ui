@@ -907,6 +907,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .min-w-4\\.5 {
     min-width: calc(var(--spacing) * 4.5);
   }
+  .min-w-11 {
+    min-width: calc(var(--spacing) * 11);
+  }
   .min-w-\\[420px\\] {
     min-width: 420px;
   }

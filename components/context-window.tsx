@@ -132,15 +132,7 @@ export default function ContextWindow({ lang: propLang }: { lang?: "en" | "zh" }
           </span>
           <button
             type="button"
-            aria-label={
-              isPruned
-                ? zh
-                  ? "恢复完整上下文"
-                  : "Restore context"
-                : zh
-                  ? "精简历史"
-                  : "Prune history"
-            }
+            aria-label={zh ? "历史精简" : "History pruning"}
             aria-pressed={isPruned}
             onClick={handlePruneHistory}
             className="flex min-h-11 items-center gap-1.5 rounded-control border border-line bg-field px-3 text-[11.5px] font-medium text-ink-2 transition-colors hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none cursor-pointer"
