@@ -109,38 +109,52 @@ function markerRange(
   startMarker: string,
   endMarker: string,
 ): SourceRange | null {
-  const sourceFile = ts.createSourceFile(
-    "/task-7-markers.ts",
-    source,
+  const scanner = ts.createScanner(
     ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
+    false,
+    ts.LanguageVariant.Standard,
+    source,
   );
-  const comments = new Map<string, ts.CommentRange>();
-  const addComments = (ranges: ts.CommentRange[] | undefined) => {
-    for (const range of ranges ?? []) {
-      comments.set(`${range.pos}:${range.end}`, range);
+  const starts: SourceRange[] = [];
+  const ends: SourceRange[] = [];
+  const templateBraceDepths: number[] = [];
+  for (
+    let token = scanner.scan();
+    token !== ts.SyntaxKind.EndOfFileToken;
+    token = scanner.scan()
+  ) {
+    if (token === ts.SyntaxKind.MultiLineCommentTrivia) {
+      const range = {
+        end: scanner.getTextPos(),
+        start: scanner.getTokenPos(),
+      };
+      const text = scanner.getTokenText();
+      if (text === startMarker) starts.push(range);
+      if (text === endMarker) ends.push(range);
+      continue;
     }
-  };
-  const visit = (node: ts.Node) => {
-    addComments(ts.getLeadingCommentRanges(source, node.pos));
-    addComments(ts.getTrailingCommentRanges(source, node.end));
-    for (const child of node.getChildren(sourceFile)) visit(child);
-  };
-  visit(sourceFile);
-
-  const exactRanges = (marker: string) =>
-    [...comments.values()].filter(
-      (range) =>
-        range.kind === ts.SyntaxKind.MultiLineCommentTrivia &&
-        source.slice(range.pos, range.end) === marker,
-    );
-  const starts = exactRanges(startMarker);
-  const ends = exactRanges(endMarker);
+    if (token === ts.SyntaxKind.TemplateHead) {
+      templateBraceDepths.push(0);
+      continue;
+    }
+    if (templateBraceDepths.length === 0) continue;
+    const templateIndex = templateBraceDepths.length - 1;
+    if (token === ts.SyntaxKind.OpenBraceToken) {
+      templateBraceDepths[templateIndex] += 1;
+      continue;
+    }
+    if (token !== ts.SyntaxKind.CloseBraceToken) continue;
+    if (templateBraceDepths[templateIndex] > 0) {
+      templateBraceDepths[templateIndex] -= 1;
+      continue;
+    }
+    token = scanner.reScanTemplateToken(false);
+    if (token === ts.SyntaxKind.TemplateTail) templateBraceDepths.pop();
+  }
   if (starts.length !== 1 || ends.length !== 1) return null;
-  const [start] = starts;
-  const [end] = ends;
-  return start.end <= end.pos ? { end: end.pos, start: start.end } : null;
+  return starts[0].end <= ends[0].start
+    ? { end: ends[0].start, start: starts[0].end }
+    : null;
 }
 
 function nodeWithin(
