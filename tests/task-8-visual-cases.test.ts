@@ -121,6 +121,24 @@ function collectCallables(sourceFile: ts.SourceFile) {
   return callables;
 }
 
+function collectConstExpressions(sourceFile: ts.SourceFile) {
+  const expressions = new Map<string, ts.Expression>();
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isVariableStatement(statement) ||
+      !(statement.declarationList.flags & ts.NodeFlags.Const)
+    ) {
+      continue;
+    }
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name) && declaration.initializer) {
+        expressions.set(declaration.name.text, declaration.initializer);
+      }
+    }
+  }
+  return expressions;
+}
+
 function collectTask8Registrations(sourceFile: ts.SourceFile) {
   const registrations: Registration[] = [];
   const arrayBindings = new Map<string, ts.ArrayLiteralExpression>();
@@ -195,6 +213,7 @@ function analyzeTask8VisualSource(source: string) {
     ts.ScriptKind.JS,
   );
   const callables = collectCallables(sourceFile);
+  const constExpressions = collectConstExpressions(sourceFile);
   const registrations = collectTask8Registrations(sourceFile);
   const registrationCounts = new Map<string, number>();
   const violations: VisualSourceViolation[] = [];
@@ -224,10 +243,10 @@ function analyzeTask8VisualSource(source: string) {
       if (/^(?:canonicalize|freezeCaseMotion|hideMatching|replaceWithCanonical|stabilize)/.test(node.text)) {
         recordViolation(component, "stabilization helper", node);
       }
-      const callable = callables.get(node.text);
-      if (callable && !visitedCallables.has(node.text)) {
+      const target = callables.get(node.text) ?? constExpressions.get(node.text);
+      if (target && !visitedCallables.has(node.text)) {
         visitedCallables.add(node.text);
-        inspectReachable(component, callable, visitedCallables);
+        inspectReachable(component, target, visitedCallables);
       }
     }
 
@@ -236,20 +255,99 @@ function analyzeTask8VisualSource(source: string) {
     );
   };
 
+  const resolveObjectLiteral = (
+    expression: ts.Expression,
+    visiting: Set<string>,
+  ): ts.ObjectLiteralExpression | null => {
+    const current = unwrapVisualExpression(expression);
+    if (ts.isObjectLiteralExpression(current)) return current;
+    if (!ts.isIdentifier(current) || visiting.has(current.text)) return null;
+    const initializer = constExpressions.get(current.text);
+    if (!initializer) return null;
+    visiting.add(current.text);
+    const resolved = resolveObjectLiteral(initializer, visiting);
+    visiting.delete(current.text);
+    return resolved;
+  };
+
+  const resolveCaseAction = (
+    component: string,
+    visualCase: ts.ObjectLiteralExpression,
+    visiting: Set<string>,
+    activeObjects = new Set<ts.ObjectLiteralExpression>(),
+  ): ts.Node | null => {
+    if (activeObjects.has(visualCase)) {
+      recordViolation(component, "unsupported action syntax", visualCase);
+      return null;
+    }
+    activeObjects.add(visualCase);
+    let action: ts.Node | null = null;
+    for (const property of visualCase.properties) {
+      if (ts.isSpreadAssignment(property)) {
+        const spread = resolveObjectLiteral(property.expression, visiting);
+        if (!spread) {
+          recordViolation(component, "unsupported action syntax", property);
+          continue;
+        }
+        const spreadAction = resolveCaseAction(
+          component,
+          spread,
+          visiting,
+          activeObjects,
+        );
+        if (spreadAction) action = spreadAction;
+        continue;
+      }
+
+      const name = propertyNameText(property.name);
+      if (!name) {
+        if (property.name && ts.isComputedPropertyName(property.name)) {
+          recordViolation(component, "unsupported action syntax", property);
+        }
+        continue;
+      }
+      if (name !== "action") continue;
+
+      if (ts.isPropertyAssignment(property)) {
+        action = property.initializer;
+      } else if (ts.isShorthandPropertyAssignment(property)) {
+        action = property.name;
+      } else if (ts.isMethodDeclaration(property)) {
+        action = property;
+      } else {
+        recordViolation(component, "unsupported action syntax", property);
+      }
+    }
+    activeObjects.delete(visualCase);
+    return action;
+  };
+
   for (const registration of registrations) {
     for (const visualCase of registration.cases.elements) {
-      if (!ts.isObjectLiteralExpression(visualCase)) continue;
-      const action = visualCase.properties.find(
-        (property): property is ts.PropertyAssignment =>
-          ts.isPropertyAssignment(property) &&
-          propertyNameText(property.name) === "action",
+      if (ts.isSpreadElement(visualCase) || ts.isOmittedExpression(visualCase)) {
+        recordViolation(
+          registration.component,
+          "unsupported action syntax",
+          visualCase,
+        );
+        continue;
+      }
+      const resolvedCase = resolveObjectLiteral(visualCase, new Set<string>());
+      if (!resolvedCase) {
+        recordViolation(
+          registration.component,
+          "unsupported action syntax",
+          visualCase,
+        );
+        continue;
+      }
+      const action = resolveCaseAction(
+        registration.component,
+        resolvedCase,
+        new Set<string>(),
       );
       if (action) {
-        inspectReachable(
-          registration.component,
-          action.initializer,
-          new Set<string>(),
-        );
+        inspectReachable(registration.component, action, new Set<string>());
       }
     }
   }
@@ -305,6 +403,98 @@ describe("Task 8 React visual cases", () => {
         );
       }
     }
+  });
+
+  test("classifies DOM fabrication hidden behind spread, shorthand, and method actions", () => {
+    const spreadFixture = analyzeTask8VisualSource(`
+      async function rewrite({ canvas }) {
+        await canvas.evaluate((root) => {
+          root.textContent = "fabricated";
+        });
+      }
+      const spreadAction = { action: rewrite };
+      const CASES = new Map([
+        ["agent-inbox", [{ name: "settled", ...spreadAction }]],
+      ]);
+    `);
+    expect(spreadFixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "agent-inbox", kind: "DOM evaluation" },
+        { component: "agent-inbox", kind: "DOM rewrite" },
+      ]),
+    );
+
+    const shorthandFixture = analyzeTask8VisualSource(`
+      async function action({ canvas }) {
+        canvas.textContent = "fabricated";
+      }
+      const CASES = new Map([
+        ["agent-inbox", [{ name: "settled", action }]],
+      ]);
+    `);
+    expect(shorthandFixture.violations).toContainEqual({
+      component: "agent-inbox",
+      kind: "DOM rewrite",
+    });
+
+    const methodFixture = analyzeTask8VisualSource(`
+      const CASES = new Map([
+        ["agent-inbox", [{
+          name: "settled",
+          async action({ canvas }) {
+            await canvas.evaluate((root) => {
+              root.innerHTML = "fabricated";
+            });
+          },
+        }]],
+      ]);
+    `);
+    expect(methodFixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "agent-inbox", kind: "DOM evaluation" },
+        { component: "agent-inbox", kind: "DOM rewrite" },
+      ]),
+    );
+  });
+
+  test.each([
+    ["unresolved", "...unknownCase"],
+    ["computed", "...variants[key]"],
+  ])("fails closed for an %s Task 8 case spread", (_label, spread) => {
+    const fixture = analyzeTask8VisualSource(`
+      const variants = { safe: { name: "safe" } };
+      const key = "safe";
+      const CASES = new Map([
+        ["agent-inbox", [{ name: "settled", ${spread} }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "agent-inbox",
+      kind: "unsupported action syntax",
+    });
+  });
+
+  test("accepts spread, shorthand, and method actions that drive live controls", () => {
+    const fixture = analyzeTask8VisualSource(`
+      async function clickControl({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+      const spreadAction = { action: clickControl };
+      const action = clickControl;
+      const CASES = new Map([
+        ["turn-lifecycle", [{ name: "spread", ...spreadAction }]],
+        ["agent-inbox", [{ name: "shorthand", action }]],
+        ["hook-pipeline", [{
+          name: "method",
+          async action({ canvas }) {
+            await canvas.getByRole("button").click();
+          },
+        }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
   });
 
   test("rejects reachable Task 8 DOM fabrication and duplicate registrations", () => {

@@ -90,6 +90,52 @@ describe("AgentInbox", () => {
     expect(within(nextStep).getByText("fyi: trace dump at /tmp/trace.log")).not.toBeNull();
   });
 
+  test("does not fabricate preceding messages when delivery controls are clicked out of order", () => {
+    render(<AgentInbox />);
+
+    const nextTurn = screen.getByRole("region", { name: "NextTurn queue" });
+    const nextStep = screen.getByRole("region", { name: "NextStep queue" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Queue Inject" }));
+
+    expect(within(nextTurn).queryByText("also verify the rollout gate")).toBeNull();
+    expect(within(nextStep).queryByText("use the staging endpoint")).toBeNull();
+    expect(
+      within(nextStep).getByText("fyi: trace dump at /tmp/trace.log"),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Queue Followup" }));
+
+    expect(within(nextTurn).getByText("also verify the rollout gate")).not.toBeNull();
+    expect(within(nextStep).queryByText("use the staging endpoint")).toBeNull();
+    expect(
+      within(nextStep).getByText("fyi: trace dump at /tmp/trace.log"),
+    ).not.toBeNull();
+  });
+
+  test("claims exactly the one visible next-step message at the boundary", () => {
+    render(<AgentInbox />);
+
+    const nextStep = screen.getByRole("region", { name: "NextStep queue" });
+    const claim = screen.getByRole("button", { name: "Claim next-step queue" });
+    expect(claim.hasAttribute("disabled")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Queue Inject" }));
+
+    expect(within(nextStep).queryByText("use the staging endpoint")).toBeNull();
+    expect(within(nextStep).getByText("fyi: trace dump at /tmp/trace.log")).not.toBeNull();
+    expect(claim.hasAttribute("disabled")).toBe(false);
+
+    fireEvent.click(claim);
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "ClaimAsync drained 1 message",
+    );
+    expect(screen.getByText("claimed ×1")).not.toBeNull();
+    expect(within(nextStep).getByText("empty")).not.toBeNull();
+    expect(claim.hasAttribute("disabled")).toBe(true);
+  });
+
   test("claims the next-step queue and starts the next turn at step one", async () => {
     vi.useFakeTimers();
     render(<AgentInbox />);
@@ -146,6 +192,35 @@ describe("HookPipeline", () => {
     expect(
       screen.queryByRole("button", { name: "Approve hook request" }),
     ).toBeNull();
+  });
+
+  test("moves focus to a stable authoritative result after approval", async () => {
+    vi.useFakeTimers();
+    render(<HookPipeline />);
+
+    await advance(700);
+    await advanceSteps(3, 750);
+
+    const result = screen.getByRole("status", {
+      name: "Hook approval result",
+    });
+    expect(result.textContent).toContain("awaiting human approval");
+
+    const approve = screen.getByRole("button", {
+      name: "Approve hook request",
+    });
+    approve.focus();
+    fireEvent.click(approve);
+
+    expect(document.activeElement).toBe(result);
+    expect(
+      screen.getByRole("status", { name: "Hook approval result" }),
+    ).toBe(result);
+    expect(result.getAttribute("aria-live")).toBe("polite");
+    expect(result.getAttribute("aria-atomic")).toBe("true");
+    expect(result.textContent).toContain(
+      "Hook request approved. Final decision: allow.",
+    );
   });
 });
 

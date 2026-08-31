@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -56,6 +56,7 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
   const zh = lang === "zh";
 
   const [phase, setPhase] = useState(0);
+  const approvalResultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (phase < EVALUATION_MS.length) {
@@ -68,6 +69,10 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
     }
   }, [phase]);
 
+  useEffect(() => {
+    if (phase === 5) approvalResultRef.current?.focus();
+  }, [phase]);
+
   const evaluated = Math.max(0, Math.min(phase, TOOLPRE_HOOKS.length));
   const merged: Decision | null =
     phase >= 4
@@ -75,6 +80,16 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
         ? "allow"
         : (TOOLPRE_HOOKS.map((h) => h.decision).sort((a, b) => RANK[a] - RANK[b])[0] ?? "allow")
       : null;
+  const approvalStatus =
+    phase >= 5
+      ? zh
+        ? "Hook 请求已批准。最终决策：allow。"
+        : "Hook request approved. Final decision: allow."
+      : phase === 4
+        ? zh
+          ? "Hook 请求正在等待人工批准。"
+          : "Hook request is awaiting human approval."
+        : "";
 
   return (
     <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
@@ -224,6 +239,22 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
           </span>
         </button>
       )}
+
+      <div
+        ref={approvalResultRef}
+        role="status"
+        aria-label={zh ? "Hook 批准结果" : "Hook approval result"}
+        aria-live="polite"
+        aria-atomic="true"
+        tabIndex={-1}
+        className={
+          phase >= 5
+            ? "mt-2 flex min-h-11 w-full items-center rounded-control border border-green/40 bg-green-tint/50 px-3 text-[11.5px] font-medium text-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            : "sr-only"
+        }
+      >
+        {approvalStatus}
+      </div>
 
       {/* Footer */}
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">

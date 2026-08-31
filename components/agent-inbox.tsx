@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -45,52 +45,166 @@ const INJECT: QueueMsg = {
 // 1  FollowupAsync  → NextTurn [f]        (queues for next turn)
 // 2  SteerAsync     → NextStep [s]        (wakes at step boundary)
 // 3  InjectAsync    → NextStep [s, i]     (silent, no wake)
-// 4  step 1 ends    → boundary claims [s, i] into step 2
-// 5  turn 2 ends    → idle… NextTurn claims [f] → turn 3
+// 4  step 1 ends    → boundary claims the visible NextStep queue
+// 5  turn 2 ends    → idle… visible NextTurn messages may start turn 3
 // 6  hold & replay
 const PHASE_MS = [900, 1500, 1500, 1500, 1700, 2100, 4600];
+
+type InboxState = {
+  claimed: QueueMsg[];
+  lastAction: "send" | null;
+  nextStep: QueueMsg[];
+  nextTurn: QueueMsg[];
+  nextTurnStarted: boolean;
+  phase: number;
+  stepNo: number;
+  turnNo: number;
+};
+
+type InboxAction = {
+  type: "claim" | "followup" | "inject" | "send" | "steer" | "tick";
+};
+
+const INITIAL_INBOX_STATE: InboxState = {
+  claimed: [],
+  lastAction: null,
+  nextStep: [],
+  nextTurn: [],
+  nextTurnStarted: false,
+  phase: 0,
+  stepNo: 1,
+  turnNo: 2,
+};
+
+function enqueueUnique(queue: QueueMsg[], message: QueueMsg) {
+  return queue.some(({ id }) => id === message.id) ? queue : [...queue, message];
+}
+
+function claimVisibleNextStep(state: InboxState): InboxState {
+  if (state.nextStep.length === 0) return state;
+  return {
+    ...state,
+    claimed: state.nextStep,
+    lastAction: null,
+    nextStep: [],
+    nextTurnStarted: false,
+    phase: 4,
+    stepNo: state.stepNo + 1,
+  };
+}
+
+function inboxReducer(state: InboxState, action: InboxAction): InboxState {
+  if (action.type === "send") {
+    return { ...INITIAL_INBOX_STATE, lastAction: "send" };
+  }
+  if (action.type === "followup") {
+    return {
+      ...state,
+      lastAction: null,
+      nextTurn: enqueueUnique(state.nextTurn, FOLLOWUP),
+    };
+  }
+  if (action.type === "steer") {
+    return {
+      ...state,
+      lastAction: null,
+      nextStep: enqueueUnique(state.nextStep, STEER),
+    };
+  }
+  if (action.type === "inject") {
+    return {
+      ...state,
+      lastAction: null,
+      nextStep: enqueueUnique(state.nextStep, INJECT),
+    };
+  }
+  if (action.type === "claim") return claimVisibleNextStep(state);
+
+  if (state.phase === 0) {
+    return {
+      ...state,
+      lastAction: null,
+      nextTurn: enqueueUnique(state.nextTurn, FOLLOWUP),
+      phase: 1,
+    };
+  }
+  if (state.phase === 1) {
+    return {
+      ...state,
+      nextStep: enqueueUnique(state.nextStep, STEER),
+      phase: 2,
+    };
+  }
+  if (state.phase === 2) {
+    return {
+      ...state,
+      nextStep: enqueueUnique(state.nextStep, INJECT),
+      phase: 3,
+    };
+  }
+  if (state.phase === 3) {
+    return state.nextStep.length > 0
+      ? claimVisibleNextStep(state)
+      : { ...state, claimed: [], phase: 4 };
+  }
+  if (state.phase === 4) {
+    const nextTurnStarted = state.nextTurn.length > 0;
+    return {
+      ...state,
+      claimed: [],
+      nextTurn: [],
+      nextTurnStarted,
+      phase: 5,
+      stepNo: nextTurnStarted ? 1 : state.stepNo,
+      turnNo: nextTurnStarted ? state.turnNo + 1 : state.turnNo,
+    };
+  }
+  if (state.phase === 5) return { ...state, phase: 6 };
+  return INITIAL_INBOX_STATE;
+}
 
 export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("agent-inbox", propLang);
   const zh = lang === "zh";
 
-  const [phase, setPhase] = useState(0);
-  const [lastAction, setLastAction] = useState<"send" | null>(null);
+  const [state, dispatch] = useReducer(inboxReducer, INITIAL_INBOX_STATE);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      setLastAction(null);
-      setPhase((p) => (p + 1) % PHASE_MS.length);
-    }, PHASE_MS[phase]);
+    const t = setTimeout(() => dispatch({ type: "tick" }), PHASE_MS[state.phase]);
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [state.phase]);
 
-  const nextTurn: QueueMsg[] = phase >= 1 && phase < 5 ? [FOLLOWUP] : [];
-  const nextStep: QueueMsg[] =
-    phase === 2 ? [STEER] : phase === 3 ? [STEER, INJECT] : [];
-  const claimed = phase === 4 ? [STEER, INJECT] : [];
-
+  const {
+    claimed,
+    lastAction,
+    nextStep,
+    nextTurn,
+    nextTurnStarted,
+    phase,
+    stepNo,
+    turnNo,
+  } = state;
   const idleFlicker = phase === 5;
-  const turnNo = phase >= 5 ? 3 : 2;
-  const stepNo = phase >= 5 ? 1 : phase >= 4 ? 2 : 1;
-  const claimReady = phase === 2 || phase === 3;
-  const activatePhase = (nextPhase: number) => {
-    setLastAction(null);
-    setPhase(nextPhase);
-  };
+  const claimReady = nextStep.length > 0;
+  const claimActive = phase === 4 && claimed.length > 0;
+  const boundaryComplete = claimActive || (phase >= 5 && nextTurnStarted);
   const boundaryText =
     lastAction === "send"
       ? zh
         ? "SendAsync 已接管当前发送"
         : "SendAsync owns the current send"
-      : phase === 4
+      : claimActive
         ? zh
-          ? "步骤边界：ClaimAsync 整批取走 2 条消息"
-          : "Step boundary: ClaimAsync drained 2 messages"
+          ? `步骤边界：ClaimAsync 整批取走 ${claimed.length} 条消息`
+          : `Step boundary: ClaimAsync drained ${claimed.length} ${claimed.length === 1 ? "message" : "messages"}`
         : phase >= 5
-          ? zh
-            ? "NextTurn 唤醒驱动，开启第 3 轮"
-            : "NextTurn woke the driver into turn 3"
+          ? nextTurnStarted
+            ? zh
+              ? `NextTurn 唤醒驱动，开启第 ${turnNo} 轮`
+              : `NextTurn woke the driver into turn ${turnNo}`
+            : zh
+              ? "本轮结束，没有待处理的 NextTurn 消息"
+              : "Turn completed with no queued NextTurn message"
           : zh
             ? "等待步骤边界…"
             : "awaiting step boundary…";
@@ -208,18 +322,18 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
       <button
         type="button"
         aria-label={zh ? "领取 NextStep 队列" : "Claim next-step queue"}
-        aria-pressed={phase === 4}
+        aria-pressed={claimActive}
         disabled={!claimReady}
-        onClick={() => activatePhase(4)}
+        onClick={() => dispatch({ type: "claim" })}
         className={`mt-2 flex min-h-11 w-full items-center gap-2 rounded-control border px-2.5 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default motion-reduce:transition-none ${
-          phase >= 4
+          boundaryComplete
             ? "border-green/40 bg-green-tint/40"
             : claimReady
               ? "border-accent/40 bg-accent-tint/35 hover:bg-accent-tint/55"
               : "border-line bg-inset/40"
         }`}
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={phase >= 4 ? "var(--green)" : "var(--ink-3)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={boundaryComplete ? "var(--green)" : "var(--ink-3)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
           <path d="M4 4v16M4 12h10m0 0-4-4m4 4-4 4" transform="translate(2 0)" />
         </svg>
         <span
@@ -229,7 +343,7 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
         >
           {boundaryText}
         </span>
-        {phase === 4 && (
+        {claimActive && (
           <span
             className="shrink-0 rounded-chip bg-green-tint px-1.5 py-px font-mono text-[9.5px] font-medium text-green motion-reduce:[animation:none!important]"
             style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}
@@ -249,10 +363,8 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
             descEn: "owns send",
             descZh: "独占发送",
             style: "border-line bg-field text-ink-2",
-            onClick: () => {
-              setLastAction("send");
-              setPhase(0);
-            },
+            pressed: lastAction === "send",
+            onClick: () => dispatch({ type: "send" }),
           },
           {
             name: "Followup",
@@ -261,7 +373,8 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
             descEn: "→ turn + wake",
             descZh: "→ 下轮 + 唤醒",
             style: "border-accent/40 bg-accent-tint/40 text-accent-ink",
-            onClick: () => activatePhase(1),
+            pressed: nextTurn.some(({ id }) => id === FOLLOWUP.id),
+            onClick: () => dispatch({ type: "followup" }),
           },
           {
             name: "Steer",
@@ -270,7 +383,8 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
             descEn: "→ step + wake",
             descZh: "→ 边界 + 唤醒",
             style: "border-orange/40 bg-orange-tint/40 text-orange",
-            onClick: () => activatePhase(2),
+            pressed: nextStep.some(({ id }) => id === STEER.id),
+            onClick: () => dispatch({ type: "steer" }),
           },
           {
             name: "Inject",
@@ -279,13 +393,11 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
             descEn: "→ step, silent",
             descZh: "→ 边界，静默",
             style: "border-dashed border-line-strong bg-surface text-ink-3",
-            onClick: () => activatePhase(3),
+            pressed: nextStep.some(({ id }) => id === INJECT.id),
+            onClick: () => dispatch({ type: "inject" }),
           },
-        ].map((method, i) => {
-          const flash =
-            (i === 1 && phase === 1) ||
-            (i === 2 && phase === 2) ||
-            (i === 3 && phase === 3);
+        ].map((method) => {
+          const flash = method.pressed;
           return (
             <button
               type="button"
@@ -311,12 +423,16 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">
         <span>
           {phase >= 5
-            ? zh
-              ? "空闲后 NextTurn 唤醒驱动，开启第 3 轮"
-              : "NextTurn wakes the driver into turn 3"
+            ? nextTurnStarted
+              ? zh
+                ? `空闲后 NextTurn 唤醒驱动，开启第 ${turnNo} 轮`
+                : `NextTurn wakes the driver into turn ${turnNo}`
+              : zh
+                ? "本轮结束，NextTurn 队列为空"
+                : "Turn ended with an empty NextTurn queue"
             : zh
-            ? "所有 mutation 归一化为 splice 事件"
-            : "Every mutation folds into a splice event"}
+              ? "所有 mutation 归一化为 splice 事件"
+              : "Every mutation folds into a splice event"}
         </span>
         <span className="font-mono">agent/inbox/spliced</span>
       </div>
