@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -66,14 +66,19 @@ export default function TurnLifecycle({ lang: propLang }: { lang?: "en" | "zh" }
   const lang = useLang("turn-lifecycle", propLang);
   const zh = lang === "zh";
 
+  const timelineId = useId();
   const [visible, setVisible] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
 
   useEffect(() => {
     if (visible < EVENTS.length) {
       const t = setTimeout(() => setVisible((v) => v + 1), visible === 0 ? 500 : STEP_MS);
       return () => clearTimeout(t);
     }
-    const hold = setTimeout(() => setVisible(0), HOLD_MS);
+    const hold = setTimeout(() => {
+      setVisible(0);
+      setSelected(null);
+    }, HOLD_MS);
     return () => clearTimeout(hold);
   }, [visible]);
 
@@ -89,16 +94,45 @@ export default function TurnLifecycle({ lang: propLang }: { lang?: "en" | "zh" }
     if (e.opens === "step") stepOpen = true;
     const g = { turn: turnOpen, step: stepOpen };
     if (e.closes === "step") stepOpen = false;
-    if (e.closes === "turn") { turnOpen = false; stepOpen = false; }
+    if (e.closes === "turn") {
+      turnOpen = false;
+      stepOpen = false;
+    }
     return g;
   });
+  const selectedIndex =
+    rows.length === 0
+      ? -1
+      : selected !== null && selected < rows.length
+        ? selected
+        : rows.length - 1;
+  const selectedEvent = selected === null ? null : rows[selectedIndex];
+  const optionId = (index: number) => `${timelineId}-event-${index}`;
+
+  const handleTimelineKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (rows.length === 0) return;
+    let next = selectedIndex;
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      next = Math.min(rows.length - 1, selectedIndex + 1);
+    } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+      next = Math.max(0, selectedIndex - 1);
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = rows.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    setSelected(next);
+  };
 
   return (
     <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
       {/* Header */}
       <div className="flex items-center justify-between pb-3">
         <div className="flex items-center gap-2">
-          <span className={`flex size-2 rounded-full ${done ? "bg-green" : "bg-accent animate-pulse"}`} />
+          <span className={`flex size-2 rounded-full ${done ? "bg-green" : "bg-accent animate-pulse motion-reduce:animate-none"}`} />
           <h3 className="text-[13px] font-semibold text-ink">
             {zh ? "Turn 括号事件流" : "Turn Bracket Stream"}
           </h3>
@@ -107,23 +141,40 @@ export default function TurnLifecycle({ lang: propLang }: { lang?: "en" | "zh" }
           </span>
         </div>
         <span className="font-mono text-[10.5px] tabular-nums text-ink-3">
-          {Math.min(visible, EVENTS.length)}/{EVENTS.length} events
+          {Math.min(visible, EVENTS.length)}/{EVENTS.length} {zh ? "个事件" : "events"}
         </span>
       </div>
 
       {/* Timeline */}
-      <div className="relative flex min-h-[304px] flex-col gap-[3px] rounded-control border border-line bg-inset/50 p-3">
+      <div
+        role="listbox"
+        aria-label={zh ? "Turn 事件" : "Turn events"}
+        aria-activedescendant={selectedIndex >= 0 ? optionId(selectedIndex) : undefined}
+        tabIndex={0}
+        onKeyDown={handleTimelineKeyDown}
+        className="relative flex min-h-[304px] flex-col gap-[3px] rounded-control border border-line bg-inset/50 p-3 transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] motion-reduce:transition-none"
+      >
         {rows.map((e, i) => {
           const g = guides[i];
           const isLast = i === rows.length - 1;
           return (
             <div
               key={`${e.type}-${i}`}
-              className="relative flex items-center gap-2.5 rounded-chip px-1.5 py-[5px]"
+              id={optionId(i)}
+              role="option"
+              aria-label={`${e.type}: ${zh ? e.summaryZh : e.summaryEn}`}
+              aria-selected={selectedIndex === i}
+              onClick={() => setSelected(i)}
+              className={`relative flex cursor-pointer items-center gap-2.5 rounded-chip px-1.5 py-[5px] transition-colors motion-reduce:transition-none motion-reduce:[animation:none!important] ${
+                selectedIndex === i
+                  ? "bg-accent-tint/70 ring-1 ring-inset ring-accent/40"
+                  : isLast && !done
+                    ? "bg-hover"
+                    : "hover:bg-hover/70"
+              }`}
               style={{
                 paddingLeft: `${6 + e.depth * 22}px`,
                 animation: "fade-up 300ms cubic-bezier(0.23,1,0.32,1) both",
-                background: isLast && !done ? "var(--hover)" : undefined,
               }}
             >
               {/* bracket guides */}
@@ -171,13 +222,41 @@ export default function TurnLifecycle({ lang: propLang }: { lang?: "en" | "zh" }
         {/* caret while streaming */}
         {!done && (
           <div
-            className="flex items-center gap-2 px-1.5 py-1"
-            style={{ paddingLeft: `${6 + Math.min((EVENTS[visible]?.depth ?? 0) * 22 + 22, 66)}px` }}
+            className={`flex items-center gap-2 px-1.5 py-1 ${
+              rows.length === 0 ? "flex-1 justify-center" : ""
+            }`}
+            style={
+              rows.length === 0
+                ? undefined
+                : {
+                    paddingLeft: `${6 + Math.min((EVENTS[visible]?.depth ?? 0) * 22 + 22, 66)}px`,
+                  }
+            }
           >
-            <span className="size-1.5 rounded-full bg-ink-3 animate-pulse" />
+            <span className="size-1.5 rounded-full bg-ink-3 animate-pulse motion-reduce:animate-none" />
             <span className="font-mono text-[10px] text-ink-3">
               {zh ? "等待下一事件…" : "awaiting next event…"}
             </span>
+          </div>
+        )}
+
+        {selectedEvent && (
+          <div
+            role="status"
+            aria-label={zh ? "已选事件" : "Selected event"}
+            className="mt-1 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-control border border-accent/35 bg-accent-tint/45 px-2.5 py-2 text-[10.5px] text-ink-2"
+          >
+            <code className="rounded-chip bg-surface px-1.5 py-px font-mono text-[9.5px] text-accent-ink">
+              {selectedEvent.type}
+            </code>
+            <span className="min-w-0 leading-4">
+              {zh ? selectedEvent.summaryZh : selectedEvent.summaryEn}
+            </span>
+            {selectedEvent.meta && (
+              <span className="font-mono text-[9.5px] tabular-nums text-ink-3">
+                {selectedEvent.meta}
+              </span>
+            )}
           </div>
         )}
       </div>

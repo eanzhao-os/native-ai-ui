@@ -47,8 +47,9 @@ const DECISION_STYLE: Record<Decision, { chip: string; dot: string; labelEn: str
 
 const POINTS = ["SessionStart", "UserPrompt", "ToolPre", "ToolPost", "Stop", "Subagent"];
 
-// phases: 0 idle → 1..3 hooks evaluate → 4 merged(ask) → 5 approved(allow) → hold → reset
-const PHASE_MS = [700, 750, 750, 750, 1400, 1400, 3800];
+// phases: 0 idle → 1..3 hooks evaluate → 4 merged(ask) → explicit approval → 5 allow → hold → reset
+const EVALUATION_MS = [700, 750, 750, 750];
+const HOLD_MS = 3800;
 
 export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("hook-pipeline", propLang);
@@ -57,11 +58,14 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const t = setTimeout(
-      () => setPhase((p) => (p + 1) % PHASE_MS.length),
-      PHASE_MS[phase]
-    );
-    return () => clearTimeout(t);
+    if (phase < EVALUATION_MS.length) {
+      const t = setTimeout(() => setPhase((p) => p + 1), EVALUATION_MS[phase]);
+      return () => clearTimeout(t);
+    }
+    if (phase === 5) {
+      const hold = setTimeout(() => setPhase(0), HOLD_MS);
+      return () => clearTimeout(hold);
+    }
   }, [phase]);
 
   const evaluated = Math.max(0, Math.min(phase, TOOLPRE_HOOKS.length));
@@ -77,7 +81,15 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
       {/* Header */}
       <div className="flex items-center justify-between pb-3">
         <div className="flex items-center gap-2">
-          <span className="flex size-2 rounded-full bg-accent animate-pulse" />
+          <span
+            className={`flex size-2 rounded-full ${
+              phase === 5
+                ? "bg-green"
+                : phase === 4
+                  ? "bg-orange"
+                  : "bg-accent animate-pulse motion-reduce:animate-none"
+            }`}
+          />
           <h3 className="text-[13px] font-semibold text-ink">
             {zh ? "Hook 决策管线" : "Hook Pipeline"}
           </h3>
@@ -93,7 +105,7 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
         {POINTS.map((p) => (
           <span
             key={p}
-            className={`rounded-chip border px-1.5 py-0.5 font-mono text-[9.5px] transition-colors duration-300 ${
+            className={`rounded-chip border px-1.5 py-0.5 font-mono text-[9.5px] transition-colors duration-300 motion-reduce:transition-none ${
               p === "ToolPre"
                 ? "border-accent/50 bg-accent-tint text-accent-ink"
                 : "border-line bg-inset text-ink-3"
@@ -124,8 +136,8 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
           return (
             <div
               key={hook.name}
-              className={`flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 ${
-                active ? "border-line bg-surface" : "border-line/60 bg-inset/40 opacity-45"
+              className={`flex items-center gap-2.5 rounded-control border px-2.5 py-2 transition-all duration-300 motion-reduce:transition-none motion-reduce:[animation:none!important] ${
+                active ? "border-line bg-surface" : "border-line/70 bg-inset/55 opacity-65"
               }`}
               style={active ? { animation: "fade-up 300ms cubic-bezier(0.23,1,0.32,1) both" } : undefined}
             >
@@ -161,7 +173,7 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
 
       {/* Merge bar */}
       <div
-        className={`mt-1 flex items-center justify-between gap-2 rounded-control border px-3 py-2.5 transition-all duration-500 ${
+        className={`mt-1 flex items-center justify-between gap-2 rounded-control border px-3 py-2.5 transition-all duration-500 motion-reduce:transition-none ${
           merged === "allow"
             ? "border-green/40 bg-green-tint/50"
             : merged === "ask"
@@ -183,7 +195,7 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
         </div>
         {merged ? (
           <span
-            className={`shrink-0 whitespace-nowrap rounded-chip px-2 py-0.5 font-mono text-[10.5px] font-semibold ${DECISION_STYLE[merged].chip}`}
+            className={`shrink-0 whitespace-nowrap rounded-chip px-2 py-0.5 font-mono text-[10.5px] font-semibold motion-reduce:[animation:none!important] ${DECISION_STYLE[merged].chip}`}
             style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}
           >
             {merged === "allow" && phase >= 5
@@ -198,6 +210,20 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
           <span className="font-mono text-[10px] text-ink-3">…</span>
         )}
       </div>
+
+      {phase === 4 && (
+        <button
+          type="button"
+          aria-label={zh ? "批准 Hook 请求" : "Approve hook request"}
+          onClick={() => setPhase(5)}
+          className="mt-2 flex min-h-11 w-full items-center justify-between rounded-control border border-orange/40 bg-orange-tint/45 px-3 text-left text-[11.5px] font-medium text-ink transition-colors hover:bg-orange-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none"
+        >
+          <span>{zh ? "批准 workspace-guard 请求" : "Approve workspace-guard request"}</span>
+          <span className="rounded-chip bg-surface px-2 py-0.5 font-mono text-[9.5px] text-orange">
+            {zh ? "人工批准" : "human approval"}
+          </span>
+        </button>
+      )}
 
       {/* Footer */}
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[11px] text-ink-3">

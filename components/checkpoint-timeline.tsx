@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 type Checkpoint = {
@@ -54,13 +54,34 @@ export default function CheckpointTimeline({
   const [current, setCurrent] = useState(2);
   const [confirming, setConfirming] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [focusTarget, setFocusTarget] = useState<"checkpoint" | "restore" | null>(null);
+  const checkpointRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const restoreRef = useRef<HTMLButtonElement | null>(null);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
   const checkpoint = CHECKPOINTS[selected];
   const title = zh ? checkpoint.titleZh : checkpoint.titleEn;
   const isCurrent = selected === current;
 
+  useEffect(() => {
+    if (confirming) {
+      confirmRef.current?.focus();
+      return;
+    }
+    if (!focusTarget) return;
+    if (focusTarget === "checkpoint") checkpointRefs.current[selected]?.focus();
+    else restoreRef.current?.focus();
+    setFocusTarget(null);
+  }, [confirming, focusTarget, selected]);
+
   const selectCheckpoint = (index: number) => {
     setSelected(index);
     setConfirming(false);
+    setAnnouncement("");
+  };
+
+  const cancelRestore = () => {
+    setConfirming(false);
+    setFocusTarget("restore");
   };
 
   const confirmRestore = () => {
@@ -69,6 +90,7 @@ export default function CheckpointTimeline({
     setAnnouncement(
       zh ? `已恢复“${title}”` : `Restored “${title}”`,
     );
+    setFocusTarget("checkpoint");
   };
 
   return (
@@ -104,12 +126,15 @@ export default function CheckpointTimeline({
                   />
                 ) : null}
                 <button
+                  ref={(node) => {
+                    checkpointRefs.current[index] = node;
+                  }}
                   type="button"
                   aria-label={`${zh ? "选择检查点" : "Select checkpoint"} ${itemTitle}`}
                   aria-pressed={itemSelected}
                   aria-current={itemCurrent ? "step" : undefined}
                   onClick={() => selectCheckpoint(index)}
-                  className={`relative flex w-full items-start gap-2.5 rounded-control px-2 py-2 text-left transition-colors motion-reduce:transition-none ${
+                  className={`relative flex min-h-11 w-full items-start gap-2.5 rounded-control px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] motion-reduce:transition-none ${
                     itemSelected
                       ? itemCurrent
                         ? "bg-green-tint"
@@ -142,7 +167,7 @@ export default function CheckpointTimeline({
           })}
         </ol>
 
-        <div className="min-w-0 p-4">
+        <div className="min-h-[272px] min-w-0 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[12.5px] font-semibold text-ink">{title}</p>
@@ -174,7 +199,8 @@ export default function CheckpointTimeline({
 
           {confirming ? (
             <div
-              role="alert"
+              role="alertdialog"
+              aria-label={zh ? `确认恢复“${title}”` : `Confirm restore “${title}”`}
               className="mt-3 rounded-control border border-orange/35 bg-orange-tint px-3 py-2.5"
             >
               <p className="text-[11.5px] font-medium text-ink">
@@ -189,16 +215,17 @@ export default function CheckpointTimeline({
                 <button
                   type="button"
                   aria-label={zh ? "取消恢复" : "Cancel restore"}
-                  onClick={() => setConfirming(false)}
-                  className="rounded-control px-2.5 py-1.5 text-[10.5px] text-ink-2 transition-colors hover:bg-hover motion-reduce:transition-none"
+                  onClick={cancelRestore}
+                  className="min-h-11 rounded-control px-3 text-[10.5px] text-ink-2 transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none"
                 >
                   {zh ? "取消" : "Cancel"}
                 </button>
                 <button
+                  ref={confirmRef}
                   type="button"
                   aria-label={zh ? "确认恢复" : "Confirm restore"}
                   onClick={confirmRestore}
-                  className="rounded-control bg-orange px-2.5 py-1.5 text-[10.5px] font-medium text-surface transition-opacity hover:opacity-85 motion-reduce:transition-none"
+                  className="min-h-11 rounded-control bg-orange px-3 text-[10.5px] font-medium text-surface transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none"
                 >
                   {zh ? "确认恢复" : "Confirm restore"}
                 </button>
@@ -206,6 +233,7 @@ export default function CheckpointTimeline({
             </div>
           ) : (
             <button
+              ref={restoreRef}
               type="button"
               aria-label={
                 isCurrent
@@ -218,7 +246,7 @@ export default function CheckpointTimeline({
               }
               disabled={isCurrent}
               onClick={() => setConfirming(true)}
-              className="mt-3 w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-[10.5px] font-medium text-ink shadow-btn transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3 disabled:shadow-none motion-reduce:transition-none"
+              className="mt-3 min-h-11 w-full rounded-control border border-line-strong bg-surface px-3 text-[10.5px] font-medium text-ink shadow-btn transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3 disabled:shadow-none motion-reduce:transition-none"
             >
               {isCurrent
                 ? zh

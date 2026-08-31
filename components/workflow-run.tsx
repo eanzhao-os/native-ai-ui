@@ -17,27 +17,32 @@ const SLOTS = 4;
 
 const SLOT_MEMBERS = ["w-01", "w-02", "w-03", "w-04"];
 
-const TICK_MS = 420;
+const PROGRESS_STEPS = 4;
+const TICK_MS = 105;
 const HOLD_MS = 4200;
+const TOTAL_TICKS = (TOTAL_ITEMS / SLOTS) * PROGRESS_STEPS;
 
 export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("workflow-run", propLang);
   const zh = lang === "zh";
 
-  // done = completed item count; each slot works on item done+slotIndex
-  const [done, setDone] = useState(0);
+  // Four progress steps complete one stable four-member fan-out batch.
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (done < TOTAL_ITEMS) {
-      const t = setTimeout(() => setDone((d) => Math.min(TOTAL_ITEMS, d + SLOTS)), TICK_MS);
+    if (tick < TOTAL_TICKS) {
+      const t = setTimeout(() => setTick((current) => current + 1), TICK_MS);
       return () => clearTimeout(t);
     }
-    const hold = setTimeout(() => setDone(0), HOLD_MS);
+    const hold = setTimeout(() => setTick(0), HOLD_MS);
     return () => clearTimeout(hold);
-  }, [done]);
+  }, [tick]);
 
+  const batch = Math.floor(tick / PROGRESS_STEPS);
+  const done = Math.min(TOTAL_ITEMS, batch * SLOTS);
   const running = done < TOTAL_ITEMS;
   const inFlight = running ? Math.min(SLOTS, TOTAL_ITEMS - done) : 0;
+  const slotProgress = running ? ((tick % PROGRESS_STEPS) + 1) * 25 : 100;
   const pct = Math.round((done / TOTAL_ITEMS) * 100);
 
   return (
@@ -45,7 +50,7 @@ export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) 
       {/* Header */}
       <div className="flex items-center justify-between pb-3">
         <div className="flex items-center gap-2">
-          <span className={`flex size-2 rounded-full ${running ? "bg-accent animate-pulse" : "bg-green"}`} />
+          <span className={`flex size-2 rounded-full ${running ? "bg-accent animate-pulse motion-reduce:animate-none" : "bg-green"}`} />
           <h3 className="text-[13px] font-semibold text-ink">
             {zh ? "工作流扇出执行" : "Workflow Fan-out"}
           </h3>
@@ -53,7 +58,17 @@ export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) 
             run/8f2e1a
           </span>
         </div>
-        <span className="font-mono text-[10.5px] tabular-nums text-ink-3">{pct}%</span>
+        <span
+          role="progressbar"
+          aria-label={zh ? "工作流进度" : "Workflow progress"}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+          aria-valuetext={`${done}/${TOTAL_ITEMS}`}
+          className="font-mono text-[10.5px] tabular-nums text-ink-3"
+        >
+          {pct}%
+        </span>
       </div>
 
       {/* Run meta */}
@@ -80,7 +95,7 @@ export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) 
           return (
             <div
               key={member}
-              className={`flex items-center gap-2.5 rounded-control border px-2.5 py-1.5 transition-all duration-300 ${
+              className={`flex items-center gap-2.5 rounded-control border px-2.5 py-1.5 transition-all duration-300 motion-reduce:transition-none ${
                 slotActive ? "border-accent/40 bg-accent-tint/25" : "border-line bg-surface"
               }`}
             >
@@ -92,12 +107,30 @@ export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) 
                 {member.slice(-2)}
               </span>
               <span className="font-mono text-[10.5px] text-ink-2">{member}</span>
-              <div className="min-w-0 flex-1">
+              <div
+                role="progressbar"
+                aria-label={`${member} ${zh ? "进度" : "progress"}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={slotActive ? slotProgress : running ? 0 : 100}
+                aria-valuetext={
+                  slotActive
+                    ? `${zh ? "处理" : "processing"} item-${String(itemIdx + 1).padStart(2, "0")}`
+                    : running
+                      ? zh
+                        ? "空闲"
+                        : "idle"
+                      : zh
+                        ? "完成"
+                        : "done"
+                }
+                className="min-w-0 flex-1"
+              >
                 {slotActive ? (
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-field">
                     <div
-                      className="h-full rounded-full bg-accent transition-all duration-300"
-                      style={{ width: `${((done % SLOTS) + 1) * 25}%` }}
+                      className="h-full rounded-full bg-accent transition-all duration-100 motion-reduce:transition-none"
+                      style={{ width: `${slotProgress}%` }}
                     />
                   </div>
                 ) : (
@@ -130,19 +163,37 @@ export default function WorkflowRun({ lang: propLang }: { lang?: "en" | "zh" }) 
             {done}/{TOTAL_ITEMS}
           </span>
         </div>
-        <div className="grid grid-cols-10 gap-1">
+        <div
+          role="list"
+          aria-label={zh ? "工作流条目" : "Workflow items"}
+          className="grid grid-cols-10 gap-1"
+        >
           {Array.from({ length: TOTAL_ITEMS }, (_, i) => {
             const isDone = i < done;
             const isActive = running && i >= done && i < done + inFlight;
             return (
               <span
                 key={i}
-                className={`aspect-square w-full rounded-[4px] transition-all duration-300 ${
+                role="listitem"
+                aria-label={`item-${String(i + 1).padStart(2, "0")} ${
                   isDone
-                    ? "bg-green/80"
+                    ? zh
+                      ? "已完成"
+                      : "completed"
                     : isActive
-                    ? "bg-accent animate-pulse"
-                    : "bg-field border border-line/60"
+                      ? zh
+                        ? "处理中"
+                        : "in flight"
+                      : zh
+                        ? "待处理"
+                        : "pending"
+                }`}
+                className={`aspect-square w-full rounded-[4px] transition-all duration-300 motion-reduce:transition-none ${
+                  isDone
+                    ? "bg-green/75"
+                    : isActive
+                      ? "bg-accent animate-pulse motion-reduce:animate-none"
+                      : "border border-line/60 bg-field"
                 }`}
                 title={`item-${i + 1}`}
               />

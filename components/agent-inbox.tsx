@@ -55,21 +55,45 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
   const zh = lang === "zh";
 
   const [phase, setPhase] = useState(0);
+  const [lastAction, setLastAction] = useState<"send" | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setPhase((p) => (p + 1) % PHASE_MS.length), PHASE_MS[phase]);
+    const t = setTimeout(() => {
+      setLastAction(null);
+      setPhase((p) => (p + 1) % PHASE_MS.length);
+    }, PHASE_MS[phase]);
     return () => clearTimeout(t);
   }, [phase]);
 
   const nextTurn: QueueMsg[] = phase >= 1 && phase < 5 ? [FOLLOWUP] : [];
   const nextStep: QueueMsg[] =
     phase === 2 ? [STEER] : phase === 3 ? [STEER, INJECT] : [];
-  const claimed = phase >= 4 ? [STEER, INJECT] : [];
+  const claimed = phase === 4 ? [STEER, INJECT] : [];
 
-  const agentRunning = phase < 5 || phase >= 5; // always running except the brief idle in 5's start
   const idleFlicker = phase === 5;
   const turnNo = phase >= 5 ? 3 : 2;
-  const stepNo = phase >= 4 ? 2 : 1;
+  const stepNo = phase >= 5 ? 1 : phase >= 4 ? 2 : 1;
+  const claimReady = phase === 2 || phase === 3;
+  const activatePhase = (nextPhase: number) => {
+    setLastAction(null);
+    setPhase(nextPhase);
+  };
+  const boundaryText =
+    lastAction === "send"
+      ? zh
+        ? "SendAsync 已接管当前发送"
+        : "SendAsync owns the current send"
+      : phase === 4
+        ? zh
+          ? "步骤边界：ClaimAsync 整批取走 2 条消息"
+          : "Step boundary: ClaimAsync drained 2 messages"
+        : phase >= 5
+          ? zh
+            ? "NextTurn 唤醒驱动，开启第 3 轮"
+            : "NextTurn woke the driver into turn 3"
+          : zh
+            ? "等待步骤边界…"
+            : "awaiting step boundary…";
 
   return (
     <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
@@ -78,7 +102,7 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
         <div className="flex items-center gap-2">
           <span
             className={`flex size-2 rounded-full transition-colors duration-300 ${
-              idleFlicker ? "bg-ink-3" : "bg-accent animate-pulse"
+              idleFlicker ? "bg-ink-3" : "bg-accent animate-pulse motion-reduce:animate-none"
             }`}
           />
           <h3 className="text-[13px] font-semibold text-ink">
@@ -96,7 +120,11 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
       {/* Queue lanes */}
       <div className="grid grid-cols-2 gap-2">
         {/* NextTurn lane */}
-        <div className="flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
+        <div
+          role="region"
+          aria-label={zh ? "NextTurn 队列" : "NextTurn queue"}
+          className="flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2"
+        >
           <div className="flex items-center justify-between px-1 pb-1.5">
             <span className="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
               NextTurn
@@ -114,7 +142,7 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
               nextTurn.map((m) => (
                 <div
                   key={m.id}
-                  className="rounded-chip border border-accent/40 bg-accent-tint/40 px-2 py-1.5"
+                  className="rounded-chip border border-accent/40 bg-accent-tint/40 px-2 py-1.5 motion-reduce:[animation:none!important]"
                   style={{ animation: "pop-in 260ms cubic-bezier(0.23,1,0.32,1) both" }}
                 >
                   <div className="flex items-center gap-1">
@@ -131,7 +159,11 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
         </div>
 
         {/* NextStep lane */}
-        <div className="flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2">
+        <div
+          role="region"
+          aria-label={zh ? "NextStep 队列" : "NextStep queue"}
+          className="flex min-h-[118px] flex-col rounded-control border border-line bg-inset/50 p-2"
+        >
           <div className="flex items-center justify-between px-1 pb-1.5">
             <span className="font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-3">
               NextStep
@@ -149,7 +181,7 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
               nextStep.map((m) => (
                 <div
                   key={m.id}
-                  className={`rounded-chip px-2 py-1.5 ${
+                  className={`rounded-chip px-2 py-1.5 motion-reduce:[animation:none!important] ${
                     m.kind === "inject"
                       ? "border border-dashed border-line-strong bg-surface"
                       : "border border-orange/40 bg-orange-tint/40"
@@ -173,54 +205,104 @@ export default function AgentInbox({ lang: propLang }: { lang?: "en" | "zh" }) {
       </div>
 
       {/* Step boundary claim indicator */}
-      <div
-        className={`mt-2 flex items-center gap-2 rounded-control border px-2.5 py-2 transition-all duration-500 ${
-          phase >= 4 ? "border-green/40 bg-green-tint/40" : "border-line bg-inset/40"
+      <button
+        type="button"
+        aria-label={zh ? "领取 NextStep 队列" : "Claim next-step queue"}
+        aria-pressed={phase === 4}
+        disabled={!claimReady}
+        onClick={() => activatePhase(4)}
+        className={`mt-2 flex min-h-11 w-full items-center gap-2 rounded-control border px-2.5 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-default motion-reduce:transition-none ${
+          phase >= 4
+            ? "border-green/40 bg-green-tint/40"
+            : claimReady
+              ? "border-accent/40 bg-accent-tint/35 hover:bg-accent-tint/55"
+              : "border-line bg-inset/40"
         }`}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={phase >= 4 ? "var(--green)" : "var(--ink-3)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
           <path d="M4 4v16M4 12h10m0 0-4-4m4 4-4 4" transform="translate(2 0)" />
         </svg>
-        <span className="min-w-0 flex-1 truncate text-[11px] text-ink-2">
-          {phase >= 4
-            ? zh
-              ? "步骤边界：ClaimAsync 整批取走 2 条消息"
-              : "Step boundary: ClaimAsync drained 2 messages"
-            : zh
-            ? "等待步骤边界…"
-            : "awaiting step boundary…"}
+        <span
+          role="status"
+          aria-live="polite"
+          className="min-w-0 flex-1 text-[11px] leading-4 text-ink-2"
+        >
+          {boundaryText}
         </span>
-        {phase >= 4 && (
+        {phase === 4 && (
           <span
-            className="shrink-0 rounded-chip bg-green-tint px-1.5 py-px font-mono text-[9.5px] font-medium text-green"
+            className="shrink-0 rounded-chip bg-green-tint px-1.5 py-px font-mono text-[9.5px] font-medium text-green motion-reduce:[animation:none!important]"
             style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}
           >
-            claimed ×2
+            claimed ×{claimed.length}
           </span>
         )}
-      </div>
+      </button>
 
       {/* Delivery methods */}
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
+      <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         {[
-          { name: "Send", descEn: "owns send", descZh: "独占发送", style: "border-line bg-field text-ink-2" },
-          { name: "Followup", descEn: "→ turn+wake", descZh: "→ 下轮+唤醒", style: "border-accent/40 bg-accent-tint/40 text-accent-ink" },
-          { name: "Steer", descEn: "→ step+wake", descZh: "→ 边界+唤醒", style: "border-orange/40 bg-orange-tint/40 text-orange" },
-          { name: "Inject", descEn: "→ step, silent", descZh: "→ 边界,静默", style: "border-dashed border-line-strong bg-surface text-ink-3" },
-        ].map((b, i) => {
+          {
+            name: "Send",
+            ariaEn: "Send immediately",
+            ariaZh: "立即发送",
+            descEn: "owns send",
+            descZh: "独占发送",
+            style: "border-line bg-field text-ink-2",
+            onClick: () => {
+              setLastAction("send");
+              setPhase(0);
+            },
+          },
+          {
+            name: "Followup",
+            ariaEn: "Queue Followup",
+            ariaZh: "加入 Followup 队列",
+            descEn: "→ turn + wake",
+            descZh: "→ 下轮 + 唤醒",
+            style: "border-accent/40 bg-accent-tint/40 text-accent-ink",
+            onClick: () => activatePhase(1),
+          },
+          {
+            name: "Steer",
+            ariaEn: "Queue Steer",
+            ariaZh: "加入 Steer 队列",
+            descEn: "→ step + wake",
+            descZh: "→ 边界 + 唤醒",
+            style: "border-orange/40 bg-orange-tint/40 text-orange",
+            onClick: () => activatePhase(2),
+          },
+          {
+            name: "Inject",
+            ariaEn: "Queue Inject",
+            ariaZh: "加入 Inject 队列",
+            descEn: "→ step, silent",
+            descZh: "→ 边界，静默",
+            style: "border-dashed border-line-strong bg-surface text-ink-3",
+            onClick: () => activatePhase(3),
+          },
+        ].map((method, i) => {
           const flash =
-            (i === 1 && phase === 1) || (i === 2 && phase === 2) || (i === 3 && phase === 3);
+            (i === 1 && phase === 1) ||
+            (i === 2 && phase === 2) ||
+            (i === 3 && phase === 3);
           return (
-            <div
-              key={b.name}
-              className={`flex flex-col items-center gap-0.5 rounded-chip border px-1 py-1.5 transition-all duration-300 ${b.style} ${
-                flash ? "ring-2 ring-accent/40 scale-105" : ""
+            <button
+              type="button"
+              key={method.name}
+              aria-label={zh ? method.ariaZh : method.ariaEn}
+              aria-pressed={flash}
+              onClick={method.onClick}
+              className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-chip border px-1.5 text-center transition-all duration-300 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transform-none motion-reduce:transition-none ${method.style} ${
+                flash ? "ring-2 ring-accent/40" : ""
               }`}
-              style={b.name === "Inject" ? { borderStyle: "dashed" } : undefined}
+              style={method.name === "Inject" ? { borderStyle: "dashed" } : undefined}
             >
-              <span className="font-mono text-[10px] font-semibold">{b.name}</span>
-              <span className="text-[8.5px] opacity-80">{zh ? b.descZh : b.descEn}</span>
-            </div>
+              <span className="font-mono text-[10.5px] font-semibold">{method.name}</span>
+              <span className="text-[9.5px] leading-3 opacity-85">
+                {zh ? method.descZh : method.descEn}
+              </span>
+            </button>
           );
         })}
       </div>

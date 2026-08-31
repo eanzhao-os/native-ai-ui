@@ -981,6 +981,229 @@ const TASK7_CASES = [
 ];
 /* TASK 7 VISUAL ACTIONS END */
 
+/* TASK 8 VISUAL ACTIONS START */
+async function selectLifecycleEvent({ canvas }) {
+  const event = canvas.getByRole("option", {
+    name: /tool\/result: job-4f8c/,
+  });
+  await event.click();
+  if ((await event.getAttribute("aria-selected")) !== "true") {
+    throw new Error("Lifecycle event did not become selected");
+  }
+  await canvas
+    .getByRole("status", { name: /Selected event|已选事件/ })
+    .getByText(/job-4f8c/)
+    .waitFor();
+}
+
+async function focusLifecycleTimeline({ canvas, page }) {
+  const timeline = canvas.getByRole("listbox", {
+    name: /Turn events|Turn 事件/,
+  });
+  await assertKeyboardFocus({
+    canvas,
+    page,
+    control: timeline,
+    label: "Turn lifecycle timeline",
+  });
+  await page.keyboard.press("Home");
+  const firstEvent = canvas.getByRole("option").first();
+  if (
+    (await timeline.getAttribute("aria-activedescendant")) !==
+    (await firstEvent.getAttribute("id"))
+  ) {
+    throw new Error("Lifecycle keyboard navigation did not select the first event");
+  }
+}
+
+async function queueInboxMessages({ canvas }) {
+  const followup = canvas.getByRole("button", {
+    name: /Queue Followup|加入 Followup 队列/,
+  });
+  const steer = canvas.getByRole("button", {
+    name: /Queue Steer|加入 Steer 队列/,
+  });
+  const inject = canvas.getByRole("button", {
+    name: /Queue Inject|加入 Inject 队列/,
+  });
+
+  await followup.click();
+  await canvas
+    .getByRole("region", { name: /NextTurn queue|NextTurn 队列/ })
+    .getByText(/also verify the rollout gate|顺便验证一下灰度发布门禁/)
+    .waitFor();
+  await steer.click();
+  await inject.click();
+  await canvas
+    .getByRole("region", { name: /NextStep queue|NextStep 队列/ })
+    .getByText(/fyi: trace dump|备注：trace 已转储/)
+    .waitFor();
+
+  for (const [control, label] of [
+    [followup, "Followup queue control"],
+    [steer, "Steer queue control"],
+    [inject, "Inject queue control"],
+  ]) {
+    await assertMinimumTarget(control, label);
+  }
+}
+
+async function claimInboxMessages(args) {
+  await queueInboxMessages(args);
+  const claim = args.canvas.getByRole("button", {
+    name: /Claim next-step queue|领取 NextStep 队列/,
+  });
+  await assertMinimumTarget(claim, "Inbox claim control");
+  await claim.click();
+  await args.canvas.getByText(/claimed ×2/).waitFor();
+  if ((await claim.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Inbox claim did not drain the next-step queue");
+  }
+}
+
+async function focusInboxAction({ canvas, page }) {
+  const control = canvas.getByRole("button", {
+    name: /Queue Followup|加入 Followup 队列/,
+  });
+  await assertKeyboardFocus({
+    canvas,
+    page,
+    control,
+    label: "Inbox queue control",
+  });
+}
+
+async function approveHookRequest({ canvas }) {
+  const approval = canvas.getByRole("button", {
+    name: /Approve hook request|批准 Hook 请求/,
+  });
+  await assertMinimumTarget(approval, "Hook approval control");
+  await approval.click();
+  await canvas.getByText(/allow · approved|allow · 已批准/).waitFor();
+}
+
+async function focusHookApproval({ canvas, page }) {
+  const control = canvas.getByRole("button", {
+    name: /Approve hook request|批准 Hook 请求/,
+  });
+  await assertKeyboardFocus({
+    canvas,
+    page,
+    control,
+    label: "Hook approval control",
+  });
+}
+
+async function openCheckpointRestore({ canvas }) {
+  const selection = canvas.getByRole("button", {
+    name: /Select checkpoint Before edits|选择检查点 编辑前/,
+  });
+  await selection.click();
+  if ((await selection.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Checkpoint selection did not become active");
+  }
+
+  const restore = canvas.getByRole("button", {
+    name: /Restore checkpoint|恢复检查点/,
+  });
+  await assertMinimumTarget(restore, "Checkpoint restore control");
+  await restore.click();
+  await canvas
+    .getByRole("alertdialog", {
+      name: /Confirm restore “Before edits”|确认恢复“编辑前”/,
+    })
+    .waitFor();
+}
+
+async function restoreCheckpoint(args) {
+  await openCheckpointRestore(args);
+  const confirm = args.canvas.getByRole("button", {
+    name: /Confirm restore|确认恢复/,
+  });
+  await assertMinimumTarget(confirm, "Checkpoint confirm control");
+  await confirm.click();
+  await args.canvas
+    .getByText(/Restored “Before edits”|已恢复“编辑前”/)
+    .waitFor();
+
+  const current = args.canvas.getByRole("button", {
+    name: /Current checkpoint|当前检查点/,
+  });
+  if (!(await current.isDisabled())) {
+    throw new Error("Restored checkpoint did not become current");
+  }
+}
+
+async function focusCheckpointConfirmation(args) {
+  await openCheckpointRestore(args);
+  const control = args.canvas.getByRole("button", {
+    name: /Confirm restore|确认恢复/,
+  });
+  await assertKeyboardFocus({
+    canvas: args.canvas,
+    page: args.page,
+    control,
+    label: "Checkpoint confirm control",
+  });
+}
+
+const TASK8_CASES = [
+  [
+    "turn-lifecycle",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "settled", advanceMs: 9000 },
+      { name: "selected", advanceMs: 9000, action: selectLifecycleEvent },
+      { name: "focused", advanceMs: 9000, action: focusLifecycleTimeline },
+    ],
+  ],
+  [
+    "agent-inbox",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "queued", advanceMs: 0, action: queueInboxMessages },
+      { name: "claimed", advanceMs: 0, action: claimInboxMessages },
+      { name: "settled", advanceMs: 9600 },
+      { name: "focused", advanceMs: 0, action: focusInboxAction },
+    ],
+  ],
+  [
+    "hook-pipeline",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "settled", advanceMs: 4800 },
+      { name: "approved", advanceMs: 4800, action: approveHookRequest },
+      { name: "focused", advanceMs: 4800, action: focusHookApproval },
+    ],
+  ],
+  [
+    "session-telemetry",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "folded", advanceMs: 2500 },
+      { name: "settled", advanceMs: 8000 },
+    ],
+  ],
+  [
+    "workflow-run",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "in-flight", advanceMs: 210 },
+      { name: "settled", advanceMs: 7000 },
+    ],
+  ],
+  [
+    "checkpoint-timeline",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "confirming", advanceMs: 0, action: openCheckpointRestore },
+      { name: "settled", advanceMs: 0, action: restoreCheckpoint },
+      { name: "focused", advanceMs: 0, action: focusCheckpointConfirmation },
+    ],
+  ],
+];
+/* TASK 8 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -1012,6 +1235,9 @@ export const CASES = new Map([
     ],
   ],
   ...TASK5A_CASES,
+  /* TASK 8 VISUAL REGISTRATIONS START */
+  ...TASK8_CASES,
+  /* TASK 8 VISUAL REGISTRATIONS END */
   /* TASK 4 VISUAL REGISTRATIONS START */
   [
     "session-list",
