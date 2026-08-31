@@ -31,7 +31,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --text-sm--line-height: calc(1.25 / 0.875);
     --text-xl: 1.25rem;
     --text-xl--line-height: calc(1.75 / 1.25);
-    --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
@@ -56,7 +55,7 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     --default-mono-font-family: var(--font-mono-face), ui-monospace, "SF Mono", monospace;
-    --radius-chip: 6px;
+    --radius-control: 8px;
     --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-link: cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -350,6 +349,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .z-50 {
     z-index: 50;
   }
+  .col-span-1 {
+    grid-column: span 1 / span 1;
+  }
   .col-span-2 {
     grid-column: span 2 / span 2;
   }
@@ -582,6 +584,10 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     width: calc(var(--spacing) * 8);
     height: calc(var(--spacing) * 8);
   }
+  .size-9 {
+    width: calc(var(--spacing) * 9);
+    height: calc(var(--spacing) * 9);
+  }
   .size-10 {
     width: calc(var(--spacing) * 10);
     height: calc(var(--spacing) * 10);
@@ -609,6 +615,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .size-full {
     width: 100%;
     height: 100%;
+  }
+  .h-0\\.5 {
+    height: calc(var(--spacing) * 0.5);
   }
   .h-1\\.5 {
     height: calc(var(--spacing) * 1.5);
@@ -676,6 +685,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .h-\\[166px\\] {
     height: 166px;
   }
+  .h-\\[212px\\] {
+    height: 212px;
+  }
   .h-\\[288px\\] {
     height: 288px;
   }
@@ -697,8 +709,17 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .min-h-4\\.5 {
     min-height: calc(var(--spacing) * 4.5);
   }
+  .min-h-5 {
+    min-height: calc(var(--spacing) * 5);
+  }
   .min-h-7 {
     min-height: calc(var(--spacing) * 7);
+  }
+  .min-h-8 {
+    min-height: calc(var(--spacing) * 8);
+  }
+  .min-h-9 {
+    min-height: calc(var(--spacing) * 9);
   }
   .min-h-11 {
     min-height: calc(var(--spacing) * 11);
@@ -754,6 +775,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .min-h-\\[220px\\] {
     min-height: 220px;
   }
+  .min-h-\\[244px\\] {
+    min-height: 244px;
+  }
   .min-h-\\[248px\\] {
     min-height: 248px;
   }
@@ -784,6 +808,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .w-1\\.5 {
     width: calc(var(--spacing) * 1.5);
   }
+  .w-2 {
+    width: calc(var(--spacing) * 2);
+  }
   .w-2\\.5 {
     width: calc(var(--spacing) * 2.5);
   }
@@ -804,6 +831,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .w-9 {
     width: calc(var(--spacing) * 9);
+  }
+  .w-10 {
+    width: calc(var(--spacing) * 10);
   }
   .w-16 {
     width: calc(var(--spacing) * 16);
@@ -835,14 +865,23 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .w-\\[3px\\] {
     width: 3px;
   }
+  .w-\\[15\\%\\] {
+    width: 15%;
+  }
+  .w-\\[21\\%\\] {
+    width: 21%;
+  }
+  .w-\\[25\\%\\] {
+    width: 25%;
+  }
+  .w-\\[27\\%\\] {
+    width: 27%;
+  }
   .w-\\[30\\%\\] {
     width: 30%;
   }
   .w-\\[34\\%\\] {
     width: 34%;
-  }
-  .w-\\[36\\%\\] {
-    width: 36%;
   }
   .w-\\[560px\\] {
     width: 560px;
@@ -901,11 +940,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .max-w-\\[380px\\] {
     max-width: 380px;
   }
-  .max-w-\\[460px\\] {
-    max-width: 460px;
-  }
-  .max-w-\\[calc\\(100vw-48px\\)\\] {
-    max-width: calc(100vw - 48px);
+  .max-w-\\[520px\\] {
+    max-width: 520px;
   }
   .max-w-full {
     max-width: 100%;
@@ -937,8 +973,17 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .min-w-11 {
     min-width: calc(var(--spacing) * 11);
   }
-  .min-w-\\[420px\\] {
-    min-width: 420px;
+  .min-w-\\[148px\\] {
+    min-width: 148px;
+  }
+  .min-w-\\[470px\\] {
+    min-width: 470px;
+  }
+  .min-w-\\[560px\\] {
+    min-width: 560px;
+  }
+  .min-w-max {
+    min-width: max-content;
   }
   .flex-1 {
     flex: 1;
@@ -967,8 +1012,16 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-translate-x: 0px;
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
+  .translate-y-0 {
+    --tw-translate-y: 0px;
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
   .translate-y-0\\.5 {
     --tw-translate-y: calc(var(--spacing) * 0.5);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
+  .translate-y-1 {
+    --tw-translate-y: var(--spacing);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
   .translate-y-\\[-1px\\] {
@@ -1017,6 +1070,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-scale-z: 125%;
     scale: var(--tw-scale-x) var(--tw-scale-y);
   }
+  .rotate-0 {
+    rotate: 0deg;
+  }
   .rotate-90 {
     rotate: 90deg;
   }
@@ -1056,9 +1112,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .touch-none {
     touch-action: none;
   }
-  .resize {
-    resize: both;
-  }
   .resize-none {
     resize: none;
   }
@@ -1080,14 +1133,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .grid-cols-10 {
     grid-template-columns: repeat(10, minmax(0, 1fr));
   }
-  .grid-cols-\\[1\\.3fr_0\\.6fr_0\\.95fr_0\\.9fr\\] {
-    grid-template-columns: 1.3fr 0.6fr 0.95fr 0.9fr;
-  }
   .grid-cols-\\[28px_minmax\\(0\\,1fr\\)_auto_28px_28px\\] {
     grid-template-columns: 28px minmax(0,1fr) auto 28px 28px;
-  }
-  .grid-cols-\\[34\\%_30\\%_36\\%\\] {
-    grid-template-columns: 34% 30% 36%;
   }
   .grid-cols-\\[44px_minmax\\(0\\,1fr\\)\\] {
     grid-template-columns: 44px minmax(0,1fr);
@@ -1216,6 +1263,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .gap-x-3 {
     column-gap: calc(var(--spacing) * 3);
   }
+  .gap-x-4 {
+    column-gap: calc(var(--spacing) * 4);
+  }
   .gap-x-6 {
     column-gap: calc(var(--spacing) * 6);
   }
@@ -1272,6 +1322,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .overflow-auto {
+    overflow: auto;
+  }
   .overflow-hidden {
     overflow: hidden;
   }
@@ -1310,6 +1363,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .rounded-\\[14px\\] {
     border-radius: 14px;
+  }
+  .rounded-\\[22px\\] {
+    border-radius: 22px;
   }
   .rounded-\\[24px\\] {
     border-radius: 24px;
@@ -1509,6 +1565,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     @supports (color: color-mix(in lab, red, red)) {
       border-color: color-mix(in oklab, var(--tooltip-border) 80%, transparent);
     }
+  }
+  .border-transparent {
+    border-color: transparent;
   }
   .border-t-ink-2 {
     border-top-color: var(--ink-2);
@@ -1898,9 +1957,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .bg-clip-text {
     background-clip: text;
   }
-  .p-0 {
-    padding: 0px;
-  }
   .p-0\\.5 {
     padding: calc(var(--spacing) * 0.5);
   }
@@ -1918,6 +1974,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .p-3 {
     padding: calc(var(--spacing) * 3);
+  }
+  .p-3\\.5 {
+    padding: calc(var(--spacing) * 3.5);
   }
   .p-4 {
     padding: calc(var(--spacing) * 4);
@@ -2033,8 +2092,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .pr-1 {
     padding-right: var(--spacing);
   }
-  .pr-2\\.5 {
-    padding-right: calc(var(--spacing) * 2.5);
+  .pr-2 {
+    padding-right: calc(var(--spacing) * 2);
   }
   .pr-7 {
     padding-right: calc(var(--spacing) * 7);
@@ -2235,6 +2294,14 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-leading: 1.45;
     line-height: 1.45;
   }
+  .leading-\\[1\\.65\\] {
+    --tw-leading: 1.65;
+    line-height: 1.65;
+  }
+  .leading-\\[1\\.75\\] {
+    --tw-leading: 1.75;
+    line-height: 1.75;
+  }
   .leading-\\[1\\.86\\] {
     --tw-leading: 1.86;
     line-height: 1.86;
@@ -2270,10 +2337,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .font-medium {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
-  }
-  .font-normal {
-    --tw-font-weight: var(--font-weight-normal);
-    font-weight: var(--font-weight-normal);
   }
   .font-semibold {
     --tw-font-weight: var(--font-weight-semibold);
@@ -2473,6 +2536,12 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
+  .shadow-inset {
+    --tw-shadow-color: var(--inset);
+    @supports (color: color-mix(in lab, red, red)) {
+      --tw-shadow-color: color-mix(in oklab, var(--inset) var(--tw-shadow-alpha), transparent);
+    }
+  }
   .ring-accent {
     --tw-ring-color: var(--accent);
   }
@@ -2527,6 +2596,11 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
+  .transition-\\[background-color\\,border-color\\,color\\] {
+    transition-property: background-color,border-color,color;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
   .transition-\\[background-color\\,border-color\\] {
     transition-property: background-color,border-color;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
@@ -2542,8 +2616,18 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
+  .transition-\\[background-color\\,color\\,border-color\\] {
+    transition-property: background-color,color,border-color;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
   .transition-\\[background-color\\,color\\,box-shadow\\,transform\\] {
     transition-property: background-color,color,box-shadow,transform;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .transition-\\[background-color\\,color\\,box-shadow\\] {
+    transition-property: background-color,color,box-shadow;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
@@ -2602,13 +2686,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
-  .transition-\\[max-width\\,opacity\\,margin\\] {
-    transition-property: max-width,opacity,margin;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
-  }
-  .transition-\\[max-width\\,opacity\\,transform\\] {
-    transition-property: max-width,opacity,transform;
+  .transition-\\[max-width\\] {
+    transition-property: max-width;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
@@ -2726,6 +2805,15 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
       opacity: 100%;
     }
   }
+  .peer-checked\\:border-accent:is(:where(.peer):checked ~ *) {
+    border-color: var(--accent);
+  }
+  .peer-checked\\:bg-accent:is(:where(.peer):checked ~ *) {
+    background-color: var(--accent);
+  }
+  .peer-checked\\:text-white:is(:where(.peer):checked ~ *) {
+    color: var(--color-white);
+  }
   .peer-focus-visible\\:ring-2:is(:where(.peer):focus-visible ~ *) {
     --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
@@ -2742,6 +2830,12 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   }
   .peer-focus-visible\\:ring-offset-surface:is(:where(.peer):focus-visible ~ *) {
     --tw-ring-offset-color: var(--surface);
+  }
+  .peer-disabled\\:cursor-not-allowed:is(:where(.peer):disabled ~ *) {
+    cursor: not-allowed;
+  }
+  .peer-disabled\\:opacity-50:is(:where(.peer):disabled ~ *) {
+    opacity: 50%;
   }
   .placeholder\\:text-ink-3::placeholder {
     color: var(--ink-3);
@@ -2796,6 +2890,16 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     @supports (color: color-mix(in lab, red, red)) {
       --tw-ring-color: color-mix(in oklab, var(--accent) 20%, transparent);
     }
+  }
+  .focus-within\\:outline-2:focus-within {
+    outline-style: var(--tw-outline-style);
+    outline-width: 2px;
+  }
+  .focus-within\\:outline-offset-1:focus-within {
+    outline-offset: 1px;
+  }
+  .focus-within\\:outline-accent:focus-within {
+    outline-color: var(--accent);
   }
   .focus-within\\:outline-none:focus-within {
     --tw-outline-style: none;
@@ -3007,6 +3111,19 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .focus-visible\\:ring-offset-surface:focus-visible {
     --tw-ring-offset-color: var(--surface);
   }
+  .focus-visible\\:outline-2:focus-visible {
+    outline-style: var(--tw-outline-style);
+    outline-width: 2px;
+  }
+  .focus-visible\\:outline-offset-1:focus-visible {
+    outline-offset: 1px;
+  }
+  .focus-visible\\:outline-offset-2:focus-visible {
+    outline-offset: 2px;
+  }
+  .focus-visible\\:outline-accent:focus-visible {
+    outline-color: var(--accent);
+  }
   .focus-visible\\:outline-none:focus-visible {
     --tw-outline-style: none;
     outline-style: none;
@@ -3077,12 +3194,23 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-shadow: 0 0 #0000;
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
+  @media (prefers-reduced-motion: no-preference) {
+    .motion-safe\\:animate-spin {
+      animation: var(--animate-spin);
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .motion-reduce\\:transform-none {
       transform: none;
     }
+    .motion-reduce\\:\\[animation\\:none\\] {
+      animation: none;
+    }
     .motion-reduce\\:animate-none {
       animation: none;
+    }
+    .motion-reduce\\:\\[filter\\:none\\] {
+      filter: none;
     }
     .motion-reduce\\:transition-none {
       transition-property: none;
@@ -3094,6 +3222,9 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     }
     .sm\\:inline {
       display: inline;
+    }
+    .sm\\:flex-none {
+      flex: none;
     }
     .sm\\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3116,8 +3247,17 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     .sm\\:gap-x-8 {
       column-gap: calc(var(--spacing) * 8);
     }
+    .sm\\:p-5 {
+      padding: calc(var(--spacing) * 5);
+    }
+    .sm\\:p-6 {
+      padding: calc(var(--spacing) * 6);
+    }
     .sm\\:p-10 {
       padding: calc(var(--spacing) * 10);
+    }
+    .sm\\:px-4 {
+      padding-inline: calc(var(--spacing) * 4);
     }
     .sm\\:text-\\[40px\\] {
       font-size: 40px;
@@ -3451,6 +3591,11 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   syntax: "*";
   inherits: false;
 }
+@property --tw-outline-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -3525,6 +3670,7 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
       --tw-backdrop-sepia: initial;
       --tw-duration: initial;
       --tw-ease: initial;
+      --tw-outline-style: solid;
     }
   }
 }
@@ -3579,34 +3725,41 @@ a:focus-visible .animated-underline:after,a:hover .animated-underline:after{tran
 /* ── Records table & insight chart (verbatim from globals.css) ───────── */
 /* ── Records table ─────────────────────────────────────── */
 .records-shell{border:1px solid var(--line);background:var(--surface);border-radius:10px;width:100%;min-width:0;overflow:hidden;box-shadow:var(--shadow-card)}
-.records-add-calculation,.records-company-header,.records-link,.records-strength{align-items:center;display:inline-flex}
+.records-selection-bar{min-height:44px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,var(--surface));color:var(--accent-ink);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 10px 6px 14px;font-size:12px}
+.records-selection-bar strong{font-variant-numeric:tabular-nums;font-weight:700}
+.records-clear-selection{min-height:32px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));border-radius:var(--radius-control);background:var(--surface);color:var(--accent-ink);padding:0 10px;font-size:11.5px;font-weight:600;transition:background-color .12s ease-out,color .12s ease-out,border-color .12s ease-out}
+.records-clear-selection:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--hover)}
+.records-clear-selection:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.records-add-calculation,.records-company-header,.records-link,.records-strength,.records-summary-label{align-items:center;display:inline-flex}
 .records-add-calculation:active{transform:scale(.96)}
-.records-scroll{overscroll-behavior:none;scrollbar-color:var(--line-strong) transparent;scrollbar-gutter:stable;max-height:438px;overflow:auto}
+.records-scroll{overscroll-behavior:none;scrollbar-color:var(--line-strong) transparent;scrollbar-gutter:stable;max-height:438px;overflow:auto;background:var(--surface)}
 .records-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.records-table{border-collapse:separate;border-spacing:0;width:100%;min-width:990px;color:var(--ink);table-layout:fixed;font-size:12px}
-.records-company-col{width:270px}
+.records-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1040px;color:var(--ink);table-layout:fixed;font-size:12px}
+.records-company-col{width:292px}
 .records-category-col{width:275px}
 .records-last-col{width:190px}
-.records-strength-col{width:210px}
+.records-strength-col{width:208px}
 .records-link-col{width:175px}
 .records-table td,.records-table th{border-right:1px solid var(--line)}
 .records-table td,.records-table th{border-bottom:1px solid var(--line)}
 .records-table td,.records-table th{text-align:left;vertical-align:middle}
 .records-table tr>:last-child{border-right:0}
-.records-table thead th{z-index:5;background:var(--surface);height:42px;color:var(--ink-2);font-size:12px;font-weight:600;position:sticky;top:0}
+.records-table thead th{z-index:5;background:var(--surface);height:44px;color:var(--ink-2);font-size:12px;font-weight:600;position:sticky;top:0}
 .records-header-cell{padding:0}
 .records-header-cell.records-sticky-cell{z-index:7}
-.records-company-header,.records-header-button{gap:8px;width:100%;height:42px;padding:0 12px}
-.records-company-header{padding-left:6px}
-.records-header-button{color:var(--ink-2);text-align:left;align-items:center;transition:background-color .12s ease-out,color .12s ease-out;display:flex}
+.records-company-header,.records-header-button{gap:8px;width:100%;height:44px;padding:0 12px}
+.records-company-header{padding-left:4px}
+.records-header-button{color:var(--ink-2);text-align:left;align-items:center;transition:background-color .12s ease-out,color .12s ease-out,box-shadow .12s ease-out;display:flex}
 .records-header-button:hover{background:var(--hover);color:var(--ink)}
+.records-header-button:focus-visible{outline:0;box-shadow:inset 0 0 0 2px var(--accent);color:var(--ink)}
+.records-header-static:hover{background:transparent;color:var(--ink-2)}
 .records-header-icon{color:var(--ink-3);flex-shrink:0;display:inline-flex}
 .records-sort{opacity:0;transition:opacity .12s ease-out,transform .16s var(--ease-out-strong);flex-shrink:0;margin-left:auto;display:inline-flex}
 .records-header-button:hover .records-sort,.records-sort.is-visible{opacity:1}
 .records-company-header{display:flex}
 .records-company-header>span:not(.records-checkbox-box){white-space:nowrap}
 .records-company-header:hover .records-add-field{opacity:1}
-.records-checkbox{border-radius:var(--radius-chip);flex:0 0 24px;justify-content:center;align-items:center;width:24px;height:24px;display:inline-flex;position:relative}
+.records-checkbox{border-radius:var(--radius-control);flex:0 0 44px;justify-content:center;align-items:center;width:44px;height:44px;display:inline-flex;position:relative;cursor:pointer}
 .records-checkbox input{opacity:0;width:1px;height:1px;position:absolute}
 .records-checkbox-box{color:#4d555e;width:18px;height:18px;transition:border-color .14s ease-out,background-color .14s ease-out,box-shadow .14s ease-out,transform .14s var(--ease-out-strong);background:#fff;border:1px solid #c7cdd3;border-radius:6px;justify-content:center;align-items:center;display:inline-flex}
 .records-checkbox:hover .records-checkbox-box{background:#f2f4f5;border-color:#aeb6bf}
@@ -3618,19 +3771,20 @@ a:focus-visible .animated-underline:after,a:hover .animated-underline:after{tran
 :host-context(.dark) .records-checkbox:hover .records-checkbox-box{background:#3f464e;border-color:#626a74}
 :host-context(.dark) .records-checkbox-box.is-active{border-color:var(--accent);color:#fff;background:var(--accent)}
 :host-context(.dark) .records-checkbox-dash{background:#e0e4e8}
-.records-cell{white-space:nowrap;text-overflow:ellipsis;height:42px;padding:0 12px;overflow:hidden}
-.records-sticky-cell{z-index:2;background:var(--surface);position:sticky;left:0;box-shadow:5px 0 8px -10px #0006}
-.records-company-cell{align-items:center;gap:4px;padding-left:6px;display:flex;overflow:visible}
-.records-row>.records-cell{transition:background-color .12s ease-out,color .12s ease-out}
+.records-cell{white-space:nowrap;text-overflow:ellipsis;height:44px;padding:0 12px;overflow:hidden}
+.records-sticky-cell{z-index:2;background:var(--surface);position:sticky;left:0;box-shadow:8px 0 12px -12px #0009}
+.records-company-cell{align-items:center;gap:3px;padding-left:0;display:flex;overflow:visible}
+.records-row>.records-cell{transition:background-color .12s ease-out,color .12s ease-out,box-shadow .12s ease-out}
 .records-row:hover>.records-cell{background:var(--hover)}
-.records-row.is-selected>.records-cell{background:var(--accent-tint)}
+.records-row.is-selected>.records-cell{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.records-row.is-selected>.records-sticky-cell{box-shadow:inset 3px 0 var(--accent),8px 0 12px -12px #0009}
 .records-row.is-selected>.records-cell .records-company-name,.records-row.is-selected>.records-cell .records-link{color:var(--accent-ink)}
 .records-company-mark{width:20px;height:20px;color:var(--ink-2);background:var(--field);border:0;border-radius:6px;flex:0 0 20px;justify-content:center;align-items:center;font-size:10px;font-weight:650;display:inline-flex}
 .records-company-name{min-width:0;color:var(--ink);text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:500;overflow:hidden}
 .records-company-name.has-link:focus-visible,.records-company-name.has-link:hover{color:var(--accent-ink);text-underline-offset:3px;text-decoration:underline}
 .records-tags{gap:4px;min-width:0;display:flex}
 .records-tag,.records-tags{align-items:center;overflow:hidden}
-.records-tag{cursor:pointer;border:1px solid color-mix(in srgb, var(--tag-color) 38%, transparent);flex-shrink:0;max-width:115px;height:23px;display:inline-flex}
+.records-tag{cursor:default;border:1px solid color-mix(in srgb, var(--tag-color) 38%, transparent);flex-shrink:0;max-width:115px;height:23px;display:inline-flex}
 .records-tag{color:var(--tag-color);border-radius:6px;padding:0 7px}
 .records-tag{background:color-mix(in srgb, var(--tag-color) 13%, transparent)}
 .records-tag{text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:500}
@@ -3649,6 +3803,7 @@ a:focus-visible .animated-underline:after,a:hover .animated-underline:after{tran
 .records-calculation-number{color:var(--ink);font-variant-numeric:tabular-nums;margin-right:3px}
 .records-add-calculation{color:var(--ink-3);transition:color .12s ease-out,transform .14s var(--ease-out-strong);gap:6px}
 .records-add-calculation:hover{color:var(--ink)}
+.records-summary-label{color:var(--ink-3);gap:6px}
 .records-average{color:var(--ink-2);align-items:center;gap:7px;display:inline-flex}
 .records-calculation-row-secondary td{background:var(--inset);position:sticky;bottom:38px}
 .records-calculation-row-secondary .records-sticky-cell{background:var(--inset);position:sticky}

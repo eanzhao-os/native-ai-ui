@@ -17,7 +17,7 @@ export function Shimmer({
 }) {
   return (
     <span
-      className={`bg-clip-text text-transparent ${className}`}
+      className={`shimmer-label bg-clip-text text-transparent ${className}`}
       style={{
         backgroundImage:
           "linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%)",

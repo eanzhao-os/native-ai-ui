@@ -1602,6 +1602,270 @@ const TASK9_CASES = [
 ];
 /* TASK 9 VISUAL ACTIONS END */
 
+/* TASK 10 VISUAL ACTIONS START */
+async function focusTask10Control({ canvas, page }, control, label) {
+  await control.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error(`${label} did not receive visible keyboard focus`);
+  }
+}
+
+async function chooseArtifactViewport({ canvas }, name) {
+  const control = canvas.getByRole("button", { name });
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error(`${name} preview did not become active`);
+  }
+}
+
+async function openArtifactCode({ canvas }) {
+  const control = canvas.getByRole("tab", { name: /^(Code|代码)$/ });
+  await control.click();
+  if ((await control.getAttribute("aria-selected")) !== "true") {
+    throw new Error("Artifact Code tab did not become selected");
+  }
+  await canvas.getByRole("region", { name: /Source code|源代码/ }).waitFor();
+}
+
+async function copyArtifactCode({ canvas, page }) {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await canvas.getByRole("button", { name: /^(Copy|复制)$/ }).click();
+  await canvas.getByText(/^(Copied|已复制)$/).waitFor();
+}
+
+async function focusArtifactCode(args) {
+  const control = args.canvas.getByRole("tab", { name: /^(Code|代码)$/ });
+  await control.click();
+  await focusTask10Control(args, control, "Artifact Code tab");
+}
+
+async function selectPartialDiff({ canvas }) {
+  const control = canvas.getByRole("checkbox", {
+    name: /Select removal Rocky Road|选择移除 石板街/,
+  });
+  await control.locator("..").click();
+  if (await control.isChecked()) {
+    throw new Error("Diff removal remained selected");
+  }
+  await canvas.getByText(/2 of 3 changes selected|已选择 2\/3 项变更/).waitFor();
+}
+
+async function applyPartialDiff(args) {
+  await selectPartialDiff(args);
+  const control = args.canvas.getByRole("button", {
+    name: /Apply 2 changes|应用 2 项变更/,
+  });
+  await control.click();
+  await args.canvas.getByText(/Applied 2 changes|已应用 2 项变更/).waitFor();
+}
+
+async function focusDiffApply(args) {
+  await focusTask10Control(
+    args,
+    args.canvas.getByRole("button", {
+      name: /Apply 3 changes|应用 3 项变更/,
+    }),
+    "Diff apply control",
+  );
+}
+
+async function selectFirstRecord({ canvas }) {
+  const control = canvas.getByRole("checkbox", {
+    name: /Select Aurora Scoops|选择 Aurora Scoops/,
+  });
+  await control.locator("..").click();
+  if (!(await control.isChecked())) {
+    throw new Error("Record did not become selected");
+  }
+  await canvas.getByRole("toolbar", {
+    name: /Selected company actions|已选公司操作/,
+  }).waitFor();
+}
+
+async function selectAllRecords({ canvas }) {
+  const control = canvas.getByRole("checkbox", {
+    name: /Select all companies|全选公司/,
+  });
+  await control.locator("..").click();
+  if (!(await control.isChecked())) {
+    throw new Error("Records select-all did not become checked");
+  }
+  await canvas.getByText(/26 companies selected|26 家公司已选择/).waitFor();
+}
+
+async function sortRecordsByInteraction({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Last interaction|最近互动/,
+  });
+  await control.click();
+  const header = control.locator("..");
+  if ((await header.getAttribute("aria-sort")) !== "ascending") {
+    throw new Error("Records interaction sort did not become ascending");
+  }
+}
+
+async function scrollRecordsTable({ canvas, page }) {
+  const region = canvas.getByRole("region", {
+    name: /Companies table|公司表格/,
+  });
+  await region.hover();
+  await page.mouse.wheel(900, 900);
+}
+
+async function focusRecordsTable(args) {
+  await focusTask10Control(
+    args,
+    args.canvas.getByRole("region", {
+      name: /Companies table|公司表格/,
+    }),
+    "Records table",
+  );
+}
+
+async function selectTaskFilter({ canvas }, name) {
+  const control = canvas.getByRole("button", { name });
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Task filter did not become selected");
+  }
+}
+
+async function scrollFilterTable({ canvas, page }) {
+  const region = canvas.getByRole("region", {
+    name: /Scrollable task table|可横向滚动的任务表格/,
+  });
+  await region.hover();
+  await page.mouse.wheel(800, 0);
+}
+
+async function focusTaskFilter(args) {
+  await focusTask10Control(
+    args,
+    args.canvas.getByRole("button", {
+      name: /^(In Progress|进行中)\s*2$/,
+    }),
+    "Task filter",
+  );
+}
+
+async function expandSelectionToolbar({ canvas }) {
+  await canvas.getByRole("button", {
+    name: /Show more actions|展开更多操作/,
+  }).click();
+  const control = canvas.getByRole("button", {
+    name: /Show fewer actions|收起更多操作/,
+  });
+  if ((await control.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Selection toolbar did not expand");
+  }
+}
+
+async function promptSelectionToolbar({ canvas }) {
+  const input = canvas.getByRole("textbox", {
+    name: /Describe edits|描述修改要求/,
+  });
+  const label = await input.getAttribute("aria-label");
+  const value = label === "描述修改要求" ? "改得更直接" : "Make it more direct";
+  await input.fill(value);
+  if ((await input.inputValue()) !== value) {
+    throw new Error("Selection edit prompt did not retain its value");
+  }
+}
+
+async function startSelectionRewrite({ canvas }) {
+  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  await canvas.getByText(/Improving|优化/).waitFor();
+}
+
+async function streamSelectionRewrite({ advance, canvas }) {
+  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  await advance(760);
+  await canvas.getByText(/Improving|优化/).waitFor();
+}
+
+async function finishSelectionRewrite({ advance, canvas }) {
+  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  await advance(3200);
+  await canvas.getByRole("button", { name: /^(Keep|保留)$/ }).waitFor();
+}
+
+async function keepSelectionRewrite(args) {
+  await finishSelectionRewrite(args);
+  await args.canvas.getByRole("button", { name: /^(Keep|保留)$/ }).click();
+  await args.canvas.getByText(/Changes kept|已保留修改/).waitFor();
+}
+
+async function focusSelectionImprove(args) {
+  await focusTask10Control(
+    args,
+    args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }),
+    "Selection Improve control",
+  );
+}
+
+const TASK10_CASES = [
+  [
+    "artifact-sandbox",
+    [
+      { name: "preview", advanceMs: 0 },
+      { name: "tablet", advanceMs: 0, action: (args) => chooseArtifactViewport(args, /Tablet|平板端/) },
+      { name: "mobile", advanceMs: 0, action: (args) => chooseArtifactViewport(args, /Mobile|移动端/) },
+      { name: "code", advanceMs: 0, action: openArtifactCode },
+      { name: "copied", advanceMs: 0, action: copyArtifactCode },
+      { name: "focused", advanceMs: 0, action: focusArtifactCode },
+    ],
+  ],
+  [
+    "diff-table",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "removals", advanceMs: 1800 },
+      { name: "completed", advanceMs: 2800 },
+      { name: "partial-selected", advanceMs: 2800, action: selectPartialDiff },
+      { name: "applied", advanceMs: 2800, action: applyPartialDiff },
+      { name: "focused", advanceMs: 2800, action: focusDiffApply },
+    ],
+  ],
+  [
+    "records-table",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "selected", advanceMs: 0, action: selectFirstRecord },
+      { name: "all-selected", advanceMs: 0, action: selectAllRecords },
+      { name: "sorted", advanceMs: 0, action: sortRecordsByInteraction },
+      { name: "scrolled", advanceMs: 0, action: scrollRecordsTable },
+      { name: "focused", advanceMs: 0, action: focusRecordsTable },
+    ],
+  ],
+  [
+    "filter-table",
+    [
+      { name: "all", advanceMs: 0 },
+      { name: "todo", advanceMs: 0, action: (args) => selectTaskFilter(args, /^(To do|待办)\s*2$/) },
+      { name: "progress", advanceMs: 0, action: (args) => selectTaskFilter(args, /^(In Progress|进行中)\s*2$/) },
+      { name: "completed", advanceMs: 0, action: (args) => selectTaskFilter(args, /^(Completed|已完成)\s*1$/) },
+      { name: "scrolled", advanceMs: 0, action: scrollFilterTable },
+      { name: "focused", advanceMs: 0, action: focusTaskFilter },
+    ],
+  ],
+  [
+    "selection-actions",
+    [
+      { name: "idle", advanceMs: 300 },
+      { name: "expanded", advanceMs: 300, action: expandSelectionToolbar },
+      { name: "prompted", advanceMs: 300, action: promptSelectionToolbar },
+      { name: "thinking", advanceMs: 300, action: startSelectionRewrite },
+      { name: "streaming", advanceMs: 300, action: streamSelectionRewrite },
+      { name: "result", advanceMs: 300, action: finishSelectionRewrite },
+      { name: "kept", advanceMs: 300, action: keepSelectionRewrite },
+      { name: "focused", advanceMs: 300, action: focusSelectionImprove },
+    ],
+  ],
+];
+/* TASK 10 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -1639,6 +1903,9 @@ export const CASES = new Map([
   /* TASK 9 VISUAL REGISTRATIONS START */
   ...TASK9_CASES,
   /* TASK 9 VISUAL REGISTRATIONS END */
+  /* TASK 10 VISUAL REGISTRATIONS START */
+  ...TASK10_CASES,
+  /* TASK 10 VISUAL REGISTRATIONS END */
   /* TASK 4 VISUAL REGISTRATIONS START */
   [
     "session-list",

@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /* ─────────────────────────────────────────────────────────
- * STREAM TEXT — word-by-word reveal with a trailing caret.
+ * STREAM TEXT — language-aware incremental reveal.
  *
- * Each word blurs in on arrival rather than popping, which
- * keeps a long line from flickering as it fills. onProgress
- * fires per word so callers can re-anchor anything tracking
- * the text; onDone fires once the last word lands.
+ * Latin words keep their trailing whitespace while CJK text
+ * advances in readable grapheme-sized units instead of
+ * appearing as one all-or-nothing token.
  * ───────────────────────────────────────────────────────── */
 
 const WORD_MS = 46;
+const STREAM_UNIT = /\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]+\s*|\s+/gu;
+
+function streamUnits(text: string) {
+  return text.match(STREAM_UNIT) ?? Array.from(text);
+}
 
 export function StreamText({
   text,
@@ -22,45 +26,57 @@ export function StreamText({
   onProgress?: () => void;
   onDone?: () => void;
 }) {
-  const words = text.split(" ");
-  const [count, setCount] = useState(0);
-  const done = count >= words.length;
+  const units = useMemo(() => streamUnits(text), [text]);
+  const [stream, setStream] = useState({ text, count: 0 });
+  const doneTextRef = useRef<string | null>(null);
+  const current = stream.text === text;
+  const count = current ? stream.count : 0;
+  const done = current && count >= units.length;
 
   useEffect(() => {
-    setCount(0);
-  }, [text]);
+    doneTextRef.current = null;
+    setStream({ text, count: 0 });
+    if (units.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      setStream((value) => {
+        if (value.text !== text || value.count >= units.length) return value;
+        const next = value.count + 1;
+        if (next >= units.length) window.clearInterval(timer);
+        return { ...value, count: next };
+      });
+    }, WORD_MS);
+    return () => window.clearInterval(timer);
+  }, [text, units.length]);
 
   useEffect(() => {
-    if (done) {
+    if (done && doneTextRef.current !== text) {
+      doneTextRef.current = text;
       onDone?.();
-      return;
     }
-    const t = setTimeout(() => setCount((c) => c + 1), WORD_MS);
-    return () => clearTimeout(t);
-    // onDone is intentionally uncontrolled — callers pass inline closures.
+    // Callers intentionally pass inline progress/done closures.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, done]);
+  }, [done, text]);
 
   useEffect(() => {
-    onProgress?.();
+    if (current) onProgress?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count]);
+  }, [count, current]);
 
   return (
     <>
-      {words.slice(0, count).map((word, i) => (
+      {units.slice(0, count).map((unit, index) => (
         <span
-          key={i}
-          className="inline [will-change:filter,opacity]"
+          key={`${index}-${unit}`}
+          className="inline [will-change:filter,opacity] motion-reduce:[animation:none] motion-reduce:[filter:none]"
           style={{
             animation: "stream-in 420ms cubic-bezier(0.22,0.61,0.25,1) both",
           }}
         >
-          {word}
-          {i < words.length - 1 ? " " : ""}
+          {unit}
         </span>
       ))}
-      {!done && <span className="stream-caret is-streaming" aria-hidden />}
+      {!done && <span className="stream-caret is-streaming" aria-hidden="true" />}
     </>
   );
 }

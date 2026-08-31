@@ -154,6 +154,7 @@ body {
     transition-duration:.01ms !important;
   }
   .pixel-grid > span{animation:none !important}
+  .shimmer-label{animation:none !important;background-image:none !important;color:var(--ink-2) !important}
 }
 
 /* ── Primitive card chrome ───────────────────────────────
@@ -177,34 +178,41 @@ a:focus-visible .animated-underline:after,a:hover .animated-underline:after{tran
 
 /* ── Records table ─────────────────────────────────────── */
 .records-shell{border:1px solid var(--line);background:var(--surface);border-radius:10px;width:100%;min-width:0;overflow:hidden;box-shadow:var(--shadow-card)}
-.records-add-calculation,.records-company-header,.records-link,.records-strength{align-items:center;display:inline-flex}
+.records-selection-bar{min-height:44px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,var(--surface));color:var(--accent-ink);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 10px 6px 14px;font-size:12px}
+.records-selection-bar strong{font-variant-numeric:tabular-nums;font-weight:700}
+.records-clear-selection{min-height:32px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));border-radius:var(--radius-control);background:var(--surface);color:var(--accent-ink);padding:0 10px;font-size:11.5px;font-weight:600;transition:background-color .12s ease-out,color .12s ease-out,border-color .12s ease-out}
+.records-clear-selection:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--hover)}
+.records-clear-selection:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.records-add-calculation,.records-company-header,.records-link,.records-strength,.records-summary-label{align-items:center;display:inline-flex}
 .records-add-calculation:active{transform:scale(.96)}
-.records-scroll{overscroll-behavior:none;scrollbar-color:var(--line-strong) transparent;scrollbar-gutter:stable;max-height:438px;overflow:auto}
+.records-scroll{overscroll-behavior:none;scrollbar-color:var(--line-strong) transparent;scrollbar-gutter:stable;max-height:438px;overflow:auto;background:var(--surface)}
 .records-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.records-table{border-collapse:separate;border-spacing:0;width:100%;min-width:990px;color:var(--ink);table-layout:fixed;font-size:12px}
-.records-company-col{width:270px}
+.records-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1040px;color:var(--ink);table-layout:fixed;font-size:12px}
+.records-company-col{width:292px}
 .records-category-col{width:275px}
 .records-last-col{width:190px}
-.records-strength-col{width:210px}
+.records-strength-col{width:208px}
 .records-link-col{width:175px}
 .records-table td,.records-table th{border-right:1px solid var(--line)}
 .records-table td,.records-table th{border-bottom:1px solid var(--line)}
 .records-table td,.records-table th{text-align:left;vertical-align:middle}
 .records-table tr>:last-child{border-right:0}
-.records-table thead th{z-index:5;background:var(--surface);height:42px;color:var(--ink-2);font-size:12px;font-weight:600;position:sticky;top:0}
+.records-table thead th{z-index:5;background:var(--surface);height:44px;color:var(--ink-2);font-size:12px;font-weight:600;position:sticky;top:0}
 .records-header-cell{padding:0}
 .records-header-cell.records-sticky-cell{z-index:7}
-.records-company-header,.records-header-button{gap:8px;width:100%;height:42px;padding:0 12px}
-.records-company-header{padding-left:6px}
-.records-header-button{color:var(--ink-2);text-align:left;align-items:center;transition:background-color .12s ease-out,color .12s ease-out;display:flex}
+.records-company-header,.records-header-button{gap:8px;width:100%;height:44px;padding:0 12px}
+.records-company-header{padding-left:4px}
+.records-header-button{color:var(--ink-2);text-align:left;align-items:center;transition:background-color .12s ease-out,color .12s ease-out,box-shadow .12s ease-out;display:flex}
 .records-header-button:hover{background:var(--hover);color:var(--ink)}
+.records-header-button:focus-visible{outline:0;box-shadow:inset 0 0 0 2px var(--accent);color:var(--ink)}
+.records-header-static:hover{background:transparent;color:var(--ink-2)}
 .records-header-icon{color:var(--ink-3);flex-shrink:0;display:inline-flex}
 .records-sort{opacity:0;transition:opacity .12s ease-out,transform .16s var(--ease-out-strong);flex-shrink:0;margin-left:auto;display:inline-flex}
 .records-header-button:hover .records-sort,.records-sort.is-visible{opacity:1}
 .records-company-header{display:flex}
 .records-company-header>span:not(.records-checkbox-box){white-space:nowrap}
 .records-company-header:hover .records-add-field{opacity:1}
-.records-checkbox{border-radius:var(--radius-chip);flex:0 0 24px;justify-content:center;align-items:center;width:24px;height:24px;display:inline-flex;position:relative}
+.records-checkbox{border-radius:var(--radius-control);flex:0 0 44px;justify-content:center;align-items:center;width:44px;height:44px;display:inline-flex;position:relative;cursor:pointer}
 .records-checkbox input{opacity:0;width:1px;height:1px;position:absolute}
 .records-checkbox-box{color:#4d555e;width:18px;height:18px;transition:border-color .14s ease-out,background-color .14s ease-out,box-shadow .14s ease-out,transform .14s var(--ease-out-strong);background:#fff;border:1px solid #c7cdd3;border-radius:6px;justify-content:center;align-items:center;display:inline-flex}
 .records-checkbox:hover .records-checkbox-box{background:#f2f4f5;border-color:#aeb6bf}
@@ -216,19 +224,20 @@ a:focus-visible .animated-underline:after,a:hover .animated-underline:after{tran
 .dark .records-checkbox:hover .records-checkbox-box{background:#3f464e;border-color:#626a74}
 .dark .records-checkbox-box.is-active{border-color:var(--accent);color:#fff;background:var(--accent)}
 .dark .records-checkbox-dash{background:#e0e4e8}
-.records-cell{white-space:nowrap;text-overflow:ellipsis;height:42px;padding:0 12px;overflow:hidden}
-.records-sticky-cell{z-index:2;background:var(--surface);position:sticky;left:0;box-shadow:5px 0 8px -10px #0006}
-.records-company-cell{align-items:center;gap:4px;padding-left:6px;display:flex;overflow:visible}
-.records-row>.records-cell{transition:background-color .12s ease-out,color .12s ease-out}
+.records-cell{white-space:nowrap;text-overflow:ellipsis;height:44px;padding:0 12px;overflow:hidden}
+.records-sticky-cell{z-index:2;background:var(--surface);position:sticky;left:0;box-shadow:8px 0 12px -12px #0009}
+.records-company-cell{align-items:center;gap:3px;padding-left:0;display:flex;overflow:visible}
+.records-row>.records-cell{transition:background-color .12s ease-out,color .12s ease-out,box-shadow .12s ease-out}
 .records-row:hover>.records-cell{background:var(--hover)}
-.records-row.is-selected>.records-cell{background:var(--accent-tint)}
+.records-row.is-selected>.records-cell{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.records-row.is-selected>.records-sticky-cell{box-shadow:inset 3px 0 var(--accent),8px 0 12px -12px #0009}
 .records-row.is-selected>.records-cell .records-company-name,.records-row.is-selected>.records-cell .records-link{color:var(--accent-ink)}
 .records-company-mark{width:20px;height:20px;color:var(--ink-2);background:var(--field);border:0;border-radius:6px;flex:0 0 20px;justify-content:center;align-items:center;font-size:10px;font-weight:650;display:inline-flex}
 .records-company-name{min-width:0;color:var(--ink);text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:500;overflow:hidden}
 .records-company-name.has-link:focus-visible,.records-company-name.has-link:hover{color:var(--accent-ink);text-underline-offset:3px;text-decoration:underline}
 .records-tags{gap:4px;min-width:0;display:flex}
 .records-tag,.records-tags{align-items:center;overflow:hidden}
-.records-tag{cursor:pointer;border:1px solid color-mix(in srgb, var(--tag-color) 38%, transparent);flex-shrink:0;max-width:115px;height:23px;display:inline-flex}
+.records-tag{cursor:default;border:1px solid color-mix(in srgb, var(--tag-color) 38%, transparent);flex-shrink:0;max-width:115px;height:23px;display:inline-flex}
 .records-tag{color:var(--tag-color);border-radius:6px;padding:0 7px}
 .records-tag{background:color-mix(in srgb, var(--tag-color) 13%, transparent)}
 .records-tag{text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:500}
@@ -247,6 +256,7 @@ a:focus-visible .animated-underline:after,a:hover .animated-underline:after{tran
 .records-calculation-number{color:var(--ink);font-variant-numeric:tabular-nums;margin-right:3px}
 .records-add-calculation{color:var(--ink-3);transition:color .12s ease-out,transform .14s var(--ease-out-strong);gap:6px}
 .records-add-calculation:hover{color:var(--ink)}
+.records-summary-label{color:var(--ink-3);gap:6px}
 .records-average{color:var(--ink-2);align-items:center;gap:7px;display:inline-flex}
 .records-calculation-row-secondary td{background:var(--inset);position:sticky;bottom:38px}
 .records-calculation-row-secondary .records-sticky-cell{background:var(--inset);position:sticky}

@@ -39,7 +39,7 @@ describe("clipboard components", () => {
     useClipboard(writeText);
     render(<ArtifactSandbox />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Code" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Code" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy" }));
 
     await waitFor(() =>

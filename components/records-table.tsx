@@ -45,6 +45,22 @@ type Row = {
   website?: string;
 };
 
+const INTERACTION_AGE_DAYS: Record<string, number> = {
+  "9 days ago": 9,
+  "15 days ago": 15,
+  "about 1 month ago": 30,
+  "2 months ago": 60,
+  "3 months ago": 90,
+  "5 months ago": 150,
+  "8 months ago": 240,
+  "12 months ago": 365,
+  "over 1 year ago": 420,
+  "almost 2 years ago": 680,
+  "about 2 years ago": 730,
+  "over 2 years ago": 800,
+  "No contact": Number.POSITIVE_INFINITY,
+};
+
 const INITIAL_ROWS: Row[] = [
   { id: "aurora", name: "Aurora Scoops — Reykjavík", tags: ["Gelato", "Seasonal"], lastEn: "9 days ago", lastZh: "9 天前", strength: "strong", website: "aurora-scoops.example.com" },
   { id: "kumo", name: "Kumo Creamery — Tokyo", tags: ["B2C", "Cafe", "Vegan"], lastEn: "3 weeks ago", lastZh: "3 周前", strength: "strong", website: "kumo-creamery.example.com" },
@@ -85,7 +101,7 @@ function Icon({ children, size = 14, strokeWidth = 1.8 }: { children: React.Reac
 function Checkbox({ checked, mixed = false, onChange, label }: { checked: boolean; mixed?: boolean; onChange: () => void; label: string }) {
   return (
     <label className="records-checkbox" title={label}>
-      <input type="checkbox" checked={checked} onChange={onChange} aria-label={label} />
+      <input type="checkbox" checked={checked} aria-checked={mixed ? "mixed" : checked} onChange={onChange} aria-label={label} />
       <span className={`records-checkbox-box ${checked || mixed ? "is-active" : ""}`}>
         {mixed ? <span className="records-checkbox-dash" /> : checked ? <Icon size={12}><path d="m5 12 4 4L19 6" /></Icon> : null}
       </span>
@@ -104,13 +120,33 @@ function Tag({ name }: { name: string }) {
 }
 
 function HeaderCell({ label, icon, sortKey, sort, onSort, className = "" }: { label: string; icon: React.ReactNode; sortKey?: SortKey; sort: { key: SortKey; dir: 1 | -1 }; onSort: (key: SortKey) => void; className?: string }) {
+  const active = sortKey !== undefined && sort.key === sortKey;
   return (
-    <th className={`records-header-cell ${className}`}>
-      <button type="button" className="records-header-button" onClick={sortKey ? () => onSort(sortKey) : undefined}>
-        <span className="records-header-icon">{icon}</span>
-        <span className="truncate">{label}</span>
-        {sortKey && <span className={`records-sort ${sort.key === sortKey ? "is-visible" : ""}`} style={{ transform: sort.key === sortKey && sort.dir === -1 ? "rotate(180deg)" : undefined }}><Icon size={12}><path d="M12 5v14M5 12l7 7 7-7" /></Icon></span>}
-      </button>
+    <th
+      className={`records-header-cell ${className}`}
+      aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : sortKey ? "none" : undefined}
+    >
+      {sortKey ? (
+        <button
+          type="button"
+          className="records-header-button"
+          onClick={() => onSort(sortKey)}
+        >
+          <span className="records-header-icon">{icon}</span>
+          <span className="truncate">{label}</span>
+          <span
+            className={`records-sort ${active ? "is-visible" : ""}`}
+            style={{ transform: active && sort.dir === -1 ? "rotate(180deg)" : undefined }}
+          >
+            <Icon size={12}><path d="M12 5v14M5 12l7 7 7-7" /></Icon>
+          </span>
+        </button>
+      ) : (
+        <div className="records-header-button records-header-static">
+          <span className="records-header-icon">{icon}</span>
+          <span className="truncate">{label}</span>
+        </div>
+      )}
     </th>
   );
 }
@@ -127,7 +163,7 @@ export default function RecordsTable({ lang: propLang }: { lang?: "en" | "zh" })
       const value = sort.key === "name"
         ? a.name.localeCompare(b.name)
         : sort.key === "last"
-          ? a.lastEn.localeCompare(b.lastEn)
+          ? INTERACTION_AGE_DAYS[a.lastEn] - INTERACTION_AGE_DAYS[b.lastEn]
           : STRENGTH[a.strength].rank - STRENGTH[b.strength].rank;
       return value * sort.dir;
     });
@@ -153,12 +189,43 @@ export default function RecordsTable({ lang: propLang }: { lang?: "en" | "zh" })
 
   return (
     <div className="records-shell">
-      <div className="records-scroll" tabIndex={0} aria-label={zh ? "公司表格。横向与纵向滚动以查看所有列与记录。" : "Companies table. Scroll horizontally and vertically to view all columns and records."}>
+      {selected.size > 0 ? (
+        <div
+          role="toolbar"
+          aria-label={zh ? "已选公司操作" : "Selected company actions"}
+          className="records-selection-bar"
+        >
+          <span role="status" aria-live="polite" aria-atomic="true">
+            <strong>{selected.size}</strong>{" "}
+            {zh ? "家公司已选择" : selected.size === 1 ? "company selected" : "companies selected"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="records-clear-selection"
+          >
+            {zh ? "清除选择" : "Clear selection"}
+          </button>
+        </div>
+      ) : null}
+
+      <div
+        role="region"
+        className="records-scroll"
+        tabIndex={0}
+        aria-label={zh ? "公司表格。横向与纵向滚动以查看所有列与记录。" : "Companies table. Scroll horizontally and vertically to view all columns and records."}
+      >
         <table className="records-table">
+          <caption className="sr-only">{zh ? "公司联系记录" : "Company contact records"}</caption>
           <colgroup><col className="records-company-col" /><col className="records-category-col" /><col className="records-last-col" /><col className="records-strength-col" /><col className="records-link-col" /></colgroup>
           <thead>
             <tr>
-              <th className="records-header-cell records-sticky-cell"><div className="records-company-header"><Checkbox checked={allSelected} mixed={partiallySelected} onChange={toggleAll} label={zh ? "全选公司" : "Select all companies"} /><span>{zh ? "公司" : "Company"}</span></div></th>
+              <th className="records-header-cell records-sticky-cell">
+                <div className="records-company-header">
+                  <Checkbox checked={allSelected} mixed={partiallySelected} onChange={toggleAll} label={zh ? "全选公司" : "Select all companies"} />
+                  <span>{zh ? "公司" : "Company"}</span>
+                </div>
+              </th>
               <HeaderCell label={zh ? "分类" : "Categories"} sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d="m20.6 13.4-8.6 8.6-8-8V4h10l6.6 6.6a2 2 0 0 1 0 2.8zM7 7h.01" /></Icon>} />
               <HeaderCell label={zh ? "最近互动" : "Last interaction"} sortKey="last" sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d="M3 5h18M3 12h12M3 19h7M18 15v6m-3-3h6" /></Icon>} />
               <HeaderCell label={zh ? "联系强度" : "Connection strength"} sortKey="strength" sort={sort} onSort={toggleSort} icon={<Icon size={15}><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.9z" /></Icon>} />
@@ -169,17 +236,33 @@ export default function RecordsTable({ lang: propLang }: { lang?: "en" | "zh" })
             {visibleRows.map((row) => {
               const selectedRow = selected.has(row.id);
               const strength = STRENGTH[row.strength];
-              return <tr key={row.id} className={`records-row ${selectedRow ? "is-selected" : ""}`}>
-                <td className="records-cell records-sticky-cell records-company-cell"><Checkbox checked={selectedRow} onChange={() => toggleRow(row.id)} label={zh ? `选择 ${row.name}` : `Select ${row.name}`} /><span className="records-company-mark">{row.name.slice(0, 1).toUpperCase()}</span><a href={row.website ? `https://${row.website}` : "#"} onClick={(event) => !row.website && event.preventDefault()} className={`records-company-name ${row.website ? "has-link" : ""}`}>{row.name}</a></td>
-                <td className="records-cell"><div className="records-tags">{row.tags.slice(0, 4).map((tag) => <Tag key={tag} name={tag} />)}{row.tags.length > 4 ? <span className="records-more-tag">+{row.tags.length - 4}</span> : null}</div></td>
-                <td className={`records-cell ${row.lastEn === "No contact" ? "records-muted" : ""}`}>{zh ? row.lastZh : row.lastEn}</td>
-                <td className="records-cell"><span className="records-strength"><span className="records-strength-dot" style={{ background: strength.color }} />{zh ? strength.labelZh : strength.labelEn}</span></td>
-                <td className="records-cell">{row.website ? <a className="records-link" href={`https://${row.website}`} target="_blank" rel="noreferrer">{row.website}<Icon size={12}><path d="M14 5h5v5M19 5l-8 8" /></Icon></a> : <span className="records-muted">—</span>}</td>
-              </tr>;
+              return (
+                <tr key={row.id} aria-selected={selectedRow} className={`records-row ${selectedRow ? "is-selected" : ""}`}>
+                  <td className="records-cell records-sticky-cell records-company-cell">
+                    <Checkbox checked={selectedRow} onChange={() => toggleRow(row.id)} label={zh ? `选择 ${row.name}` : `Select ${row.name}`} />
+                    <span className="records-company-mark">{row.name.slice(0, 1).toUpperCase()}</span>
+                    {row.website ? (
+                      <a href={`https://${row.website}`} className="records-company-name has-link" title={row.name}>{row.name}</a>
+                    ) : (
+                      <span className="records-company-name" title={row.name}>{row.name}</span>
+                    )}
+                  </td>
+                  <td className="records-cell"><div className="records-tags">{row.tags.slice(0, 4).map((tag) => <Tag key={tag} name={tag} />)}{row.tags.length > 4 ? <span className="records-more-tag">+{row.tags.length - 4}</span> : null}</div></td>
+                  <td className={`records-cell ${row.lastEn === "No contact" ? "records-muted" : ""}`} title={zh ? row.lastZh : row.lastEn}>{zh ? row.lastZh : row.lastEn}</td>
+                  <td className="records-cell"><span className="records-strength"><span className="records-strength-dot" style={{ background: strength.color }} />{zh ? strength.labelZh : strength.labelEn}</span></td>
+                  <td className="records-cell">{row.website ? <a className="records-link" href={`https://${row.website}`} target="_blank" rel="noreferrer" title={row.website}>{row.website}<Icon size={12}><path d="M14 5h5v5M19 5l-8 8" /></Icon></a> : <span className="records-muted">—</span>}</td>
+                </tr>
+              );
             })}
           </tbody>
           <tfoot>
-            <tr className="records-calculation-row"><td className="records-cell records-sticky-cell records-calculation-label"><span className="records-calculation-number">{rows.length}</span> {zh ? "条记录" : "count"}</td><td className="records-cell"><button type="button" className="records-add-calculation"><Icon size={14}><path d="M12 5v14M5 12h14" /></Icon>{zh ? "添加计算" : "Add calculation"}</button></td><td className="records-cell records-muted">—</td><td className="records-cell"><span className="records-average"><span className="records-strength-dot" style={{ background: "var(--orange)" }} />{zh ? `平均 ${averagePct}%` : `${averagePct}% average`}</span></td><td className="records-cell"><span className="records-muted">{rows.filter((row) => row.website).length} {zh ? "个链接" : "links"}</span></td></tr>
+            <tr className="records-calculation-row">
+              <td className="records-cell records-sticky-cell records-calculation-label"><span className="records-calculation-number">{rows.length}</span> {zh ? "条记录" : "records"}</td>
+              <td className="records-cell"><span className="records-summary-label"><Icon size={14}><path d="M4 18V9m6 9V5m6 13v-7m4 7H2" /></Icon>{zh ? "汇总" : "Summary"}</span></td>
+              <td className="records-cell records-muted">—</td>
+              <td className="records-cell"><span className="records-average"><span className="records-strength-dot" style={{ background: "var(--orange)" }} />{zh ? `平均 ${averagePct}%` : `${averagePct}% average`}</span></td>
+              <td className="records-cell"><span className="records-muted">{rows.filter((row) => row.website).length} {zh ? "个链接" : "links"}</span></td>
+            </tr>
           </tfoot>
         </table>
       </div>

@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
  * FILTER TABLE
- * Status chips directly filter the task table.
+ * Status chips directly filter a real task table.
  * ───────────────────────────────────────────────────────── */
 
 type Status = "todo" | "progress" | "done";
 
-const FILTERS: { key: "all" | Status; labelEn: string; labelZh: string; dot?: string; count: number }[] = [
-  { key: "all", labelEn: "All", labelZh: "全部", count: 5 },
-  { key: "todo", labelEn: "To do", labelZh: "待办", dot: "#f09a2f", count: 2 },
-  { key: "progress", labelEn: "In Progress", labelZh: "进行中", dot: "#16a6c7", count: 2 },
-  { key: "done", labelEn: "Completed", labelZh: "已完成", dot: "#25a878", count: 1 },
+const FILTERS: { key: "all" | Status; labelEn: string; labelZh: string; dot?: string }[] = [
+  { key: "all", labelEn: "All", labelZh: "全部" },
+  { key: "todo", labelEn: "To do", labelZh: "待办", dot: "#f09a2f" },
+  { key: "progress", labelEn: "In Progress", labelZh: "进行中", dot: "#16a6c7" },
+  { key: "done", labelEn: "Completed", labelZh: "已完成", dot: "#25a878" },
 ];
 
 const ROWS: { taskEn: string; taskZh: string; dateEn: string; dateZh: string; status: Status; ownerEn: string; ownerZh: string }[] = [
@@ -41,94 +41,110 @@ const HEADERS = [
 export default function FilterTable({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("filter-table", propLang);
   const zh = lang === "zh";
-
+  const bodyId = useId();
   const [filter, setFilter] = useState<"all" | Status>("all");
+
+  const counts = useMemo(
+    () => ({
+      all: ROWS.length,
+      todo: ROWS.filter((row) => row.status === "todo").length,
+      progress: ROWS.filter((row) => row.status === "progress").length,
+      done: ROWS.filter((row) => row.status === "done").length,
+    }),
+    [],
+  );
+  const filteredRows = filter === "all" ? ROWS : ROWS.filter((row) => row.status === filter);
+  const statusText = zh
+    ? `显示 ${filteredRows.length}/${ROWS.length} 项任务`
+    : `Showing ${filteredRows.length} of ${ROWS.length} tasks`;
 
   return (
     <div className="w-full max-w-105">
-      {/* filter chips */}
-      <div
-        className="-mx-1 mb-1 flex items-center gap-1 overflow-x-auto px-1 py-1"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {FILTERS.map((f) => {
-          const active = filter === f.key;
-          return (
-            <button
-              key={f.key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setFilter(f.key)}
-              className={`flex h-6.5 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[12px]
-                font-medium transition-[background-color,box-shadow,color] duration-200
-                ${active ? "bg-surface text-ink shadow-btn" : "text-ink-2 hover:bg-hover"}`}
-            >
-              {f.dot && <span className="size-1.5 rounded-full" style={{ background: f.dot }} />}
-              {zh ? f.labelZh : f.labelEn}
-              <span
-                className={`rounded-[4px] px-1 text-[10.5px] tabular-nums
-                  ${active ? "bg-field text-ink-2" : "text-ink-3"}`}
-              >
-                {f.count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* table */}
-      <div
-        aria-label="Scrollable task table"
-        className="overflow-x-auto rounded-card bg-surface shadow-card"
-        role="region"
-        tabIndex={0}
-        style={{ scrollbarWidth: "none" }}
-      >
-        <div className="min-w-[420px]">
-          <div className="grid grid-cols-[1.3fr_0.6fr_0.95fr_0.9fr] border-b border-line px-3 py-2 text-[11.5px] font-medium text-ink-3">
-            {HEADERS.map((h) => (
-              <span key={h.en}>{zh ? h.zh : h.en}</span>
-            ))}
-          </div>
-          {ROWS.map((row) => {
-            const shown = filter === "all" || row.status === filter;
-            const pill = PILLS[row.status];
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <div
+          role="group"
+          aria-label={zh ? "任务状态筛选" : "Task status filters"}
+          className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 py-1"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {FILTERS.map((item) => {
+            const active = filter === item.key;
+            const count = counts[item.key];
             return (
-              <div
-                key={row.taskEn}
-                className="grid transition-[grid-template-rows,opacity] duration-300"
-                style={{
-                  gridTemplateRows: shown ? "1fr" : "0fr",
-                  opacity: shown ? 1 : 0,
-                  transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
-                }}
+              <button
+                key={item.key}
+                type="button"
+                aria-controls={bodyId}
+                aria-pressed={active}
+                onClick={() => setFilter(item.key)}
+                className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11.5px] font-semibold transition-[background-color,box-shadow,color] duration-200 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+                  active ? "bg-surface text-ink shadow-btn" : "text-ink-2 hover:bg-hover hover:text-ink"
+                }`}
               >
-                <div className="overflow-hidden">
-                  <div
-                    className="grid grid-cols-[1.3fr_0.6fr_0.95fr_0.9fr] items-center border-b
-                      border-line px-3 py-2 text-[12px] transition-colors duration-100
-                      last:border-0 hover:bg-hover"
-                  >
-                    <span className="truncate font-medium text-ink">{zh ? row.taskZh : row.taskEn}</span>
-                    <span className="text-ink-2 tabular-nums">{zh ? row.dateZh : row.dateEn}</span>
-                    <span>
-                      <span
-                        className="inline-flex h-5 items-center rounded-[5px] px-1.5 text-[11px] font-medium"
-                        style={{
-                          color: pill.color,
-                          background: `color-mix(in srgb, ${pill.color} 13%, transparent)`,
-                        }}
-                      >
-                        {zh ? pill.labelZh : pill.labelEn}
-                      </span>
-                    </span>
-                    <span className="truncate text-ink-2">{zh ? row.ownerZh : row.ownerEn}</span>
-                  </div>
-                </div>
-              </div>
+                {item.dot ? <span className="size-1.5 rounded-full" style={{ background: item.dot }} aria-hidden="true" /> : null}
+                {zh ? item.labelZh : item.labelEn}
+                <span className={`rounded-[4px] px-1 text-[10.5px] tabular-nums ${active ? "bg-field text-ink-2" : "text-ink-3"}`}>
+                  {count}
+                </span>
+              </button>
             );
           })}
         </div>
+        <span role="status" aria-live="polite" aria-atomic="true" className="shrink-0 px-1 text-[10.5px] font-medium text-ink-3">
+          {statusText}
+        </span>
+      </div>
+
+      <div
+        role="region"
+        aria-label={zh ? "可横向滚动的任务表格" : "Scrollable task table"}
+        className="overflow-x-auto rounded-card border border-line bg-surface shadow-card focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        tabIndex={0}
+        style={{ scrollbarWidth: "thin" }}
+      >
+        <table className="w-full min-w-[560px] table-fixed border-collapse text-left text-[12px]" aria-label={zh ? "任务" : "Tasks"}>
+          <caption className="sr-only">{statusText}</caption>
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[15%]" />
+            <col className="w-[21%]" />
+            <col className="w-[30%]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-line bg-inset text-[11px] font-semibold text-ink-3">
+              {HEADERS.map((header) => (
+                <th key={header.en} scope="col" className="h-9 px-3">
+                  {zh ? header.zh : header.en}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody id={bodyId}>
+            {filteredRows.map((row) => {
+              const pill = PILLS[row.status];
+              const task = zh ? row.taskZh : row.taskEn;
+              const owner = zh ? row.ownerZh : row.ownerEn;
+              return (
+                <tr key={row.taskEn} className="border-b border-line last:border-0 hover:bg-hover">
+                  <th scope="row" className="h-10 truncate px-3 font-semibold text-ink" title={task}>{task}</th>
+                  <td className="h-10 whitespace-nowrap px-3 tabular-nums text-ink-2">{zh ? row.dateZh : row.dateEn}</td>
+                  <td className="h-10 px-3">
+                    <span
+                      className="inline-flex min-h-5 items-center rounded-[5px] px-1.5 text-[10.5px] font-semibold"
+                      style={{
+                        color: pill.color,
+                        background: `color-mix(in srgb, ${pill.color} 14%, transparent)`,
+                      }}
+                    >
+                      {zh ? pill.labelZh : pill.labelEn}
+                    </span>
+                  </td>
+                  <td className="h-10 truncate px-3 text-ink-2" title={owner}>{owner}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
