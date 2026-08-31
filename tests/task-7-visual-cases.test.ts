@@ -109,52 +109,38 @@ function markerRange(
   startMarker: string,
   endMarker: string,
 ): SourceRange | null {
-  const scanner = ts.createScanner(
-    ts.ScriptTarget.Latest,
-    false,
-    ts.LanguageVariant.Standard,
+  const sourceFile = ts.createSourceFile(
+    "/task-7-markers.ts",
     source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
   );
-  const starts: SourceRange[] = [];
-  const ends: SourceRange[] = [];
-  const templateBraceDepths: number[] = [];
-  for (
-    let token = scanner.scan();
-    token !== ts.SyntaxKind.EndOfFileToken;
-    token = scanner.scan()
-  ) {
-    if (token === ts.SyntaxKind.MultiLineCommentTrivia) {
-      const range = {
-        end: scanner.getTextPos(),
-        start: scanner.getTokenPos(),
-      };
-      const text = scanner.getTokenText();
-      if (text === startMarker) starts.push(range);
-      if (text === endMarker) ends.push(range);
-      continue;
+  const comments = new Map<string, ts.CommentRange>();
+  const addComments = (ranges: ts.CommentRange[] | undefined) => {
+    for (const range of ranges ?? []) {
+      comments.set(`${range.pos}:${range.end}`, range);
     }
-    if (token === ts.SyntaxKind.TemplateHead) {
-      templateBraceDepths.push(0);
-      continue;
-    }
-    if (templateBraceDepths.length === 0) continue;
-    const templateIndex = templateBraceDepths.length - 1;
-    if (token === ts.SyntaxKind.OpenBraceToken) {
-      templateBraceDepths[templateIndex] += 1;
-      continue;
-    }
-    if (token !== ts.SyntaxKind.CloseBraceToken) continue;
-    if (templateBraceDepths[templateIndex] > 0) {
-      templateBraceDepths[templateIndex] -= 1;
-      continue;
-    }
-    token = scanner.reScanTemplateToken(false);
-    if (token === ts.SyntaxKind.TemplateTail) templateBraceDepths.pop();
-  }
+  };
+  const visit = (node: ts.Node) => {
+    addComments(ts.getLeadingCommentRanges(source, node.pos));
+    addComments(ts.getTrailingCommentRanges(source, node.end));
+    for (const child of node.getChildren(sourceFile)) visit(child);
+  };
+  visit(sourceFile);
+
+  const exactRanges = (marker: string) =>
+    [...comments.values()].filter(
+      (range) =>
+        range.kind === ts.SyntaxKind.MultiLineCommentTrivia &&
+        source.slice(range.pos, range.end) === marker,
+    );
+  const starts = exactRanges(startMarker);
+  const ends = exactRanges(endMarker);
   if (starts.length !== 1 || ends.length !== 1) return null;
-  return starts[0].end <= ends[0].start
-    ? { end: ends[0].start, start: starts[0].end }
-    : null;
+  const [start] = starts;
+  const [end] = ends;
+  return start.end <= end.pos ? { end: end.pos, start: start.end } : null;
 }
 
 function nodeWithin(
@@ -1312,6 +1298,61 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
       : null;
   }
 
+  function collectReachableRegistrationDeclarations(
+    expression: ts.Expression,
+    visiting = new Set<ts.VariableDeclaration>(),
+  ): void {
+    const current = unwrapVisualExpression(expression);
+    if (ts.isIdentifier(current)) {
+      const declaration = registryAliasDeclaration(current);
+      if (!declaration || visiting.has(declaration)) return;
+      guardedRegistryAliases.add(declaration);
+      if (!declaration.initializer) return;
+      visiting.add(declaration);
+      collectReachableRegistrationDeclarations(
+        declaration.initializer,
+        visiting,
+      );
+      visiting.delete(declaration);
+      return;
+    }
+    if (ts.isArrayLiteralExpression(current)) {
+      for (const element of current.elements) {
+        if (ts.isOmittedExpression(element)) continue;
+        collectReachableRegistrationDeclarations(
+          ts.isSpreadElement(element) ? element.expression : element,
+          visiting,
+        );
+      }
+      return;
+    }
+    if (ts.isObjectLiteralExpression(current)) {
+      for (const property of current.properties) {
+        if (ts.isPropertyAssignment(property)) {
+          collectReachableRegistrationDeclarations(
+            property.initializer,
+            visiting,
+          );
+        } else if (ts.isShorthandPropertyAssignment(property)) {
+          collectReachableRegistrationDeclarations(property.name, visiting);
+        } else if (ts.isSpreadAssignment(property)) {
+          collectReachableRegistrationDeclarations(
+            property.expression,
+            visiting,
+          );
+        }
+      }
+    }
+  }
+
+  for (const entry of entries.elements) {
+    if (!ts.isOmittedExpression(entry)) {
+      collectReachableRegistrationDeclarations(
+        ts.isSpreadElement(entry) ? entry.expression : entry,
+      );
+    }
+  }
+
   function guardedRegistryRoot(
     expression: ts.Expression,
     visiting = new Set<ts.Declaration>(),
@@ -1697,6 +1738,43 @@ function encodedTask7MarkerSource(carrier: Task7MarkerCarrier) {
     ]);`;
 }
 
+function regexTemplateTask7MarkerSource(
+  range: "actions" | "registrations",
+) {
+  const encoded = (marker: string) =>
+    `\`\${/\\{/.test("x")} ${marker}\``;
+  const statement = (marker: string) => `void ${encoded(marker)};`;
+  const actionStart =
+    range === "actions" ? statement(TASK7_ACTION_START) : TASK7_ACTION_START;
+  const actionEnd =
+    range === "actions" ? statement(TASK7_ACTION_END) : TASK7_ACTION_END;
+  const registrationStart =
+    range === "registrations"
+      ? statement(TASK7_REGISTRATION_START)
+      : TASK7_REGISTRATION_START;
+  const registrationEnd =
+    range === "registrations"
+      ? statement(TASK7_REGISTRATION_END)
+      : TASK7_REGISTRATION_END;
+
+  return `${actionStart}
+    async function action({ canvas }) {
+      await canvas.getByRole("button").click();
+    }
+    const TASK7_CASES = [
+      ["context-window", [{ name: "selected", action }]],
+      ["memory-inspector", [{ name: "all" }]],
+      ["context-cards", [{ name: "initial" }]],
+      ["context-spillover", [{ name: "compacted" }]],
+    ];
+    ${actionEnd}
+    ${registrationStart}
+    const CASES = new Map([
+      ...TASK7_CASES
+    ]);
+    ${registrationEnd}`;
+}
+
 describe("Task 7 React visual cases", () => {
   test("defines every reviewed Context & Memory state explicitly", () => {
     for (const component of TASK7_COMPONENTS) {
@@ -1856,6 +1934,19 @@ describe("Task 7 React visual cases", () => {
     });
   });
 
+  test.each(["actions", "registrations"] as const)(
+    "rejects regex-template fake Task 7 %s markers",
+    (range) => {
+      expect(
+        analyzeTask7VisualSource(regexTemplateTask7MarkerSource(range))
+          .violations,
+      ).toContainEqual({
+        component: "<unresolved>",
+        kind: "unresolved action registration",
+      });
+    },
+  );
+
   test("rejects a later unmarked Task 7 registration override", () => {
     const source = guardedTask7Source(`
       async function action({ canvas }) {
@@ -1872,6 +1963,91 @@ describe("Task 7 React visual cases", () => {
       kind: "unresolved action registration",
     });
   });
+
+  test("rejects a recursively spread unmarked Task 7 registration", () => {
+    const source = guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)
+      .replace(
+        "const CASES = new Map([",
+        `const UNMARKED_CASES = [
+          ["context-window", [{ name: "override" }]],
+        ];
+        const CASES = new Map([`,
+      )
+      .replace(
+        TASK7_REGISTRATION_END,
+        `${TASK7_REGISTRATION_END},
+        ...UNMARKED_CASES`,
+      );
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "context-window",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test("fails closed for an unresolved unmarked registration spread", () => {
+    const source = guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `).replace(
+      TASK7_REGISTRATION_END,
+      `${TASK7_REGISTRATION_END},
+      ...unknownCases`,
+    );
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "<unresolved>",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test.each([
+    ["direct write before construction", "", 'tuple[0] = "context-window";', ""],
+    [
+      "aliased write before construction",
+      "const tupleAlias = tuple;",
+      'tupleAlias[0] = "context-window";',
+      "",
+    ],
+    [
+      "aliased mutating call after construction",
+      "const tupleAlias = tuple;",
+      "",
+      'tupleAlias.splice(0, 1, "context-window");',
+    ],
+  ])(
+    "rejects %s to an unmarked registration tuple component",
+    (_label, alias, beforeConstruction, afterConstruction) => {
+      const source = `${guardedTask7Source(`
+        async function action({ canvas }) {
+          await canvas.getByRole("button").click();
+        }
+      `)
+        .replace(
+          "const CASES = new Map([",
+          `const tuple = ["unrelated-component", [{ name: "override" }]];
+          ${alias}
+          ${beforeConstruction}
+          const CASES = new Map([`,
+        )
+        .replace(
+          TASK7_REGISTRATION_END,
+          `${TASK7_REGISTRATION_END},
+          tuple`,
+        )}
+        ${afterConstruction}`;
+
+      expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+        component: "<unresolved>",
+        kind: "unresolved action registration",
+      });
+    },
+  );
 
   test.each([
     [
@@ -1950,11 +2126,11 @@ describe("Task 7 React visual cases", () => {
 
   test.each([
     [
-      "extra literal property",
-      `{ name: "selected", action, metadata: "ignored" }`,
+      "extra callback property",
+      `{ name: "selected", action, after: () => importedHelper() }`,
     ],
     [
-      "extra unsupported invocation property",
+      "extra imported-call property",
       `{ name: "selected", action, metadata: importedHelper() }`,
     ],
   ])("rejects a referenced case with an %s", (_label, visualCase) => {
