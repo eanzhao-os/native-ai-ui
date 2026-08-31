@@ -143,9 +143,10 @@ function declarationFor(
 
 function consumeResolutionEdge(
   state: ResolutionState,
-  _node: ts.Node,
+  node: ts.Node,
 ): boolean {
-  if (state.remaining <= 0) return false;
+  if (state.resolved.has(node)) return true;
+  if (state.visiting.has(node) || state.remaining <= 0) return false;
   state.remaining -= 1;
   return true;
 }
@@ -356,15 +357,7 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
       return null;
     }
     if (state.visiting.has(declaration)) return null;
-    if (
-      !consumeOrRecord(
-        state,
-        declaration.initializer,
-        component,
-        kind,
-        request,
-      )
-    ) {
+    if (!consumeOrRecord(state, declaration, component, kind, request)) {
       return null;
     }
     state.visiting.add(declaration);
@@ -376,7 +369,10 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
         kind,
         request,
       );
-      if (resolved) state.resolved.add(declaration);
+      if (resolved) {
+        state.resolved.add(current);
+        state.resolved.add(declaration);
+      }
       return resolved;
     } finally {
       state.visiting.delete(declaration);
@@ -396,6 +392,10 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     const declaration = declarationFor(identifier, checker, sourceFile);
     if (!declaration) return { kind: "unresolved" };
     if (ts.isFunctionDeclaration(declaration)) {
+      if (!consumeOrRecord(state, declaration, component, kind, request)) {
+        return { kind: "unresolved" };
+      }
+      state.resolved.add(identifier);
       state.resolved.add(declaration);
       return { kind: "function", node: declaration };
     }
@@ -420,15 +420,7 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
       return { kind: "unresolved" };
     }
     if (state.visiting.has(declaration)) return { kind: "unresolved" };
-    if (
-      !consumeOrRecord(
-        state,
-        declaration.initializer,
-        component,
-        kind,
-        request,
-      )
-    ) {
+    if (!consumeOrRecord(state, declaration, component, kind, request)) {
       return { kind: "unresolved" };
     }
     const initializer = unwrapVisualExpression(declaration.initializer);
@@ -442,7 +434,10 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
         kind,
         request,
       );
-      if (resolved.kind === "function") state.resolved.add(declaration);
+      if (resolved.kind === "function") {
+        state.resolved.add(identifier);
+        state.resolved.add(declaration);
+      }
       return resolved;
     } finally {
       state.visiting.delete(declaration);
@@ -526,8 +521,22 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     identifier: ts.Identifier,
     scope: GuardScope,
   ): boolean {
+    if (
+      !consumeOrRecord(
+        scope.resolution,
+        identifier,
+        scope.component,
+        "unsupported action syntax",
+        identifier,
+      )
+    ) {
+      return false;
+    }
     const declaration = declarationFor(identifier, checker, sourceFile);
-    if (declaration && scope.acceptedDeclarations.has(declaration)) return true;
+    if (declaration && scope.acceptedDeclarations.has(declaration)) {
+      scope.resolution.resolved.add(identifier);
+      return true;
+    }
     recordViolation(scope.component, "unsupported action syntax", identifier);
     return false;
   }
@@ -1078,7 +1087,7 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
   if (
     !consumeOrRecord(
       registrationState,
-      task7Declaration.initializer,
+      task7Declaration,
       "<unresolved>",
       "unresolved action registration",
       task7Spread,
@@ -1579,6 +1588,45 @@ describe("Task 7 React visual cases", () => {
       component: "context-window",
       kind: "unresolved action registration",
     });
+  });
+
+  test("fails closed at the 256-edge action identifier ceiling", () => {
+    const statements = Array.from(
+      { length: 257 },
+      () => 'await canvas.getByRole("button").count();',
+    ).join("\n");
+    const source = guardedTask7Source(`
+      async function action({ canvas }) {
+        ${statements}
+      }
+    `);
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "context-window",
+      kind: "unsupported action syntax",
+    });
+  });
+
+  test("reuses resolved registration declarations without another edge", () => {
+    const sharedCases = Array.from({ length: 130 }, () => "sharedCase").join(
+      ",\n",
+    );
+    const source = `/* TASK 7 VISUAL ACTIONS START */
+      const sharedCase = { name: "shared" };
+      const TASK7_CASES = [
+        ["context-window", [${sharedCases}]],
+        ["memory-inspector", [{ name: "all" }]],
+        ["context-cards", [{ name: "initial" }]],
+        ["context-spillover", [{ name: "compacted" }]],
+      ];
+      /* TASK 7 VISUAL ACTIONS END */
+      const CASES = new Map([
+        /* TASK 7 VISUAL REGISTRATIONS START */
+        ...TASK7_CASES
+        /* TASK 7 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(analyzeTask7VisualSource(source).violations).toEqual([]);
   });
 
   test("keeps one live registration and zero violations for every Task 7 component", () => {
