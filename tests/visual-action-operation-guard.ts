@@ -151,24 +151,31 @@ export function classifyVisualOperation(
       const category = mutationCategory(resolver.expressionPath(node.left));
       if (category) violations.add(category);
     }
+  } else if (
+    (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+    (node.operator === ts.SyntaxKind.PlusPlusToken ||
+      node.operator === ts.SyntaxKind.MinusMinusToken)
+  ) {
+    const category = mutationCategory(resolver.expressionPath(node.operand));
+    if (category) violations.add(category);
   } else if (ts.isDeleteExpression(node)) {
     const category = mutationCategory(resolver.expressionPath(node.expression));
     if (category) violations.add(category);
   } else if (ts.isCallExpression(node)) {
     const normalized = normalizeVisualCall(node, resolver);
-    const normalizedPath = resolver.expressionPath(normalized.expression);
-    const normalizedMethod = normalizedPath.at(-1);
+    const path = resolver.expressionPath(normalized.expression);
+    const root = path[0];
+    const method = path.at(-1);
+    const args = normalized.args;
+    if (args === null) violations.add("unsupported action syntax");
     if (
-      normalizedMethod === "evaluate" ||
-      normalizedMethod === "evaluateAll" ||
-      normalizedMethod === "evaluateHandle"
+      method === "evaluate" ||
+      method === "evaluateAll" ||
+      method === "evaluateHandle"
     ) {
       violations.add("DOM evaluation");
     }
 
-    const path = resolver.expressionPath(node.expression);
-    const root = path[0];
-    const method = path.at(-1);
     if (method && replacementMethods.has(method)) {
       violations.add(
         method === "insertAdjacentHTML" ? "DOM rewrite" : "node replacement",
@@ -190,16 +197,21 @@ export function classifyVisualOperation(
       (root === "Reflect" &&
         (method === "set" || method === "deleteProperty"))
     ) {
-      const category = mutationCategory([
-        resolver.staticText(node.arguments[1]) ?? "",
-      ]);
-      if (category) violations.add(category);
+      const property = args ? resolver.staticText(args[1]) : null;
+      if (property === null) {
+        violations.add("unsupported action syntax");
+      } else {
+        const category = mutationCategory([property]);
+        if (category) violations.add(category);
+      }
     }
-    if (root === "Object" && method === "assign" && node.arguments[0]) {
-      const category = mutationCategory(
-        resolver.expressionPath(node.arguments[0]),
-      );
-      if (category) violations.add(category);
+    if (root === "Object" && method === "assign") {
+      if (!args?.[0]) {
+        violations.add("unsupported action syntax");
+      } else {
+        const category = mutationCategory(resolver.expressionPath(args[0]));
+        if (category) violations.add(category);
+      }
     }
   } else if (ts.isNewExpression(node)) {
     const path = resolver.expressionPath(node.expression);

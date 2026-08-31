@@ -985,6 +985,229 @@ describe("registry-derived visual case inventory", () => {
     expect(task4VisualGuardViolations(source)).toContain(violation);
   });
 
+  test.each([
+    ["replacement direct", "root.replaceChildren()", "node replacement"],
+    ["replacement bracket", 'root["replaceChildren"]()', "node replacement"],
+    [
+      "replacement call",
+      "root.replaceChildren.call(root)",
+      "node replacement",
+    ],
+    [
+      "replacement apply",
+      "root.replaceChildren.apply(root, [])",
+      "node replacement",
+    ],
+    [
+      "rewrite direct",
+      'root.insertAdjacentHTML("beforeend", "<div>fabricated</div>")',
+      "DOM rewrite",
+    ],
+    [
+      "rewrite bracket",
+      'root["insertAdjacentHTML"]("beforeend", "<div>fabricated</div>")',
+      "DOM rewrite",
+    ],
+    [
+      "rewrite call",
+      'root.insertAdjacentHTML.call(root, "beforeend", "<div>fabricated</div>")',
+      "DOM rewrite",
+    ],
+    [
+      "rewrite apply",
+      'root.insertAdjacentHTML.apply(root, ["beforeend", "<div>fabricated</div>"])',
+      "DOM rewrite",
+    ],
+    [
+      "style direct",
+      'root.setAttribute("hidden", "true")',
+      "style or hiding mutation",
+    ],
+    [
+      "style bracket",
+      'root["setAttribute"]("hidden", "true")',
+      "style or hiding mutation",
+    ],
+    [
+      "style call",
+      'root.setAttribute.call(root, "hidden", "true")',
+      "style or hiding mutation",
+    ],
+    [
+      "style apply",
+      'root.setAttribute.apply(root, ["hidden", "true"])',
+      "style or hiding mutation",
+    ],
+    [
+      "construction direct",
+      'document.createElement("div")',
+      "DOM construction",
+    ],
+    [
+      "construction bracket",
+      'document["createElement"]("div")',
+      "DOM construction",
+    ],
+    [
+      "construction call",
+      'document.createElement.call(document, "div")',
+      "DOM construction",
+    ],
+    [
+      "construction apply",
+      'document.createElement.apply(document, ["div"])',
+      "DOM construction",
+    ],
+    [
+      "Object.defineProperty direct",
+      'Object.defineProperty(root, "textContent", { value: "fabricated" })',
+      "DOM rewrite",
+    ],
+    [
+      "Object.defineProperty bracket",
+      'Object["defineProperty"](root, "textContent", { value: "fabricated" })',
+      "DOM rewrite",
+    ],
+    [
+      "Object.defineProperty call",
+      'Object.defineProperty.call(Object, root, "textContent", { value: "fabricated" })',
+      "DOM rewrite",
+    ],
+    [
+      "Object.defineProperty apply",
+      'Object.defineProperty.apply(Object, [root, "textContent", { value: "fabricated" }])',
+      "DOM rewrite",
+    ],
+    [
+      "Object.assign direct",
+      'Object.assign(root.style, { opacity: "0" })',
+      "style or hiding mutation",
+    ],
+    [
+      "Object.assign bracket",
+      'Object["assign"](root.style, { opacity: "0" })',
+      "style or hiding mutation",
+    ],
+    [
+      "Object.assign call",
+      'Object.assign.call(Object, root.style, { opacity: "0" })',
+      "style or hiding mutation",
+    ],
+    [
+      "Object.assign apply",
+      'Object.assign.apply(Object, [root.style, { opacity: "0" }])',
+      "style or hiding mutation",
+    ],
+    [
+      "Reflect.set direct",
+      'Reflect.set(root, "textContent", "fabricated")',
+      "DOM rewrite",
+    ],
+    [
+      "Reflect.set bracket",
+      'Reflect["set"](root, "textContent", "fabricated")',
+      "DOM rewrite",
+    ],
+    [
+      "Reflect.set call",
+      'Reflect.set.call(Reflect, root, "textContent", "fabricated")',
+      "DOM rewrite",
+    ],
+    [
+      "Reflect.set apply",
+      'Reflect.set.apply(Reflect, [root, "textContent", "fabricated"])',
+      "DOM rewrite",
+    ],
+    [
+      "Reflect.deleteProperty direct",
+      'Reflect.deleteProperty(root, "hidden")',
+      "style or hiding mutation",
+    ],
+    [
+      "Reflect.deleteProperty bracket",
+      'Reflect["deleteProperty"](root, "hidden")',
+      "style or hiding mutation",
+    ],
+    [
+      "Reflect.deleteProperty call",
+      'Reflect.deleteProperty.call(Reflect, root, "hidden")',
+      "style or hiding mutation",
+    ],
+    [
+      "Reflect.deleteProperty apply",
+      'Reflect.deleteProperty.apply(Reflect, [root, "hidden"])',
+      "style or hiding mutation",
+    ],
+  ])("classifies Task 4 %s", (_label, invocation, violation) => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { ${invocation}; }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(violation);
+  });
+
+  test.each([
+    [
+      "Object.defineProperty",
+      "Object.defineProperty.apply(Object, dynamicArguments)",
+    ],
+    ["Object.assign", "Object.assign.apply(Object, dynamicArguments)"],
+    ["Reflect.set", "Reflect.set.apply(Reflect, dynamicArguments)"],
+    [
+      "Reflect.deleteProperty",
+      "Reflect.deleteProperty.apply(Reflect, dynamicArguments)",
+    ],
+  ])("fails closed for unresolved %s apply arguments", (_label, invocation) => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { ${invocation}; }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(
+      "unsupported action syntax",
+    );
+  });
+
+  test.each([
+    ["prefix DOM rewrite", "++root.textContent", "DOM rewrite"],
+    ["postfix DOM rewrite", "root.value--", "DOM rewrite"],
+    [
+      "style update",
+      "++root.style.opacity",
+      "style or hiding mutation",
+    ],
+    [
+      "classList update",
+      "root.classList.length--",
+      "style or hiding mutation",
+    ],
+    [
+      "dataset update",
+      "++root.dataset.state",
+      "style or hiding mutation",
+    ],
+  ])("classifies Task 4 %s", (_label, update, violation) => {
+    const source = `/* TASK 4 VISUAL ACTIONS START */
+      async function selected({ root }) { ${update}; }
+      /* TASK 4 VISUAL ACTIONS END */
+      new Map([
+        /* TASK 4 VISUAL REGISTRATIONS START */
+        ["session-list", [{ name: "selected", action: selected }]]
+        /* TASK 4 VISUAL REGISTRATIONS END */
+      ]);`;
+
+    expect(task4VisualGuardViolations(source)).toContain(violation);
+  });
+
   test("rejects a tagged-template action invocation", () => {
     const source = `/* TASK 4 VISUAL ACTIONS START */
       async function selected() {

@@ -1010,6 +1010,7 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     }
     const inlineCase = unwrapVisualExpression(expression) === resolved;
     let nameFound = false;
+    let advanceMsFound = false;
     let action: { identifier: ts.Identifier; node: ts.Node } | null = null;
     let malformed = false;
     for (const property of resolved.properties) {
@@ -1049,12 +1050,16 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
         }
         continue;
       }
-      if (
-        inlineCase &&
-        propertyName === "advanceMs" &&
-        ts.isPropertyAssignment(property) &&
-        ts.isNumericLiteral(unwrapVisualExpression(property.initializer))
-      ) {
+      if (inlineCase && propertyName === "advanceMs") {
+        if (
+          advanceMsFound ||
+          !ts.isPropertyAssignment(property) ||
+          !ts.isNumericLiteral(unwrapVisualExpression(property.initializer))
+        ) {
+          malformed = true;
+        } else {
+          advanceMsFound = true;
+        }
         continue;
       }
       malformed = true;
@@ -1282,47 +1287,56 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     return argument && ts.isStringLiteralLike(argument) ? argument.text : null;
   }
 
-  const guardedRegistryAliases = new Set<ts.VariableDeclaration>([
+  type RegistryBinding = ts.BindingElement | ts.VariableDeclaration;
+
+  const guardedRegistryAliases = new Set<RegistryBinding>([
     strictCasesDeclaration,
     strictTask7Declaration,
   ]);
 
   function registryAliasDeclaration(
     expression: ts.Expression,
-  ): ts.VariableDeclaration | null {
+  ): RegistryBinding | null {
     const current = unwrapVisualExpression(expression);
     if (!ts.isIdentifier(current)) return null;
     const declaration = declarationFor(current, checker, sourceFile);
-    return declaration && ts.isVariableDeclaration(declaration)
+    return declaration &&
+      (ts.isVariableDeclaration(declaration) || ts.isBindingElement(declaration))
       ? declaration
       : null;
   }
 
-  const registrationGraphForward = new Map<
-    ts.VariableDeclaration,
-    Set<ts.VariableDeclaration>
+  const registrationGraphAdjacent = new Map<
+    RegistryBinding,
+    Set<RegistryBinding>
   >();
-  const registrationGraphReverse = new Map<
-    ts.VariableDeclaration,
-    Set<ts.VariableDeclaration>
-  >();
-  const allVariableDeclarations: ts.VariableDeclaration[] = [];
 
-  const collectVariableDeclarations = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node)) allVariableDeclarations.push(node);
-    ts.forEachChild(node, collectVariableDeclarations);
-  };
-  collectVariableDeclarations(sourceFile);
+  function addRegistrationGraphEdge(
+    from: RegistryBinding,
+    to: RegistryBinding,
+  ): void {
+    const fromAdjacent = registrationGraphAdjacent.get(from) ?? new Set();
+    fromAdjacent.add(to);
+    registrationGraphAdjacent.set(from, fromAdjacent);
+    const toAdjacent = registrationGraphAdjacent.get(to) ?? new Set();
+    toAdjacent.add(from);
+    registrationGraphAdjacent.set(to, toAdjacent);
+  }
 
-  function referencedVariableDeclarations(
-    node: ts.Node,
-  ): Set<ts.VariableDeclaration> {
-    const references = new Set<ts.VariableDeclaration>();
+  function bindingElements(name: ts.BindingName): ts.BindingElement[] {
+    if (ts.isIdentifier(name)) return [];
+    const elements: ts.BindingElement[] = [];
+    for (const element of name.elements) {
+      if (ts.isOmittedExpression(element)) continue;
+      elements.push(element);
+      elements.push(...bindingElements(element.name));
+    }
+    return elements;
+  }
+
+  function referencedRegistryBindings(node: ts.Node): Set<RegistryBinding> {
+    const references = new Set<RegistryBinding>();
     const visit = (child: ts.Node) => {
-      if (ts.isIdentifier(child)) {
-        const declaration = registryAliasDeclaration(child);
-        if (declaration) references.add(declaration);
-      }
       if (
         ts.isArrowFunction(child) ||
         ts.isFunctionExpression(child) ||
@@ -1334,98 +1348,201 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
       ) {
         return;
       }
+      if (ts.isIdentifier(child)) {
+        const declaration = registryAliasDeclaration(child);
+        if (declaration) references.add(declaration);
+      }
       ts.forEachChild(child, visit);
     };
     visit(node);
     return references;
   }
 
-  for (const declaration of allVariableDeclarations) {
-    const references = declaration.initializer
-      ? referencedVariableDeclarations(declaration.initializer)
-      : new Set<ts.VariableDeclaration>();
-    registrationGraphForward.set(declaration, references);
-    for (const reference of references) {
-      const reverse = registrationGraphReverse.get(reference) ?? new Set();
-      reverse.add(declaration);
-      registrationGraphReverse.set(reference, reverse);
+  const registrationDeclarations: ts.VariableDeclaration[] = [];
+  const collectRegistrationDeclarations = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node)) registrationDeclarations.push(node);
+    ts.forEachChild(node, collectRegistrationDeclarations);
+  };
+  collectRegistrationDeclarations(sourceFile);
+
+  for (const declaration of registrationDeclarations) {
+    registrationGraphAdjacent.set(
+      declaration,
+      registrationGraphAdjacent.get(declaration) ?? new Set(),
+    );
+    for (const binding of bindingElements(declaration.name)) {
+      addRegistrationGraphEdge(declaration, binding);
+      if (binding.initializer) {
+        for (const reference of referencedRegistryBindings(binding.initializer)) {
+          addRegistrationGraphEdge(binding, reference);
+        }
+      }
+    }
+    if (!declaration.initializer) continue;
+    for (const reference of referencedRegistryBindings(declaration.initializer)) {
+      addRegistrationGraphEdge(declaration, reference);
     }
   }
 
-  const registrationGraphState = newResolutionState();
-  const registrationQueue: ts.VariableDeclaration[] = [];
+  const reachability = newResolutionState();
+  reachability.resolved.add(strictCasesDeclaration);
+  reachability.resolved.add(strictTask7Declaration);
+  const registrationQueue: RegistryBinding[] = [];
+  const enqueueRegistrationBinding = (binding: RegistryBinding) => {
+    if (!reachability.resolved.has(binding)) registrationQueue.push(binding);
+  };
+  for (const root of [strictCasesDeclaration, strictTask7Declaration]) {
+    for (const adjacent of registrationGraphAdjacent.get(root) ?? []) {
+      enqueueRegistrationBinding(adjacent);
+    }
+  }
   for (const entry of entries.elements) {
     if (ts.isOmittedExpression(entry)) continue;
-    for (const declaration of referencedVariableDeclarations(entry)) {
-      registrationQueue.push(declaration);
+    for (const binding of referencedRegistryBindings(entry)) {
+      enqueueRegistrationBinding(binding);
     }
   }
 
   for (let index = 0; index < registrationQueue.length; index += 1) {
-    const declaration = registrationQueue[index];
-    if (registrationGraphState.resolved.has(declaration)) continue;
+    const binding = registrationQueue[index];
+    if (reachability.resolved.has(binding)) continue;
     if (
       !consumeOrRecord(
-        registrationGraphState,
-        declaration,
+        reachability,
+        binding,
         "<unresolved>",
         "unresolved action registration",
-        declaration,
+        binding,
       )
     ) {
       break;
     }
-    registrationGraphState.resolved.add(declaration);
-    guardedRegistryAliases.add(declaration);
-    for (const adjacent of [
-      ...(registrationGraphForward.get(declaration) ?? []),
-      ...(registrationGraphReverse.get(declaration) ?? []),
-    ]) {
-      if (
-        adjacent !== strictCasesDeclaration &&
-        !registrationGraphState.resolved.has(adjacent)
-      ) {
-        registrationQueue.push(adjacent);
-      }
+    reachability.resolved.add(binding);
+    guardedRegistryAliases.add(binding);
+    for (const adjacent of registrationGraphAdjacent.get(binding) ?? []) {
+      enqueueRegistrationBinding(adjacent);
     }
   }
 
-  const cycleResolved = new Set<ts.VariableDeclaration>();
-  const cycleVisiting = new Set<ts.VariableDeclaration>();
-  function hasReachableRegistrationCycle(
-    declaration: ts.VariableDeclaration,
+  const constituentVisiting = new Set<RegistryBinding>();
+  const constituentResolved = new Set<RegistryBinding>([
+    strictCasesDeclaration,
+    strictTask7Declaration,
+  ]);
+
+  function inspectRegistrationConstituent(
+    expression: ts.Expression,
+    request: ts.Node,
   ): boolean {
-    if (cycleVisiting.has(declaration)) return true;
-    if (cycleResolved.has(declaration)) return false;
-    cycleVisiting.add(declaration);
-    for (const reference of registrationGraphForward.get(declaration) ?? []) {
-      if (
-        guardedRegistryAliases.has(reference) &&
-        hasReachableRegistrationCycle(reference)
-      ) {
-        return true;
-      }
+    const current = unwrapVisualExpression(expression);
+    if (
+      ts.isStringLiteralLike(current) ||
+      ts.isNumericLiteral(current) ||
+      ts.isRegularExpressionLiteral(current) ||
+      current.kind === ts.SyntaxKind.TrueKeyword ||
+      current.kind === ts.SyntaxKind.FalseKeyword ||
+      current.kind === ts.SyntaxKind.NullKeyword
+    ) {
+      return true;
     }
-    cycleVisiting.delete(declaration);
-    cycleResolved.add(declaration);
+    if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+      return true;
+    }
+    if (ts.isIdentifier(current)) {
+      const binding = registryAliasDeclaration(current);
+      if (binding) return inspectRegistrationBinding(binding, request);
+      const declaration = declarationFor(current, checker, sourceFile);
+      return Boolean(declaration && ts.isFunctionDeclaration(declaration));
+    }
+    if (ts.isArrayLiteralExpression(current)) {
+      let valid = true;
+      for (const element of current.elements) {
+        if (ts.isOmittedExpression(element)) continue;
+        const value = ts.isSpreadElement(element) ? element.expression : element;
+        valid = inspectRegistrationConstituent(value, element) && valid;
+      }
+      return valid;
+    }
+    if (ts.isObjectLiteralExpression(current)) {
+      let valid = true;
+      for (const property of current.properties) {
+        if (ts.isPropertyAssignment(property)) {
+          valid = Boolean(staticPropertyName(property.name)) && valid;
+          valid =
+            inspectRegistrationConstituent(property.initializer, property) && valid;
+        } else if (ts.isShorthandPropertyAssignment(property)) {
+          valid = inspectRegistrationConstituent(property.name, property) && valid;
+        } else if (ts.isSpreadAssignment(property)) {
+          valid =
+            inspectRegistrationConstituent(property.expression, property) && valid;
+        } else {
+          valid = false;
+        }
+      }
+      return valid;
+    }
+    if (ts.isPropertyAccessExpression(current)) {
+      return inspectRegistrationConstituent(current.expression, current);
+    }
+    if (ts.isElementAccessExpression(current)) {
+      const argument = current.argumentExpression
+        ? unwrapVisualExpression(current.argumentExpression)
+        : null;
+      return Boolean(
+        argument &&
+          (ts.isStringLiteralLike(argument) || ts.isNumericLiteral(argument)) &&
+          inspectRegistrationConstituent(current.expression, current),
+      );
+    }
     return false;
   }
 
-  for (const declaration of guardedRegistryAliases) {
-    if (hasReachableRegistrationCycle(declaration)) {
+  function inspectRegistrationBinding(
+    binding: RegistryBinding,
+    request: ts.Node,
+  ): boolean {
+    if (constituentResolved.has(binding)) return true;
+    if (constituentVisiting.has(binding)) {
       recordViolation(
         "<unresolved>",
         "unresolved action registration",
-        declaration,
+        request,
       );
-      break;
+      return false;
+    }
+    constituentVisiting.add(binding);
+    let valid = true;
+    if (ts.isVariableDeclaration(binding) && binding.initializer) {
+      valid = inspectRegistrationConstituent(binding.initializer, binding);
+    } else if (ts.isBindingElement(binding) && binding.initializer) {
+      valid = inspectRegistrationConstituent(binding.initializer, binding);
+    }
+    constituentVisiting.delete(binding);
+    if (valid) {
+      constituentResolved.add(binding);
+    } else {
+      recordViolation(
+        "<unresolved>",
+        "unresolved action registration",
+        request,
+      );
+    }
+    return valid;
+  }
+
+  for (const binding of guardedRegistryAliases) {
+    if (
+      binding !== strictCasesDeclaration &&
+      binding !== strictTask7Declaration
+    ) {
+      inspectRegistrationBinding(binding, binding);
     }
   }
 
   function guardedRegistryRoot(
     expression: ts.Expression,
     visiting = new Set<ts.Declaration>(),
-  ): ts.VariableDeclaration | null {
+  ): RegistryBinding | null {
     const current = unwrapVisualExpression(expression);
     if (ts.isIdentifier(current)) {
       const declaration = registryAliasDeclaration(current);
@@ -1826,9 +1943,11 @@ function encodedTask7MarkerSource(carrier: Task7MarkerCarrier) {
 
 function regexTemplateTask7MarkerSource(
   range: "actions" | "registrations",
+  brace: "open" | "close",
 ) {
+  const expression = brace === "open" ? "/\\{/" : "/\\}/";
   const encoded = (marker: string) =>
-    `\`\${/\\{/.test("x")} ${marker}\``;
+    `\`\${${expression}.test("x")} ${marker}\``;
   const statement = (marker: string) => `void ${encoded(marker)};`;
   const actionStart =
     range === "actions" ? statement(TASK7_ACTION_START) : TASK7_ACTION_START;
@@ -2020,11 +2139,16 @@ describe("Task 7 React visual cases", () => {
     });
   });
 
-  test.each(["actions", "registrations"] as const)(
-    "rejects regex-template fake Task 7 %s markers",
-    (range) => {
+  test.each([
+    ["actions", "open"],
+    ["actions", "close"],
+    ["registrations", "open"],
+    ["registrations", "close"],
+  ] as const)(
+    "rejects regex-template fake Task 7 %s markers after a %s brace",
+    (range, brace) => {
       expect(
-        analyzeTask7VisualSource(regexTemplateTask7MarkerSource(range))
+        analyzeTask7VisualSource(regexTemplateTask7MarkerSource(range, brace))
           .violations,
       ).toContainEqual({
         component: "<unresolved>",
@@ -2137,34 +2261,29 @@ describe("Task 7 React visual cases", () => {
 
   test.each([
     [
-      "reverse container component write",
-      'holder.tuple[0] = "context-window";',
-      "",
+      "destructured TASK7_CASES entry",
+      `const [entry] = TASK7_CASES;
+      entry[1][1].action = dishonestAction;`,
     ],
     [
-      "reverse container nested case mutation",
-      "",
-      'holder.tuple[1].push({ name: "late" });',
+      "nested destructured Task 7 case",
+      `const [[, cases]] = TASK7_CASES;
+      const [, selected] = cases;
+      selected.action = dishonestAction;`,
     ],
-  ])("rejects %s", (_label, beforeConstruction, afterConstruction) => {
+    [
+      "nested container alias",
+      `const selected = TASK7_CASES[0][1][1];
+      const holder = { nested: { selected } };
+      holder.nested.selected.action = dishonestAction;`,
+    ],
+  ])("rejects action replacement through a %s", (_label, mutation) => {
     const source = `${guardedTask7Source(`
       async function action({ canvas }) {
         await canvas.getByRole("button").click();
       }
-    `)
-      .replace(
-        "const CASES = new Map([",
-        `const tuple = ["unrelated-component", [{ name: "override" }]];
-        const holder = { tuple };
-        ${beforeConstruction}
-        const CASES = new Map([`,
-      )
-      .replace(
-        TASK7_REGISTRATION_END,
-        `${TASK7_REGISTRATION_END},
-        tuple`,
-      )}
-      ${afterConstruction}`;
+    `)}
+      ${mutation}`;
 
     expect(analyzeTask7VisualSource(source).violations).toContainEqual({
       component: "<unresolved>",
@@ -2172,48 +2291,48 @@ describe("Task 7 React visual cases", () => {
     });
   });
 
-  test("rejects a constituent assigned into a late container", () => {
-    const source = `${guardedTask7Source(`
-      async function action({ canvas }) {
-        await canvas.getByRole("button").click();
-      }
-    `)
-      .replace(
-        "const CASES = new Map([",
-        `const tuple = ["unrelated-component", [{ name: "override" }]];
-        const holder = {};
-        const CASES = new Map([`,
-      )
-      .replace(
-        TASK7_REGISTRATION_END,
-        `${TASK7_REGISTRATION_END},
-        tuple`,
-      )}
-      holder.tuple = tuple;
-      holder.tuple[0] = "context-window";`;
-
-    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
-      component: "<unresolved>",
-      kind: "unresolved action registration",
-    });
-  });
-
-  test("rejects marked case mutation through a container alias", () => {
-    const source = `${guardedTask7Source(
-      `async function action({ canvas }) {
-        await canvas.getByRole("button").click();
-      }
-      const selected = { name: "selected", action };
+  test.each([
+    [
+      "nested reverse case container",
+      `const selected = { name: "selected", action };
+      const inner = { selected };
+      const holder = { inner };`,
+      "selected",
+      "holder.inner.selected.action = dishonestAction;",
+    ],
+    [
+      "reverse case container",
+      `const selected = { name: "selected", action };
       const holder = { selected };`,
-      "action",
-    ).replace('{ name: "selected", action: action }', "selected")}
-      holder.selected.action = importedHelper;`;
+      "selected",
+      "holder.selected.action = dishonestAction;",
+    ],
+    [
+      "late assigned case container",
+      `const selected = { name: "selected", action };
+      const holder = {};`,
+      "selected",
+      `holder.selected = selected;
+      holder.selected.action = dishonestAction;`,
+    ],
+  ])(
+    "rejects action replacement through a %s",
+    (_label, declarations, registeredCase, mutation) => {
+      const source = `${guardedTask7Source(
+        `async function action({ canvas }) {
+          await canvas.getByRole("button").click();
+        }
+        ${declarations}`,
+        "action",
+      ).replace('{ name: "selected", action: action }', registeredCase)}
+        ${mutation}`;
 
-    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
-      component: "<unresolved>",
-      kind: "unresolved action registration",
-    });
-  });
+      expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+        component: "<unresolved>",
+        kind: "unresolved action registration",
+      });
+    },
+  );
 
   test.each([
     ["resolved", 'const method = "splice";'],
@@ -2251,8 +2370,8 @@ describe("Task 7 React visual cases", () => {
     `)
       .replace(
         "const CASES = new Map([",
-        `const first = [second];
-        const second = [first];
+        `const first = { next: second };
+        const second = { next: first };
         const tuple = ["unrelated-component", first];
         const CASES = new Map([`,
       )
@@ -2262,21 +2381,15 @@ describe("Task 7 React visual cases", () => {
         tuple`,
       );
 
+    expect(() => analyzeTask7VisualSource(source)).not.toThrow();
     expect(analyzeTask7VisualSource(source).violations).toContainEqual({
       component: "<unresolved>",
       kind: "unresolved action registration",
     });
   });
 
-  test("reuses resolved declarations in a reachable diamond graph", () => {
-    const declarations = [
-      'const graph0 = { value: "leaf" };',
-      ...Array.from(
-        { length: 14 },
-        (_, index) =>
-          `const graph${index + 1} = { left: graph${index}, right: graph${index} };`,
-      ),
-    ].join("\n");
+  test("reuses a resolved declaration in a reachable diamond graph", () => {
+    const repeatedLeaf = Array.from({ length: 300 }, () => "leaf").join(", ");
     const source = guardedTask7Source(`
       async function action({ canvas }) {
         await canvas.getByRole("button").click();
@@ -2284,8 +2397,9 @@ describe("Task 7 React visual cases", () => {
     `)
       .replace(
         "const CASES = new Map([",
-        `${declarations}
-        const tuple = ["unrelated-component", graph14];
+        `const leaf = { value: "leaf" };
+        const diamond = { branches: [${repeatedLeaf}] };
+        const tuple = ["unrelated-component", diamond];
         const CASES = new Map([`,
       )
       .replace(
@@ -2298,13 +2412,13 @@ describe("Task 7 React visual cases", () => {
   });
 
   test.each([
-    [254, false],
-    [255, true],
+    [256, false],
+    [257, true],
   ])(
-    "bounds a reachable registration graph with %i declarations",
-    (declarationCount, exhausted) => {
-      const declarations = Array.from(
-        { length: declarationCount },
+    "bounds the reachable registration walk at %i edges",
+    (edgeCount, exhausted) => {
+      const graphDeclarations = Array.from(
+        { length: edgeCount - 1 },
         (_, index) =>
           index === 0
             ? 'const graph0 = { value: "leaf" };'
@@ -2317,8 +2431,8 @@ describe("Task 7 React visual cases", () => {
       `)
         .replace(
           "const CASES = new Map([",
-          `${declarations}
-          const tuple = ["unrelated-component", graph${declarationCount - 1}];
+          `${graphDeclarations}
+          const tuple = ["unrelated-component", graph${edgeCount - 2}];
           const CASES = new Map([`,
         )
         .replace(
@@ -2336,6 +2450,63 @@ describe("Task 7 React visual cases", () => {
       } else {
         expect(violations).toEqual([]);
       }
+    },
+  );
+
+  test("allows an unrelated function-valued registration constituent", () => {
+    const source = guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)
+      .replace(
+        "const CASES = new Map([",
+        `const unrelatedAction = (args) => stabilizeUnrelated(args);
+        const unrelatedTuple = [
+          "unrelated-component",
+          [{ name: "settled", action: unrelatedAction }],
+        ];
+        const CASES = new Map([`,
+      )
+      .replace(
+        TASK7_REGISTRATION_END,
+        `${TASK7_REGISTRATION_END},
+        unrelatedTuple`,
+      );
+
+    expect(analyzeTask7VisualSource(source).violations).toEqual([]);
+  });
+
+  test.each([
+    ["call", "const dynamic = loadCases();"],
+    [
+      "computed property",
+      'const dynamic = { [chooseKey()]: "value" };',
+    ],
+  ])(
+    "fails closed for an unresolved dynamic registration constituent: %s",
+    (_label, declaration) => {
+      const source = guardedTask7Source(`
+        async function action({ canvas }) {
+          await canvas.getByRole("button").click();
+        }
+      `)
+        .replace(
+          "const CASES = new Map([",
+          `${declaration}
+          const tuple = ["unrelated-component", dynamic];
+          const CASES = new Map([`,
+        )
+        .replace(
+          TASK7_REGISTRATION_END,
+          `${TASK7_REGISTRATION_END},
+          tuple`,
+        );
+
+      expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+        component: "<unresolved>",
+        kind: "unresolved action registration",
+      });
     },
   );
 
@@ -2431,6 +2602,22 @@ describe("Task 7 React visual cases", () => {
       const selectedCase = ${visualCase};`,
       "action",
     ).replace('{ name: "selected", action: action }', "selectedCase");
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "context-window",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test("rejects duplicate inline numeric advanceMs metadata", () => {
+    const source = guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `).replace(
+      '{ name: "initial" },',
+      '{ name: "initial", advanceMs: 0, advanceMs: 1 },',
+    );
 
     expect(analyzeTask7VisualSource(source).violations).toContainEqual({
       component: "context-window",
