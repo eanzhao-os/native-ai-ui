@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ type Preset = {
   approvalZh: string;
   descEn: string;
   descZh: string;
-  icon: string;
+  icon: "shield" | "scale" | "bolt";
 };
 
 const PRESETS: Preset[] = [
@@ -27,8 +27,9 @@ const PRESETS: Preset[] = [
     sandbox: "E2B Cloud",
     approvalEn: "Strict Prompt",
     approvalZh: "全量拦截审批",
-    descEn: "Isolated remote container. Prompt user before all file edits, shell commands, and outbound HTTP.",
-    descZh: "在远程隔离容器中执行。任何文件修改、终端命令及外网 HTTP 调用均需用户手动确认。",
+    descEn:
+      "Remote isolation with approval before edits, commands, and outbound HTTP.",
+    descZh: "远程隔离执行；文件修改、终端命令与外网 HTTP 均需逐项确认。",
     icon: "shield",
   },
   {
@@ -38,8 +39,9 @@ const PRESETS: Preset[] = [
     sandbox: "Local Process",
     approvalEn: "Write-Only Prompt",
     approvalZh: "仅写操作审批",
-    descEn: "Local sandbox with workspace isolation. Read operations auto-approve; write/exec prompt once.",
-    descZh: "本地沙盒与工作区隔离。读操作自动放行；文件写入与命令执行仅提示一次。",
+    descEn:
+      "Workspace-isolated local runtime. Reads auto-approve; write and exec prompt once.",
+    descZh: "本地工作区隔离；读取自动放行，写入与执行仅提示一次。",
     icon: "scale",
   },
   {
@@ -49,8 +51,9 @@ const PRESETS: Preset[] = [
     sandbox: "Local Process",
     approvalEn: "Autonomous",
     approvalZh: "完全自主",
-    descEn: "Full automated execution. Retains durable exactly-once audit ledger in SQLite.",
-    descZh: "全自动执行流。在 SQLite 中保留可完整重放的 Exactly-Once 审计账本。",
+    descEn:
+      "Automated execution backed by a durable exactly-once SQLite audit ledger.",
+    descZh: "自动执行，并由 SQLite Exactly-Once 审计账本保留可重放事实。",
     icon: "bolt",
   },
 ];
@@ -73,7 +76,7 @@ const SAMPLE_AUDIT: AuditRecord[] = [
     statusEn: "Approved",
     statusZh: "已批准",
     timestamp: "21:48:12",
-    hash: "e4f8a1...3b9c",
+    hash: "e4f8a1…3b9c",
   },
   {
     id: "aud-2",
@@ -82,7 +85,7 @@ const SAMPLE_AUDIT: AuditRecord[] = [
     statusEn: "Approved",
     statusZh: "已批准",
     timestamp: "21:48:19",
-    hash: "82a0bc...19d4",
+    hash: "82a0bc…19d4",
   },
   {
     id: "aud-3",
@@ -91,160 +94,308 @@ const SAMPLE_AUDIT: AuditRecord[] = [
     statusEn: "Auto-Allowed",
     statusZh: "自动放行",
     timestamp: "21:48:22",
-    hash: "6c7d1e...90fa",
+    hash: "6c7d1e…90fa",
   },
 ];
 
-export default function PermissionPresetCard({ lang: propLang }: { lang?: "en" | "zh" }) {
+function PresetIcon({ icon }: { icon: Preset["icon"] }) {
+  if (icon === "shield") {
+    return (
+      <svg
+        aria-hidden="true"
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+      </svg>
+    );
+  }
+  if (icon === "scale") {
+    return (
+      <svg
+        aria-hidden="true"
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 3v18M8 21h8M5 7l7-4 7 4M3 7h4l-2 6H1l2-6Zm14 0h4l2 6h-4l-2-6Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      aria-hidden="true"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
+    </svg>
+  );
+}
+
+export default function PermissionPresetCard({
+  lang: propLang,
+}: {
+  lang?: "en" | "zh";
+}) {
   const lang = useLang("permission-preset-card", propLang);
   const zh = lang === "zh";
+  const groupId = useId();
 
-  const [selectedPreset, setSelectedPreset] = useState<string>("balanced");
+  const [selectedPreset, setSelectedPreset] = useState("balanced");
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayVerified, setReplayVerified] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+
+  const handlePresetChange = (preset: Preset) => {
+    setSelectedPreset(preset.id);
+    setAnnouncement(
+      zh
+        ? `已选择${preset.nameZh}`
+        : `Selected ${preset.nameEn}`,
+    );
+  };
 
   const handleReplayAudit = () => {
+    if (isReplaying) return;
     setIsReplaying(true);
     setReplayVerified(false);
+    setAnnouncement(zh ? "正在重放审计流水" : "Replaying audit trail");
     setTimeout(() => {
       setIsReplaying(false);
       setReplayVerified(true);
+      setAnnouncement(
+        zh
+          ? "审计重放完成，3 条记录校验通过"
+          : "Audit replay complete; 3 records validated",
+      );
     }, 900);
   };
 
   return (
-    <div className="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-line">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-control bg-orange-tint text-orange">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <div className="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card dark:border-line-strong">
+      <div className="flex items-start justify-between gap-3 border-b border-line pb-3.5 dark:border-line-strong">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-control bg-orange-tint text-orange">
+            <svg
+              aria-hidden="true"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="10" rx="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </span>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-[13px] font-semibold text-ink">
               {zh ? "权限预设与审计重放" : "Permission Presets & Auditing"}
             </h3>
-            <p className="text-[11px] text-ink-3">
-              {zh ? "Harness 权限 Bundle 与持久化不可变事实" : "Harness authorization bundle & durable facts"}
+            <p className="mt-0.5 text-[11px] leading-relaxed text-ink-3">
+              {zh
+                ? "Harness 权限 Bundle 与持久化不可变事实"
+                : "Harness authorization bundle and durable facts"}
             </p>
           </div>
         </div>
 
-        <span className="rounded-chip border border-line bg-inset px-2 py-0.5 font-mono text-[10px] text-ink-2">
-          {zh ? "Exactly-Once 审计" : "Exactly-Once Audit"}
+        <span className="shrink-0 rounded-chip border border-line-strong bg-inset px-2 py-1 font-mono text-[9.5px] text-ink-2">
+          {zh ? "Exactly-Once 审计" : "Exactly-Once"}
         </span>
       </div>
 
-      {/* Preset Selector Grid */}
-      <div className="mt-3.5 grid grid-cols-1 md:grid-cols-3 gap-2">
-        {PRESETS.map((p) => {
-          const isSelected = selectedPreset === p.id;
-          return (
-            <div
-              key={p.id}
-              onClick={() => setSelectedPreset(p.id)}
-              className={`flex flex-col justify-between rounded-control border p-2.5 transition-all cursor-pointer ${
-                isSelected
-                  ? "border-accent bg-accent-tint/30 shadow-sm ring-1 ring-accent"
-                  : "border-line bg-inset/40 hover:border-line-strong hover:bg-hover/30"
-              }`}
-            >
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className={`flex size-4 items-center justify-center ${isSelected ? "text-accent-ink" : "text-ink-2"}`}>
-                    {p.icon === "shield" ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                      </svg>
-                    ) : p.icon === "scale" ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 3v18M8 21h8M3 7h4l-3 7a3.5 3.5 0 0 1-4 0l3-7zm14 0h4l-3 7a3.5 3.5 0 0 1-4 0l3-7zM5 7l7-4 7 4" transform="translate(1 0) scale(0.92)" />
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className="text-[12px] font-semibold text-ink">
-                    {zh ? p.nameZh : p.nameEn}
-                  </span>
-                </div>
-                <p className="text-[10.5px] text-ink-2 leading-tight">
-                  {zh ? p.descZh : p.descEn}
-                </p>
-              </div>
+      <fieldset
+        role="radiogroup"
+        aria-label={zh ? "权限预设" : "Permission presets"}
+        className="mt-3.5"
+      >
+        <legend className="sr-only">
+          {zh ? "选择权限预设" : "Choose a permission preset"}
+        </legend>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          {PRESETS.map((preset) => {
+            const isSelected = selectedPreset === preset.id;
+            const descriptionId = `${groupId}-${preset.id}-description`;
+            const name = zh ? preset.nameZh : preset.nameEn;
+            return (
+              <label
+                key={preset.id}
+                className={`relative flex min-h-[172px] cursor-pointer flex-col justify-between rounded-control border p-3 transition-colors focus-within:outline-none motion-reduce:transition-none ${
+                  isSelected
+                    ? "border-accent bg-accent-tint/35 shadow-sm ring-1 ring-accent/70"
+                    : "border-line-strong bg-inset/35 hover:border-accent/35 hover:bg-hover/40"
+                } dark:border-line-strong`}
+              >
+                <input
+                  type="radio"
+                  name={`permission-preset-${groupId}`}
+                  value={preset.id}
+                  checked={isSelected}
+                  aria-describedby={descriptionId}
+                  onChange={() => handlePresetChange(preset)}
+                  className="peer sr-only"
+                />
+                <span className="pointer-events-none absolute inset-0 rounded-control peer-focus-visible:ring-2 peer-focus-visible:ring-accent/60 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface" />
 
-              <div className="mt-2.5 flex flex-col gap-1 border-t border-line/60 pt-2 font-mono text-[9.5px]">
-                <div className="flex justify-between text-ink-3">
-                  <span>{zh ? "沙盒:" : "Sandbox:"}</span>
-                  <span className="text-ink font-medium">{p.sandbox}</span>
-                </div>
-                <div className="flex justify-between text-ink-3">
-                  <span>{zh ? "审批:" : "Approval:"}</span>
-                  <span className="text-ink font-medium">
-                    {zh ? p.approvalZh : p.approvalEn}
+                <span>
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-control ${
+                          isSelected
+                            ? "bg-accent text-white"
+                            : "bg-field text-ink-2"
+                        }`}
+                      >
+                        <PresetIcon icon={preset.icon} />
+                      </span>
+                      <span className="text-[11.5px] font-semibold leading-tight text-ink">
+                        {name}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] font-bold ${
+                        isSelected
+                          ? "border-accent bg-accent text-white"
+                          : "border-line-strong text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
                   </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                  <span
+                    id={descriptionId}
+                    className="mt-2 block text-[10.5px] leading-[1.45] text-ink-2"
+                  >
+                    {zh ? preset.descZh : preset.descEn}
+                  </span>
+                </span>
 
-      {/* Exactly-Once Audit Trail */}
-      <div className="mt-4 rounded-control border border-line bg-inset/50 p-3">
-        <div className="flex items-center justify-between pb-2 border-b border-line/60">
-          <div className="flex items-center gap-1.5">
+                <span className="mt-3 grid gap-1.5 border-t border-line pt-2.5 font-mono text-[9.5px] dark:border-line-strong">
+                  <span className="flex items-start justify-between gap-2 text-ink-3">
+                    <span>{zh ? "沙盒" : "Sandbox"}</span>
+                    <span className="text-right font-medium text-ink">
+                      {preset.sandbox}
+                    </span>
+                  </span>
+                  <span className="flex items-start justify-between gap-2 text-ink-3">
+                    <span>{zh ? "审批" : "Approval"}</span>
+                    <span className="text-right font-medium text-ink">
+                      {zh ? preset.approvalZh : preset.approvalEn}
+                    </span>
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <div className="mt-4 overflow-hidden rounded-control border border-line-strong bg-inset/45">
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-1.5 dark:border-line-strong">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="text-[11.5px] font-semibold text-ink">
-              {zh ? "可重放审计流水 (Audit Trail)" : "Replayable Audit Trail"}
+              {zh ? "可重放审计流水" : "Replayable Audit Trail"}
             </span>
             {replayVerified && (
-              <span className="flex items-center gap-0.5 text-green font-mono text-[10px]">
+              <span className="rounded-chip border border-green/25 bg-green-tint px-1.5 py-0.5 font-mono text-[9.5px] font-medium text-green">
                 {zh ? "✓ 校验通过" : "✓ Validated"}
               </span>
             )}
           </div>
           <button
             type="button"
+            aria-label={zh ? "重放审计" : "Replay Audit"}
             onClick={handleReplayAudit}
             disabled={isReplaying}
-            className="flex items-center gap-1 rounded-chip border border-line bg-surface px-2 py-0.5 text-[10.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+            aria-busy={isReplaying}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 text-[10.5px] font-medium text-ink-2 transition-colors hover:border-accent/35 hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
           >
-            {isReplaying ? (zh ? "正在重放校验..." : "Verifying...") : zh ? "重放审计" : "Replay Audit"}
+            <svg
+              aria-hidden="true"
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={
+                isReplaying
+                  ? "animate-spin text-accent motion-reduce:animate-none"
+                  : ""
+              }
+            >
+              <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+            </svg>
+            {isReplaying
+              ? zh
+                ? "正在校验"
+                : "Verifying"
+              : zh
+                ? "重放审计"
+                : "Replay Audit"}
           </button>
         </div>
 
-        <div className="mt-2 flex flex-col divide-y divide-line/40">
+        <div className="divide-y divide-line/70 px-3 dark:divide-line-strong">
           {SAMPLE_AUDIT.map((item) => (
-            <div key={item.id} className="flex items-center justify-between py-1.5 text-[11px]">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className={`rounded-chip px-1.5 py-0.2 font-mono text-[9px] font-medium ${
-                    item.statusEn === "Approved"
-                      ? "bg-green-tint text-green"
-                      : item.statusEn === "Denied"
-                      ? "bg-red-tint text-red"
-                      : "bg-accent-tint text-accent-ink"
-                  }`}
-                >
-                  {zh ? item.statusZh : item.statusEn}
-                </span>
-                <span className="font-mono text-[11px] font-medium text-ink truncate max-w-[200px]">
-                  {item.action}: {item.target}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 font-mono text-[10px] text-ink-3">
+            <div
+              key={item.id}
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-2 text-[10.5px]"
+            >
+              <span
+                className={`rounded-chip border px-1.5 py-0.5 font-mono text-[8.5px] font-medium ${
+                  item.statusEn === "Approved"
+                    ? "border-green/25 bg-green-tint text-green"
+                    : item.statusEn === "Denied"
+                      ? "border-red/25 bg-red-tint text-red"
+                      : "border-accent/25 bg-accent-tint text-accent-ink"
+                }`}
+              >
+                {zh ? item.statusZh : item.statusEn}
+              </span>
+              <span className="min-w-0 font-mono text-ink">
+                <span className="font-semibold">{item.action}</span>
+                <span className="mx-1 text-ink-3">·</span>
+                <span className="break-all text-ink-2">{item.target}</span>
+              </span>
+              <span className="grid justify-items-end gap-0.5 font-mono text-[9px] text-ink-3">
                 <span>{item.timestamp}</span>
-                <span className="rounded bg-field px-1 py-0.2">{item.hash}</span>
-              </div>
+                <span className="rounded bg-field px-1 py-0.5">{item.hash}</span>
+              </span>
             </div>
           ))}
         </div>
       </div>
+
+      <p role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
     </div>
   );
 }

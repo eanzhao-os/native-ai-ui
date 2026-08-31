@@ -1204,6 +1204,404 @@ const TASK8_CASES = [
 ];
 /* TASK 8 VISUAL ACTIONS END */
 
+/* TASK 9 VISUAL ACTIONS START */
+async function assertTask9Target(control, hitTarget, label) {
+  const box = await hitTarget.boundingBox();
+  if (!box) throw new Error(`${label} is not visibly measurable`);
+  if (box.width < 44 || box.height < 44) {
+    throw new Error(
+      `${label} hit area is ${box.width.toFixed(1)}×${box.height.toFixed(1)}; expected at least 44×44`,
+    );
+  }
+}
+
+async function focusTask9Control({ canvas, page }, control, hitTarget, label) {
+  await control.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error(`${label} did not receive visible keyboard focus`);
+  }
+  await assertTask9Target(control, hitTarget, label);
+}
+
+async function task9ControlledRegion(canvas, control, label) {
+  const controlledId = await control.getAttribute("aria-controls");
+  if (!controlledId) throw new Error(`${label} is missing aria-controls`);
+  const region = canvas.locator(`[id="${controlledId}"]`);
+  if ((await region.count()) !== 1) {
+    throw new Error(`${label} controlled region is missing or duplicated`);
+  }
+  return region;
+}
+
+async function expandSecondCordisPlugin({ canvas }) {
+  const first = canvas.getByRole("button", {
+    name: /Service topology: Cordis\.Hmr|服务拓扑：Cordis\.Hmr/,
+  });
+  const second = canvas.getByRole("button", {
+    name: /Service topology: Harness\.Llm\.DeepSeek|服务拓扑：Harness\.Llm\.DeepSeek/,
+  });
+  await first.click();
+  await second.click();
+  if ((await first.getAttribute("aria-expanded")) !== "false") {
+    throw new Error("First Cordis plugin remained expanded");
+  }
+  if ((await second.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Second Cordis plugin did not expand");
+  }
+  await (await task9ControlledRegion(canvas, second, "Cordis disclosure")).waitFor();
+  await assertTask9Target(second, second, "Cordis disclosure");
+}
+
+async function reloadCordisPlugin({ advance, canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Hot reload Cordis\.Hmr|热重载 Cordis\.Hmr/,
+  });
+  await control.click();
+  if ((await control.getAttribute("aria-busy")) !== "true") {
+    throw new Error("Cordis HMR did not enter its busy state");
+  }
+  await advance(800);
+  await canvas.getByText("rev #4").waitFor();
+  await assertTask9Target(control, control, "Cordis HMR control");
+}
+
+async function disableCordisPlugin({ canvas }) {
+  const toggle = canvas.getByRole("button", {
+    name: /Plugin enabled: Cordis\.Hmr|插件启用状态：Cordis\.Hmr/,
+  });
+  await toggle.click();
+  if ((await toggle.getAttribute("aria-pressed")) !== "false") {
+    throw new Error("Cordis plugin did not become disabled");
+  }
+  const hmr = canvas.getByRole("button", {
+    name: /Hot reload Cordis\.Hmr|热重载 Cordis\.Hmr/,
+  });
+  if (!(await hmr.isDisabled())) {
+    throw new Error("Disabled Cordis plugin retained an active HMR control");
+  }
+  await assertTask9Target(toggle, toggle, "Cordis enable control");
+}
+
+async function focusCordisPlugin(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Service topology: Harness\.Llm\.DeepSeek|服务拓扑：Harness\.Llm\.DeepSeek/,
+  });
+  await focusTask9Control(args, control, control, "Cordis disclosure");
+}
+
+async function selectStrictPermissionPreset({ canvas }) {
+  const control = canvas.getByRole("radio", {
+    name: /Strict Sandboxed|严格沙盒隔离/,
+  });
+  const hitTarget = control.locator("..");
+  await hitTarget.click();
+  if (!(await control.isChecked())) {
+    throw new Error("Strict permission preset did not become selected");
+  }
+  await assertTask9Target(control, hitTarget, "Permission preset");
+}
+
+async function startPermissionAudit({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Replay Audit|重放审计/,
+  });
+  await control.click();
+  if ((await control.getAttribute("aria-busy")) !== "true") {
+    throw new Error("Permission audit did not enter its busy state");
+  }
+  await assertTask9Target(control, control, "Permission audit control");
+}
+
+async function verifyPermissionAudit({ advance, canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Replay Audit|重放审计/,
+  });
+  await control.click();
+  await advance(900);
+  await canvas.getByText(/^✓ (Validated|校验通过)$/).waitFor();
+}
+
+async function focusPermissionPreset(args) {
+  const control = args.canvas.getByRole("radio", {
+    name: /Balanced Dev|开发平衡模式/,
+  });
+  await focusTask9Control(
+    args,
+    control,
+    control.locator(".."),
+    "Permission preset",
+  );
+}
+
+async function filterLspWarnings({ canvas }) {
+  const control = canvas.getByRole("button", { name: /Warnings|警告/ });
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("LSP warnings filter did not become selected");
+  }
+  if ((await canvas.getByText("CS0103").count()) !== 0) {
+    throw new Error("LSP warnings filter retained an error diagnostic");
+  }
+  await assertTask9Target(control, control, "LSP filter");
+}
+
+async function startLspFix({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Auto-Fix CS0103|一键修复 CS0103/,
+  });
+  await control.click();
+  if (!(await control.isDisabled())) {
+    throw new Error("LSP fix control remained enabled while pending");
+  }
+  if ((await control.getAttribute("aria-busy")) !== "true") {
+    throw new Error("LSP fix control did not expose its busy state");
+  }
+  await assertTask9Target(control, control, "LSP fix control");
+}
+
+async function completeLspFix({ advance, canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Auto-Fix CS0103|一键修复 CS0103/,
+  });
+  await control.click();
+  await advance(600);
+  if ((await canvas.getByText("CS0103", { exact: true }).count()) !== 0) {
+    throw new Error("Fixed LSP diagnostic remained visible");
+  }
+  await canvas.getByText(/2 issues in scope|2 个范围内问题/).waitFor();
+}
+
+async function focusLspFix(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Auto-Fix CS0103|一键修复 CS0103/,
+  });
+  await focusTask9Control(args, control, control, "LSP fix control");
+}
+
+async function openSandboxProcess({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Process 1402: dotnet run|进程 1402：dotnet run/,
+  });
+  await control.click();
+  if ((await control.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Sandbox process did not expand");
+  }
+  const region = await task9ControlledRegion(canvas, control, "Sandbox process");
+  await region.waitFor();
+  await region.getByText(/8m 12s|8分12秒/).waitFor();
+  await assertTask9Target(control, control, "Sandbox process disclosure");
+}
+
+async function restartSandbox({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Restart Container|重启容器/,
+  });
+  await control.click();
+  if (!(await control.isDisabled())) {
+    throw new Error("Sandbox restart control remained enabled while pending");
+  }
+  if ((await control.getAttribute("aria-busy")) !== "true") {
+    throw new Error("Sandbox restart did not expose its busy state");
+  }
+  await assertTask9Target(control, control, "Sandbox restart control");
+}
+
+async function settleSandboxRestart({ advance, canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Restart Container|重启容器/,
+  });
+  await control.click();
+  await advance(1000);
+  await canvas.getByText("8.2%").waitFor();
+}
+
+async function focusSandboxProcess(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Process 1402: dotnet run|进程 1402：dotnet run/,
+  });
+  await focusTask9Control(args, control, control, "Sandbox process disclosure");
+}
+
+async function disableScheduledJob({ canvas }) {
+  const toggle = canvas.getByRole("button", {
+    name: /Job enabled: Vector Embeddings|任务启用状态：向量嵌入/,
+  });
+  await toggle.click();
+  if ((await toggle.getAttribute("aria-pressed")) !== "false") {
+    throw new Error("Scheduled job did not become disabled");
+  }
+  const trigger = canvas.getByRole("button", {
+    name: /Trigger Vector Embeddings|立即触发 向量嵌入/,
+  });
+  if (!(await trigger.isDisabled())) {
+    throw new Error("Disabled job retained an active trigger");
+  }
+  await canvas.getByText(/2 active jobs|2 个活跃任务/).waitFor();
+  await assertTask9Target(toggle, toggle, "Job enable control");
+}
+
+async function triggerScheduledJob({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Trigger Vector Embeddings|立即触发 向量嵌入/,
+  });
+  await control.click();
+  if (!(await control.isDisabled())) {
+    throw new Error("Job trigger remained enabled while running");
+  }
+  if ((await control.getAttribute("aria-busy")) !== "true") {
+    throw new Error("Job trigger did not expose its busy state");
+  }
+  await assertTask9Target(control, control, "Job trigger");
+}
+
+async function completeScheduledJob({ advance, canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Trigger Vector Embeddings|立即触发 向量嵌入/,
+  });
+  await control.click();
+  await advance(1200);
+  const row = canvas.getByRole("listitem", {
+    name: /Vector Embeddings Sync|向量嵌入同步/,
+  });
+  await row.getByText(/Success|执行成功/).waitFor();
+  if (await control.isDisabled()) {
+    throw new Error("Completed job trigger did not become available again");
+  }
+}
+
+async function focusScheduledJob(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Trigger Vector Embeddings|立即触发 向量嵌入/,
+  });
+  await focusTask9Control(args, control, control, "Job trigger");
+}
+
+async function openMcpTools({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Server ripgrep|服务器 ripgrep/,
+  });
+  await control.click();
+  if ((await control.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("MCP tool disclosure did not expand");
+  }
+  const region = await task9ControlledRegion(canvas, control, "MCP disclosure");
+  await region.getByText("ripgrep__search").waitFor();
+  await assertTask9Target(control, control, "MCP disclosure");
+}
+
+async function openMcpError({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Server web-fetch|服务器 web-fetch/,
+  });
+  await control.click();
+  const region = await task9ControlledRegion(canvas, control, "MCP error disclosure");
+  await region.getByRole("button", { name: /Retry web-fetch|重连 web-fetch/ }).waitFor();
+}
+
+async function retryMcpServer({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Server web-fetch|服务器 web-fetch/,
+  });
+  await control.click();
+  const region = await task9ControlledRegion(canvas, control, "MCP retry disclosure");
+  const retry = region.getByRole("button", {
+    name: /Retry web-fetch|重连 web-fetch/,
+  });
+  await assertTask9Target(retry, retry, "MCP retry control");
+  await retry.click();
+  if ((await region.getAttribute("aria-busy")) !== "true") {
+    throw new Error("MCP server did not enter its handshake state");
+  }
+}
+
+async function recoverMcpServer({ advance, canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Server web-fetch|服务器 web-fetch/,
+  });
+  await control.click();
+  const region = await task9ControlledRegion(canvas, control, "MCP recovery disclosure");
+  await region
+    .getByRole("button", { name: /Retry web-fetch|重连 web-fetch/ })
+    .click();
+  await advance(1600);
+  await region.getByText("web-fetch__get").waitFor();
+  await canvas.getByText(/3\/3 · 7 tools|3\/3 · 7 个工具/).waitFor();
+}
+
+async function focusMcpServer(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Server ripgrep|服务器 ripgrep/,
+  });
+  await focusTask9Control(args, control, control, "MCP disclosure");
+}
+
+const TASK9_CASES = [
+  [
+    "cordis-plugin-tree",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "second-expanded", advanceMs: 0, action: expandSecondCordisPlugin },
+      { name: "hmr-reloaded", advanceMs: 0, action: reloadCordisPlugin },
+      { name: "disabled", advanceMs: 0, action: disableCordisPlugin },
+      { name: "focused", advanceMs: 0, action: focusCordisPlugin },
+    ],
+  ],
+  [
+    "permission-preset-card",
+    [
+      { name: "balanced", advanceMs: 0 },
+      { name: "strict-selected", advanceMs: 0, action: selectStrictPermissionPreset },
+      { name: "audit-verifying", advanceMs: 0, action: startPermissionAudit },
+      { name: "audit-verified", advanceMs: 0, action: verifyPermissionAudit },
+      { name: "focused", advanceMs: 0, action: focusPermissionPreset },
+    ],
+  ],
+  [
+    "lsp-diagnostics",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "warnings", advanceMs: 0, action: filterLspWarnings },
+      { name: "fixing", advanceMs: 0, action: startLspFix },
+      { name: "fixed", advanceMs: 0, action: completeLspFix },
+      { name: "focused", advanceMs: 0, action: focusLspFix },
+    ],
+  ],
+  [
+    "sandbox-manager",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "process-open", advanceMs: 0, action: openSandboxProcess },
+      { name: "restarting", advanceMs: 0, action: restartSandbox },
+      { name: "restarted", advanceMs: 0, action: settleSandboxRestart },
+      { name: "focused", advanceMs: 0, action: focusSandboxProcess },
+    ],
+  ],
+  [
+    "job-scheduler",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "disabled", advanceMs: 0, action: disableScheduledJob },
+      { name: "triggering", advanceMs: 0, action: triggerScheduledJob },
+      { name: "completed", advanceMs: 0, action: completeScheduledJob },
+      { name: "focused", advanceMs: 0, action: focusScheduledJob },
+    ],
+  ],
+  [
+    "mcp-servers",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "tools-open", advanceMs: 0, action: openMcpTools },
+      { name: "error-open", advanceMs: 0, action: openMcpError },
+      { name: "retrying", advanceMs: 0, action: retryMcpServer },
+      { name: "recovered", advanceMs: 0, action: recoverMcpServer },
+      { name: "focused", advanceMs: 0, action: focusMcpServer },
+    ],
+  ],
+];
+/* TASK 9 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -1238,6 +1636,9 @@ export const CASES = new Map([
   /* TASK 8 VISUAL REGISTRATIONS START */
   ...TASK8_CASES,
   /* TASK 8 VISUAL REGISTRATIONS END */
+  /* TASK 9 VISUAL REGISTRATIONS START */
+  ...TASK9_CASES,
+  /* TASK 9 VISUAL REGISTRATIONS END */
   /* TASK 4 VISUAL REGISTRATIONS START */
   [
     "session-list",

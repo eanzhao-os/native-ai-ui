@@ -7,6 +7,8 @@ import { useLang } from "@/lib/lang-context";
  * DURABLE JOB SCHEDULER & CRON MONITOR
  * ───────────────────────────────────────────────────────── */
 
+type JobStatus = "Success" | "Running" | "Failed";
+
 type JobItem = {
   id: string;
   nameEn: string;
@@ -14,7 +16,7 @@ type JobItem = {
   cron: string;
   nextRunEn: string;
   nextRunZh: string;
-  lastStatusEn: "Success" | "Running" | "Failed";
+  lastStatusEn: JobStatus;
   lastStatusZh: "执行成功" | "执行中" | "失败";
   enabled: boolean;
 };
@@ -45,7 +47,7 @@ const INITIAL_JOBS: JobItem[] = [
   {
     id: "job-3",
     nameEn: "Telemetry Batch Export & Rollup",
-    nameZh: "遥测遥控日志批量聚合导出",
+    nameZh: "遥测日志批量聚合导出",
     cron: "0 0 * * *",
     nextRunEn: "At 00:00 UTC",
     nextRunZh: "今天 00:00 UTC",
@@ -55,121 +57,235 @@ const INITIAL_JOBS: JobItem[] = [
   },
 ];
 
-export default function JobScheduler({ lang: propLang }: { lang?: "en" | "zh" }) {
+function statusClasses(status: JobStatus) {
+  if (status === "Success") {
+    return "border-green/25 bg-green-tint text-green";
+  }
+  if (status === "Failed") {
+    return "border-red/25 bg-red-tint text-red";
+  }
+  return "border-accent/25 bg-accent-tint text-accent-ink";
+}
+
+export default function JobScheduler({
+  lang: propLang,
+}: {
+  lang?: "en" | "zh";
+}) {
   const lang = useLang("job-scheduler", propLang);
   const zh = lang === "zh";
 
   const [jobs, setJobs] = useState<JobItem[]>(INITIAL_JOBS);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   const handleToggle = (id: string) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === id ? { ...j, enabled: !j.enabled } : j))
+    const job = jobs.find((item) => item.id === id);
+    if (!job || triggeringId === id) return;
+    const enabled = !job.enabled;
+    setJobs((current) =>
+      current.map((item) => (item.id === id ? { ...item, enabled } : item)),
+    );
+    setAnnouncement(
+      zh
+        ? `${job.nameZh} 已${enabled ? "启用" : "暂停"}`
+        : `${job.nameEn} ${enabled ? "enabled" : "paused"}`,
     );
   };
 
   const handleTriggerNow = (id: string) => {
+    const job = jobs.find((item) => item.id === id);
+    if (
+      !job ||
+      !job.enabled ||
+      job.lastStatusEn === "Running" ||
+      triggeringId
+    ) {
+      return;
+    }
+
     setTriggeringId(id);
+    setJobs((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              lastStatusEn: "Running",
+              lastStatusZh: "执行中",
+            }
+          : item,
+      ),
+    );
+    setAnnouncement(
+      zh ? `正在立即执行 ${job.nameZh}` : `Running ${job.nameEn} now`,
+    );
+
     setTimeout(() => {
+      setJobs((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                lastStatusEn: "Success",
+                lastStatusZh: "执行成功",
+              }
+            : item,
+        ),
+      );
       setTriggeringId(null);
+      setAnnouncement(
+        zh
+          ? `${job.nameZh} 已成功完成`
+          : `${job.nameEn} completed successfully`,
+      );
     }, 1200);
   };
 
   return (
-    <div className="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3.5 border-b border-line">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+    <div className="w-full max-w-xl rounded-card border border-line bg-surface p-5 shadow-card dark:border-line-strong">
+      <div className="flex items-start justify-between gap-3 border-b border-line pb-3.5 dark:border-line-strong">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
+            <svg
+              aria-hidden="true"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3.5 2" />
             </svg>
           </span>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
               <h3 className="text-[13px] font-semibold text-ink">
                 {zh ? "持久化任务与 Cron 调度" : "Durable Job Scheduler"}
               </h3>
-              <span className="rounded-chip border border-line bg-inset px-1.5 py-0.2 font-mono text-[9.5px] text-ink-3">
+              <span className="rounded-chip border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[9px] text-ink-3">
                 Harness.Jobs
               </span>
             </div>
-            <p className="text-[11px] text-ink-3">
-              {zh ? "后台持久化 Cron 触发器与执行队列" : "Durable background cron triggers & queue"}
+            <p className="mt-0.5 text-[11px] leading-relaxed text-ink-3">
+              {zh
+                ? "持久化 Cron 触发器与后台执行队列"
+                : "Durable cron triggers and background execution queue"}
             </p>
           </div>
         </div>
 
-        <span className="font-mono text-[11px] text-ink-2">
-          {jobs.filter((j) => j.enabled).length} {zh ? "个活跃 Cron" : "Active Crons"}
+        <span className="shrink-0 rounded-chip border border-line-strong bg-inset px-2 py-1 font-mono text-[9.5px] text-ink-2">
+          {jobs.filter((job) => job.enabled).length}{" "}
+          {zh ? "个活跃任务" : "active jobs"}
         </span>
       </div>
 
-      {/* Jobs List */}
-      <div className="mt-3.5 flex flex-col gap-2">
+      <div role="list" className="mt-3.5 flex flex-col gap-2.5">
         {jobs.map((job) => {
+          const name = zh ? job.nameZh : job.nameEn;
           const isTriggering = triggeringId === job.id;
+          const triggerDisabled =
+            Boolean(triggeringId) ||
+            !job.enabled ||
+            job.lastStatusEn === "Running";
           return (
             <div
               key={job.id}
-              className={`flex items-center justify-between rounded-control border p-3 transition-all ${
+              role="listitem"
+              aria-label={name}
+              className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-control border p-2.5 transition-colors motion-reduce:transition-none ${
                 job.enabled
-                  ? "border-line bg-inset/40 hover:border-line-strong hover:bg-hover/20"
-                  : "border-line/60 bg-page/40 opacity-60"
-              }`}
+                  ? "border-line-strong bg-inset/35 hover:border-accent/35"
+                  : "border-line bg-page/55"
+              } dark:border-line-strong`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)] items-center gap-1">
                 <button
                   type="button"
+                  aria-label={
+                    zh ? `任务启用状态：${name}` : `Job enabled: ${name}`
+                  }
+                  aria-pressed={job.enabled}
                   onClick={() => handleToggle(job.id)}
-                  className={`size-3.5 rounded-full border transition-colors cursor-pointer shrink-0 ${
-                    job.enabled ? "border-accent bg-accent" : "border-line bg-surface"
-                  }`}
-                  title={job.enabled ? (zh ? "禁用定时任务" : "Disable cron") : zh ? "启用定时任务" : "Enable cron"}
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[12px] font-medium text-ink truncate">
-                      {zh ? job.nameZh : job.nameEn}
+                  disabled={isTriggering}
+                  className="flex size-11 items-center justify-center rounded-control transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`relative h-5 w-8 rounded-full border transition-colors motion-reduce:transition-none ${
+                      job.enabled
+                        ? "border-accent/45 bg-accent-tint"
+                        : "border-line-strong bg-field"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 size-3.5 rounded-full transition-[left,background-color] motion-reduce:transition-none ${
+                        job.enabled
+                          ? "left-[14px] bg-accent"
+                          : "left-0.5 bg-ink-3/55"
+                      }`}
+                    />
+                  </span>
+                </button>
+
+                <div className="min-w-0 py-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span
+                      className={`min-w-0 truncate text-[11.5px] font-semibold ${
+                        job.enabled ? "text-ink" : "text-ink-3"
+                      }`}
+                    >
+                      {name}
                     </span>
-                    <span className="rounded-chip bg-field px-1.5 py-0.2 font-mono text-[9.5px] text-ink-2">
+                    <code className="rounded-chip border border-line bg-field px-1.5 py-0.5 font-mono text-[9px] text-ink-2 dark:border-line-strong">
                       {job.cron}
-                    </span>
+                    </code>
                   </div>
-                  <span className="text-[10.5px] text-ink-3">
-                    {zh ? "下次运行: " : "Next run: "}
+                  <span className="mt-1 block text-[10px] text-ink-3">
+                    {zh ? "下次运行：" : "Next run: "}
                     {zh ? job.nextRunZh : job.nextRunEn}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 pl-2">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <span
-                  className={`rounded-chip px-1.5 py-0.2 font-mono text-[9.5px] font-medium ${
-                    job.lastStatusEn === "Success"
-                      ? "bg-green-tint text-green"
-                      : job.lastStatusEn === "Failed"
-                      ? "bg-red-tint text-red"
-                      : "bg-accent-tint text-accent-ink"
-                  }`}
+                  className={`rounded-chip border px-1.5 py-0.5 font-mono text-[9px] font-medium ${statusClasses(
+                    job.lastStatusEn,
+                  )}`}
                 >
                   {zh ? job.lastStatusZh : job.lastStatusEn}
                 </span>
 
                 <button
                   type="button"
+                  aria-label={zh ? `立即触发 ${name}` : `Trigger ${name}`}
+                  aria-busy={isTriggering}
                   onClick={() => handleTriggerNow(job.id)}
-                  disabled={isTriggering || !job.enabled}
-                  className="rounded-control border border-line bg-surface px-2 py-0.5 text-[10.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-50 transition-colors cursor-pointer"
+                  disabled={triggerDisabled}
+                  className="min-h-11 min-w-11 rounded-control border border-line-strong bg-surface px-2.5 text-[10.5px] font-medium text-ink-2 transition-colors hover:border-accent/40 hover:bg-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none"
                 >
-                  {isTriggering ? (zh ? "触发中..." : "Running...") : zh ? "立即触发" : "Trigger"}
+                  {isTriggering
+                    ? zh
+                      ? "执行中…"
+                      : "Running…"
+                    : zh
+                      ? "立即触发"
+                      : "Trigger"}
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </p>
     </div>
   );
 }
