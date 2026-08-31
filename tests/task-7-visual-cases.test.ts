@@ -1296,22 +1296,34 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     return argument && ts.isStringLiteralLike(argument) ? argument.text : null;
   }
 
+  const guardedRegistryAliases = new Set<ts.VariableDeclaration>([
+    strictCasesDeclaration,
+    strictTask7Declaration,
+  ]);
+
+  function registryAliasDeclaration(
+    expression: ts.Expression,
+  ): ts.VariableDeclaration | null {
+    const current = unwrapVisualExpression(expression);
+    if (!ts.isIdentifier(current)) return null;
+    const declaration = declarationFor(current, checker, sourceFile);
+    return declaration && ts.isVariableDeclaration(declaration)
+      ? declaration
+      : null;
+  }
+
   function guardedRegistryRoot(
     expression: ts.Expression,
     visiting = new Set<ts.Declaration>(),
   ): ts.VariableDeclaration | null {
     const current = unwrapVisualExpression(expression);
     if (ts.isIdentifier(current)) {
-      const declaration = declarationFor(current, checker, sourceFile);
-      if (declaration === strictCasesDeclaration) {
-        return strictCasesDeclaration;
-      }
-      if (declaration === strictTask7Declaration) {
-        return strictTask7Declaration;
+      const declaration = registryAliasDeclaration(current);
+      if (declaration && guardedRegistryAliases.has(declaration)) {
+        return declaration;
       }
       if (
         !declaration ||
-        !ts.isVariableDeclaration(declaration) ||
         !declaration.initializer ||
         visiting.has(declaration)
       ) {
@@ -1358,14 +1370,27 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     if (
       ts.isBinaryExpression(node) &&
       node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
-      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
-      guardedRegistryRoot(node.left)
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
     ) {
-      recordViolation(
-        "<unresolved>",
-        "unresolved action registration",
-        node,
-      );
+      const guardedLeft = guardedRegistryRoot(node.left);
+      const assignedAlias =
+        node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+          ? registryAliasDeclaration(node.left)
+          : null;
+      if (
+        assignedAlias &&
+        !guardedLeft &&
+        guardedRegistryRoot(node.right)
+      ) {
+        guardedRegistryAliases.add(assignedAlias);
+      }
+      if (guardedLeft) {
+        recordViolation(
+          "<unresolved>",
+          "unresolved action registration",
+          node,
+        );
+      }
     } else if (
       ts.isDeleteExpression(node) &&
       guardedRegistryRoot(node.expression)
@@ -1880,6 +1905,42 @@ describe("Task 7 React visual cases", () => {
         await canvas.getByRole("button").click();
       }
     `));
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "<unresolved>",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test("rejects mutation through a registry alias established by assignment", () => {
+    const source = `${guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)}
+      let alias;
+      alias = TASK7_CASES;
+      alias.push(["context-window", [{ name: "override" }]]);`;
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "<unresolved>",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test.each([
+    ["parenthesized", "(TASK7_CASES)"],
+    ["as-typed", "TASK7_CASES as typeof TASK7_CASES"],
+    ["type-asserted", "<typeof TASK7_CASES>TASK7_CASES"],
+  ])("tracks a %s registry assignment before mutation", (_label, assigned) => {
+    const source = `${guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)}
+      let alias;
+      alias = ${assigned};
+      alias.push(["context-window", [{ name: "override" }]]);`;
 
     expect(analyzeTask7VisualSource(source).violations).toContainEqual({
       component: "<unresolved>",
