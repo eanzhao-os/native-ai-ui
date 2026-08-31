@@ -57,6 +57,7 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
 
   const [phase, setPhase] = useState(0);
   const approvalResultRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     if (phase < EVALUATION_MS.length) {
@@ -64,7 +65,12 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
       return () => clearTimeout(t);
     }
     if (phase === 5) {
-      const hold = setTimeout(() => setPhase(0), HOLD_MS);
+      const hold = setTimeout(() => {
+        if (document.activeElement === approvalResultRef.current) {
+          headingRef.current?.focus();
+        }
+        setPhase(0);
+      }, HOLD_MS);
       return () => clearTimeout(hold);
     }
   }, [phase]);
@@ -105,7 +111,11 @@ export default function HookPipeline({ lang: propLang }: { lang?: "en" | "zh" })
                   : "bg-accent animate-pulse motion-reduce:animate-none"
             }`}
           />
-          <h3 className="text-[13px] font-semibold text-ink">
+          <h3
+            ref={headingRef}
+            tabIndex={-1}
+            className="rounded-chip text-[13px] font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          >
             {zh ? "Hook 决策管线" : "Hook Pipeline"}
           </h3>
           <span className="rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[10px] text-ink-3">

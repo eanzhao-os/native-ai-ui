@@ -93,29 +93,43 @@ function claimVisibleNextStep(state: InboxState): InboxState {
   };
 }
 
+function restartReplayForQueueing(state: InboxState): InboxState {
+  if (state.phase < 4) return state;
+  return {
+    ...state,
+    claimed: [],
+    nextTurnStarted: false,
+    phase: 0,
+    stepNo: 1,
+  };
+}
+
 function inboxReducer(state: InboxState, action: InboxAction): InboxState {
   if (action.type === "send") {
     return { ...INITIAL_INBOX_STATE, lastAction: "send" };
   }
   if (action.type === "followup") {
+    const running = restartReplayForQueueing(state);
     return {
-      ...state,
+      ...running,
       lastAction: null,
-      nextTurn: enqueueUnique(state.nextTurn, FOLLOWUP),
+      nextTurn: enqueueUnique(running.nextTurn, FOLLOWUP),
     };
   }
   if (action.type === "steer") {
+    const running = restartReplayForQueueing(state);
     return {
-      ...state,
+      ...running,
       lastAction: null,
-      nextStep: enqueueUnique(state.nextStep, STEER),
+      nextStep: enqueueUnique(running.nextStep, STEER),
     };
   }
   if (action.type === "inject") {
+    const running = restartReplayForQueueing(state);
     return {
-      ...state,
+      ...running,
       lastAction: null,
-      nextStep: enqueueUnique(state.nextStep, INJECT),
+      nextStep: enqueueUnique(running.nextStep, INJECT),
     };
   }
   if (action.type === "claim") return claimVisibleNextStep(state);

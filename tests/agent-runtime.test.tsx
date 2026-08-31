@@ -136,6 +136,51 @@ describe("AgentInbox", () => {
     expect(claim.hasAttribute("disabled")).toBe(true);
   });
 
+  test.each([
+    {
+      button: "Queue Followup",
+      lang: "en" as const,
+      message: "also verify the rollout gate",
+      status: "awaiting step boundary…",
+    },
+    {
+      button: "加入 Followup 队列",
+      lang: "zh" as const,
+      message: "顺便验证一下灰度发布门禁",
+      status: "等待步骤边界…",
+    },
+  ])(
+    "keeps a $lang replay-hold followup queued past the stale reset deadline",
+    async ({ button, lang, message, status }) => {
+      vi.useFakeTimers();
+      render(<AgentInbox lang={lang} />);
+
+      await advance(900);
+      await advanceSteps(3, 1500);
+      await advance(1700);
+      await advance(2100);
+
+      const nextTurn = screen.getByRole("region", {
+        name: lang === "zh" ? "NextTurn 队列" : "NextTurn queue",
+      });
+      expect(
+        within(nextTurn).getByText(lang === "zh" ? "空" : "empty"),
+      ).not.toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: button }));
+
+      expect(within(nextTurn).getByText(message)).not.toBeNull();
+      expect(screen.getByRole("status").textContent).toContain(status);
+
+      await advance(900);
+      await advanceSteps(2, 1500);
+      await advance(701);
+
+      expect(within(nextTurn).getByText(message)).not.toBeNull();
+      expect(screen.getByText("turn 3 · step 1")).not.toBeNull();
+    },
+  );
+
   test("claims the next-step queue and starts the next turn at step one", async () => {
     vi.useFakeTimers();
     render(<AgentInbox />);
@@ -221,6 +266,27 @@ describe("HookPipeline", () => {
     expect(result.textContent).toContain(
       "Hook request approved. Final decision: allow.",
     );
+  });
+
+  test("moves focus to the visible pipeline heading before the approval result resets", async () => {
+    vi.useFakeTimers();
+    render(<HookPipeline />);
+
+    await advance(700);
+    await advanceSteps(3, 750);
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve hook request" }));
+    const result = screen.getByRole("status", {
+      name: "Hook approval result",
+    });
+    expect(document.activeElement).toBe(result);
+
+    await advance(3800);
+
+    const heading = screen.getByRole("heading", { name: "Hook Pipeline" });
+    expect(document.activeElement).toBe(heading);
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+    expect(result.textContent).toBe("");
   });
 });
 
