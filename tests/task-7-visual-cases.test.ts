@@ -74,6 +74,7 @@ type OriginContext = Map<ts.Node, Origin>;
 type OriginResolution = {
   active: Set<string>;
   remaining: number;
+  tainted: Set<string>;
 };
 
 type ResolvedCallable = {
@@ -652,45 +653,278 @@ function analyzeTask7VisualSource(source: string) {
     ]),
   };
 
-  function resolvedCallableFromOrigin(
-    origin: Origin,
-    seen = new Set<ts.Node>(),
-  ) {
-    if (origin.kind !== "node") return undefined;
-    const callable = resolveCallableWithOrigins(origin.node, origin.context, seen);
-    return callable ? { callable, context: origin.context } : undefined;
+  function createOriginResolution(): OriginResolution {
+    return {
+      active: new Set(),
+      remaining: MAX_ORIGIN_WORK,
+      tainted: new Set(),
+    };
   }
 
-  function callableFromOrigin(
+  function boundedOrigin<T>(
+    resolution: OriginResolution,
+    key: string,
+    fallback: T,
+    resolve: () => T,
+  ): T {
+    if (resolution.remaining <= 0 || resolution.active.has(key)) {
+      return fallback;
+    }
+    resolution.remaining -= 1;
+    resolution.active.add(key);
+    try {
+      return resolve();
+    } finally {
+      resolution.active.delete(key);
+    }
+  }
+
+  const originIds = new WeakMap<object, number>();
+  let nextOriginId = 1;
+
+  function originKey(origin: Origin): string {
+    if (origin.kind === "node") {
+      return `node:${origin.node.pos}:${origin.node.end}`;
+    }
+    if (origin.kind === "object-literal") {
+      return `object:${origin.node.pos}:${origin.node.end}`;
+    }
+    if (origin.kind === "array-literal") {
+      return `array:${origin.node.pos}:${origin.node.end}`;
+    }
+    if (origin.kind === "trusted") return `trusted:${origin.root}`;
+    if (origin.kind === "absent" || origin.kind === "unknown") {
+      return origin.kind;
+    }
+    let id = originIds.get(origin);
+    if (!id) {
+      id = nextOriginId;
+      nextOriginId += 1;
+      originIds.set(origin, id);
+    }
+    return `${origin.kind}:${id}`;
+  }
+
+  function sameOrigin(left: Origin | undefined, right: Origin | undefined) {
+    if (left === right) return true;
+    if (!left || !right || left.kind !== right.kind) return false;
+    if (left.kind === "trusted" && right.kind === "trusted") {
+      return left.root === right.root;
+    }
+    if (left.kind === "node" && right.kind === "node") {
+      return left.node === right.node;
+    }
+    if (
+      left.kind === "object-literal" &&
+      right.kind === "object-literal"
+    ) {
+      return left.node === right.node;
+    }
+    if (left.kind === "array-literal" && right.kind === "array-literal") {
+      return left.node === right.node;
+    }
+    return left.kind === "absent" || left.kind === "unknown";
+  }
+
+  function mergeFlowContexts(
+    target: OriginContext,
+    contexts: OriginContext[],
+  ) {
+    const keys = new Set<ts.Node>();
+    for (const context of contexts) {
+      for (const key of context.keys()) keys.add(key);
+    }
+    target.clear();
+    for (const key of keys) {
+      const values = contexts.map((context) => context.get(key));
+      const first = values[0];
+      target.set(
+        key,
+        first && values.every((value) => sameOrigin(first, value))
+          ? first
+          : unknownOrigin,
+      );
+    }
+  }
+
+  function listOrigins(
     origin: Origin,
-    seen = new Set<ts.Node>(),
-  ): CallableNode | undefined {
-    return resolvedCallableFromOrigin(origin, seen)?.callable;
+    resolution: OriginResolution,
+  ): Origin[] | undefined {
+    return boundedOrigin(
+      resolution,
+      `list:${originKey(origin)}`,
+      undefined,
+      () => {
+        if (origin.kind === "list") return origin.values;
+        if (origin.kind === "array-literal") {
+          const values: Origin[] = [];
+          for (const element of origin.node.elements) {
+            if (ts.isOmittedExpression(element)) {
+              values.push(absentOrigin);
+            } else if (ts.isSpreadElement(element)) {
+              const spread = listOrigins(
+                originForNode(element.expression, origin.context, resolution),
+                resolution,
+              );
+              if (!spread) return undefined;
+              values.push(...spread);
+            } else {
+              values.push(originForNode(element, origin.context, resolution));
+            }
+          }
+          return values;
+        }
+        if (origin.kind === "node") {
+          const resolved = originForNode(
+            origin.node,
+            origin.context,
+            resolution,
+          );
+          return sameOrigin(origin, resolved)
+            ? undefined
+            : listOrigins(resolved, resolution);
+        }
+        return undefined;
+      },
+    );
+  }
+
+  function arrayElementOrigin(
+    origin: Extract<Origin, { kind: "array-literal" }>,
+    index: number,
+    resolution: OriginResolution,
+  ): Origin {
+    let offset = 0;
+    for (const element of origin.node.elements) {
+      if (ts.isSpreadElement(element)) {
+        const spread = listOrigins(
+          originForNode(element.expression, origin.context, resolution),
+          resolution,
+        );
+        if (!spread) return unknownOrigin;
+        if (index < offset + spread.length) return spread[index - offset];
+        offset += spread.length;
+        continue;
+      }
+      if (offset === index) {
+        return ts.isOmittedExpression(element)
+          ? absentOrigin
+          : originForNode(element, origin.context, resolution);
+      }
+      offset += 1;
+    }
+    return absentOrigin;
+  }
+
+  function accessorOrigin(
+    accessor: ts.GetAccessorDeclaration,
+    context: OriginContext,
+    resolution: OriginResolution,
+  ): Origin {
+    const returned = directAccessorReturnExpression(accessor);
+    return returned
+      ? originForNode(returned, context, resolution)
+      : unknownOrigin;
   }
 
   function propertyOrigin(
     origin: Origin,
     name: string,
+    resolution: OriginResolution,
   ): Origin {
-    if (origin.kind === "trusted") {
-      return { kind: "trusted", root: "derived" };
-    }
-    if (origin.kind === "object") {
-      return origin.properties.get(name) ?? origin.fallback ?? absentOrigin;
-    }
-    if (origin.kind === "list") {
-      const index = Number(name);
-      return Number.isInteger(index) && index >= 0
-        ? origin.values[index] ?? absentOrigin
-        : unknownOrigin;
-    }
-    return origin.kind === "node" ? origin : unknownOrigin;
+    return boundedOrigin(
+      resolution,
+      `property:${originKey(origin)}:${name}`,
+      unknownOrigin,
+      () => {
+        if (resolution.tainted.has(originKey(origin))) return unknownOrigin;
+        if (origin.kind === "trusted") return trustedDerivedOrigin;
+        if (origin.kind === "object") {
+          return origin.properties.get(name) ?? origin.fallback ?? absentOrigin;
+        }
+        if (origin.kind === "object-rest") {
+          return origin.excluded.has(name)
+            ? absentOrigin
+            : propertyOrigin(origin.source, name, resolution);
+        }
+        if (origin.kind === "object-literal") {
+          let setter: ts.SetAccessorDeclaration | undefined;
+          for (const property of [...origin.node.properties].reverse()) {
+            if (ts.isSpreadAssignment(property)) {
+              const spreadValue = propertyOrigin(
+                originForNode(property.expression, origin.context, resolution),
+                name,
+                resolution,
+              );
+              if (spreadValue.kind !== "absent") {
+                return setter ? unknownOrigin : spreadValue;
+              }
+              continue;
+            }
+            const propertyName = propertyNameText(property.name, bindings);
+            if (!propertyName) {
+              if (ts.isComputedPropertyName(property.name)) return unknownOrigin;
+              continue;
+            }
+            if (propertyName !== name) continue;
+            if (ts.isSetAccessorDeclaration(property)) {
+              setter ??= property;
+              continue;
+            }
+            if (ts.isGetAccessorDeclaration(property)) {
+              return accessorOrigin(property, origin.context, resolution);
+            }
+            if (setter) return unknownOrigin;
+            if (ts.isPropertyAssignment(property)) {
+              return originForNode(
+                property.initializer,
+                origin.context,
+                resolution,
+              );
+            }
+            if (ts.isShorthandPropertyAssignment(property)) {
+              return originForNode(property.name, origin.context, resolution);
+            }
+            if (ts.isMethodDeclaration(property)) {
+              return { kind: "node", context: origin.context, node: property };
+            }
+            return unknownOrigin;
+          }
+          return setter ? unknownOrigin : absentOrigin;
+        }
+        if (origin.kind === "array-literal") {
+          const index = Number(name);
+          return Number.isInteger(index) && index >= 0
+            ? arrayElementOrigin(origin, index, resolution)
+            : unknownOrigin;
+        }
+        if (origin.kind === "list") {
+          const index = Number(name);
+          return Number.isInteger(index) && index >= 0
+            ? origin.values[index] ?? absentOrigin
+            : unknownOrigin;
+        }
+        if (origin.kind === "node") {
+          const resolved = originForNode(
+            origin.node,
+            origin.context,
+            resolution,
+          );
+          return sameOrigin(origin, resolved)
+            ? origin
+            : propertyOrigin(resolved, name, resolution);
+        }
+        return unknownOrigin;
+      },
+    );
   }
 
   function bindPattern(
     name: ts.BindingName,
     origin: Origin,
     context: OriginContext,
+    resolution: OriginResolution,
   ) {
     if (ts.isIdentifier(name)) {
       context.set(localDeclaration(name, bindings) ?? name, origin);
@@ -701,16 +935,13 @@ function analyzeTask7VisualSource(source: string) {
       const used = new Set<string>();
       for (const element of name.elements) {
         if (element.dotDotDotToken) {
-          if (origin.kind !== "object") {
-            bindPattern(element.name, unknownOrigin, context);
-            continue;
-          }
-          const properties = new Map(origin.properties);
-          for (const key of used) properties.delete(key);
           bindPattern(
             element.name,
-            { fallback: origin.fallback, kind: "object", properties },
+            origin.kind === "unknown"
+              ? unknownOrigin
+              : { excluded: new Set(used), kind: "object-rest", source: origin },
             context,
+            resolution,
           );
           continue;
         }
@@ -719,45 +950,64 @@ function analyzeTask7VisualSource(source: string) {
           : ts.isIdentifier(element.name)
             ? element.name.text
             : undefined;
-        let value = key ? propertyOrigin(origin, key) : unknownOrigin;
+        let value = key
+          ? propertyOrigin(origin, key, resolution)
+          : unknownOrigin;
         if (key) used.add(key);
         if (value.kind === "absent" && element.initializer) {
-          value = originForNode(element.initializer, context);
+          value = originForNode(element.initializer, context, resolution);
         }
-        bindPattern(element.name, value, context);
+        bindPattern(element.name, value, context, resolution);
       }
       return;
     }
 
     let offset = 0;
-    for (let index = 0; index < name.elements.length; index += 1) {
-      const element = name.elements[index];
+    for (const element of name.elements) {
       if (ts.isOmittedExpression(element)) {
         offset += 1;
         continue;
       }
       if (element.dotDotDotToken) {
-        const values =
-          origin.kind === "list" ? origin.values.slice(offset) : [];
+        const values = listOrigins(origin, resolution);
         bindPattern(
           element.name,
-          origin.kind === "list" ? { kind: "list", values } : unknownOrigin,
+          values ? { kind: "list", values: values.slice(offset) } : unknownOrigin,
           context,
+          resolution,
         );
         break;
       }
-      let value = propertyOrigin(origin, String(offset));
+      let value = propertyOrigin(origin, String(offset), resolution);
       if (value.kind === "absent" && element.initializer) {
-        value = originForNode(element.initializer, context);
+        value = originForNode(element.initializer, context, resolution);
       }
-      bindPattern(element.name, value, context);
+      bindPattern(element.name, value, context, resolution);
       offset += 1;
     }
+  }
+
+  function iterableElementOrigin(
+    iterable: Origin,
+    resolution: OriginResolution,
+  ): Origin {
+    if (iterable.kind === "trusted") return trustedDerivedOrigin;
+    const values = listOrigins(iterable, resolution);
+    if (!values?.length) return unknownOrigin;
+    if (values.length === 1) return values[0];
+    if (values.every((value) => value.kind === "trusted")) {
+      return trustedDerivedOrigin;
+    }
+    const first = values[0];
+    return values.every((value) => sameOrigin(first, value))
+      ? first
+      : unknownOrigin;
   }
 
   function bindingElementOrigin(
     declaration: ts.BindingElement,
     context: OriginContext,
+    resolution: OriginResolution,
   ) {
     let pattern: ts.Node = declaration.parent;
     let container = pattern.parent;
@@ -767,16 +1017,17 @@ function analyzeTask7VisualSource(source: string) {
     }
     if (!ts.isVariableDeclaration(container)) return unknownOrigin;
     const origin = container.initializer
-      ? originForNode(container.initializer, context)
-      : forOfElementOrigin(container, context);
+      ? originForNode(container.initializer, context, resolution)
+      : forOfElementOrigin(container, context, resolution);
     const derived = new Map(context);
-    bindPattern(container.name, origin, derived);
+    bindPattern(container.name, origin, derived, resolution);
     return derived.get(declaration) ?? unknownOrigin;
   }
 
   function forOfElementOrigin(
     declaration: ts.VariableDeclaration,
     context: OriginContext,
+    resolution: OriginResolution,
   ) {
     const declarationList = declaration.parent;
     const loop = declarationList.parent;
@@ -787,224 +1038,220 @@ function analyzeTask7VisualSource(source: string) {
     ) {
       return unknownOrigin;
     }
-    const iterable = originForNode(loop.expression, context);
-    if (iterable.kind === "trusted") {
-      return { kind: "trusted", root: "derived" } as Origin;
-    }
-    if (iterable.kind === "list") {
-      if (iterable.values.length === 1) return iterable.values[0];
-      if (
-        iterable.values.length > 0 &&
-        iterable.values.every((value) => value.kind === "trusted")
-      ) {
-        return { kind: "trusted", root: "derived" } as Origin;
-      }
-    }
-    return unknownOrigin;
+    return iterableElementOrigin(
+      originForNode(loop.expression, context, resolution),
+      resolution,
+    );
   }
 
   function originForNode(
     node: ts.Node | undefined,
     context: OriginContext,
-    seen = new Set<ts.Node>(),
+    resolution: OriginResolution,
   ): Origin {
     if (!node) return unknownOrigin;
     const current = unwrapNode(node);
-    if (seen.has(current)) return unknownOrigin;
-    seen.add(current);
-
-    if (ts.isAwaitExpression(current)) {
-      return originForNode(current.expression, context, seen);
-    }
-    if (ts.isSpreadElement(current)) {
-      return originForNode(current.expression, context, seen);
-    }
-    if (ts.isIdentifier(current)) {
-      const declaration = localDeclaration(current, bindings);
-      const mapped = declaration && context.get(declaration);
-      if (mapped) return mapped;
-      if (declaration && ts.isVariableDeclaration(declaration)) {
-        if (declaration.initializer) {
-          return originForNode(declaration.initializer, context, seen);
+    return boundedOrigin(
+      resolution,
+      `origin:${current.pos}:${current.end}`,
+      unknownOrigin,
+      () => {
+        if (ts.isAwaitExpression(current)) {
+          return originForNode(current.expression, context, resolution);
         }
-        return forOfElementOrigin(declaration, context);
-      }
-      if (declaration && ts.isBindingElement(declaration)) {
-        return bindingElementOrigin(declaration, context);
-      }
-      if (declaration && ts.isFunctionDeclaration(declaration)) {
-        return { kind: "node", context, node: declaration };
-      }
-      return { kind: "node", context, node: current };
-    }
-    if (isCallableNode(current)) {
-      return { kind: "node", context, node: current };
-    }
-    if (ts.isObjectLiteralExpression(current)) {
-      const accessorNames = new Set<string>();
-      const properties = new Map<string, Origin>();
-      let fallback: Origin | undefined;
-      for (const property of current.properties) {
-        if (ts.isSpreadAssignment(property)) {
-          const spread = originForNode(property.expression, context, seen);
-          if (spread.kind === "object") {
-            if (spread.fallback) {
-              accessorNames.clear();
-              properties.clear();
-              fallback = spread.fallback;
+        if (ts.isSpreadElement(current)) {
+          return originForNode(current.expression, context, resolution);
+        }
+        if (ts.isIdentifier(current)) {
+          const declaration = localDeclaration(current, bindings);
+          const mapped = declaration && context.get(declaration);
+          if (mapped) return mapped;
+          if (declaration && ts.isVariableDeclaration(declaration)) {
+            if (declaration.initializer) {
+              return originForNode(
+                declaration.initializer,
+                context,
+                resolution,
+              );
             }
-            for (const [key, value] of spread.properties) {
-              accessorNames.delete(key);
-              properties.set(key, value);
-            }
-          } else {
-            accessorNames.clear();
-            properties.clear();
-            fallback = spread;
+            return forOfElementOrigin(declaration, context, resolution);
           }
-          continue;
+          if (declaration && ts.isBindingElement(declaration)) {
+            return bindingElementOrigin(declaration, context, resolution);
+          }
+          if (declaration && ts.isFunctionDeclaration(declaration)) {
+            return { kind: "node", context, node: declaration };
+          }
+          if (declaration && ts.isParameter(declaration)) return unknownOrigin;
+          return { kind: "node", context, node: current };
         }
-        const name = propertyNameText(property.name, bindings);
-        if (!name) {
-          accessorNames.clear();
-          properties.clear();
-          fallback = unknownOrigin;
-          continue;
+        if (isCallableNode(current)) {
+          return { kind: "node", context, node: current };
         }
-        if (ts.isPropertyAssignment(property)) {
-          accessorNames.delete(name);
-          properties.set(name, originForNode(property.initializer, context));
-        } else if (ts.isShorthandPropertyAssignment(property)) {
-          accessorNames.delete(name);
-          properties.set(name, originForNode(property.name, context));
-        } else if (ts.isMethodDeclaration(property)) {
-          accessorNames.delete(name);
-          properties.set(name, { kind: "node", context, node: property });
-        } else if (ts.isGetAccessorDeclaration(property)) {
-          const returned = directAccessorReturnExpression(property);
-          accessorNames.add(name);
-          properties.set(
-            name,
-            returned ? originForNode(returned, context) : unknownOrigin,
+        if (ts.isObjectLiteralExpression(current)) {
+          return { context, kind: "object-literal", node: current };
+        }
+        if (ts.isArrayLiteralExpression(current)) {
+          return { context, kind: "array-literal", node: current };
+        }
+        if (
+          ts.isPropertyAccessExpression(current) ||
+          ts.isElementAccessExpression(current)
+        ) {
+          const name = accessName(current, bindings);
+          return name
+            ? propertyOrigin(
+                originForNode(current.expression, context, resolution),
+                name,
+                resolution,
+              )
+            : unknownOrigin;
+        }
+        if (ts.isCallExpression(current)) {
+          const callee = unwrapNode(current.expression);
+          const resolved = resolveCallableWithOrigins(
+            callee,
+            context,
+            resolution,
           );
-        } else if (ts.isSetAccessorDeclaration(property)) {
-          if (!accessorNames.has(name)) properties.set(name, unknownOrigin);
-          accessorNames.add(name);
-        } else {
-          accessorNames.delete(name);
-          properties.set(name, unknownOrigin);
+          if (resolved) {
+            const returned = directReturnExpression(resolved.callable);
+            if (returned) {
+              return originForNode(
+                returned,
+                callContext(
+                  resolved.callable,
+                  current,
+                  context,
+                  resolved.context,
+                  resolution,
+                ),
+                resolution,
+              );
+            }
+          }
+          if (
+            ts.isPropertyAccessExpression(callee) ||
+            ts.isElementAccessExpression(callee)
+          ) {
+            const receiver = originForNode(
+              callee.expression,
+              context,
+              resolution,
+            );
+            if (receiver.kind === "trusted") return trustedDerivedOrigin;
+          }
+          return { kind: "node", context, node: current };
         }
-      }
-      return { fallback, kind: "object", properties };
-    }
-    if (ts.isArrayLiteralExpression(current)) {
-      const values: Origin[] = [];
-      for (const element of current.elements) {
-        if (ts.isOmittedExpression(element)) {
-          values.push(absentOrigin);
-        } else if (ts.isSpreadElement(element)) {
-          const spread = originForNode(element.expression, context);
-          if (spread.kind !== "list") return unknownOrigin;
-          values.push(...spread.values);
-        } else {
-          values.push(originForNode(element, context));
-        }
-      }
-      return { kind: "list", values };
-    }
-    if (
-      ts.isPropertyAccessExpression(current) ||
-      ts.isElementAccessExpression(current)
-    ) {
-      const name = accessName(current, bindings);
-      return name
-        ? propertyOrigin(originForNode(current.expression, context, seen), name)
-        : unknownOrigin;
-    }
-    if (ts.isCallExpression(current)) {
-      const callee = unwrapNode(current.expression);
-      const callable = resolveCallableWithOrigins(callee, context);
-      if (callable) {
-        const returned = directReturnExpression(callable);
-        if (returned) {
-          return originForNode(
-            returned,
-            callContext(callable, current, context),
+        if (ts.isConditionalExpression(current)) {
+          const whenTrue = originForNode(
+            current.whenTrue,
+            context,
+            resolution,
           );
+          const whenFalse = originForNode(
+            current.whenFalse,
+            context,
+            resolution,
+          );
+          return sameOrigin(whenTrue, whenFalse) ? whenTrue : unknownOrigin;
         }
-      }
-      if (
-        ts.isPropertyAccessExpression(callee) ||
-        ts.isElementAccessExpression(callee)
-      ) {
-        const receiver = originForNode(callee.expression, context, seen);
-        if (receiver.kind === "trusted") {
-          return { kind: "trusted", root: "derived" };
-        }
-      }
-      return { kind: "node", context, node: current };
-    }
-    return { kind: "node", context, node: current };
+        return { kind: "node", context, node: current };
+      },
+    );
+  }
+
+  function resolvedCallableFromOrigin(
+    origin: Origin,
+    resolution: OriginResolution,
+  ): ResolvedCallable | undefined {
+    if (origin.kind !== "node") return undefined;
+    return resolveCallableWithOrigins(
+      origin.node,
+      origin.context,
+      resolution,
+    );
   }
 
   function resolveCallableWithOrigins(
     node: ts.Node | undefined,
     context: OriginContext,
-    seen = new Set<ts.Node>(),
-  ): CallableNode | undefined {
+    resolution: OriginResolution,
+  ): ResolvedCallable | undefined {
     if (!node) return undefined;
     const current = unwrapNode(node);
-    if (seen.has(current)) return undefined;
-    seen.add(current);
-    if (isCallableNode(current)) return current;
-    if (ts.isIdentifier(current)) {
-      const declaration = localDeclaration(current, bindings);
-      const mapped = declaration && context.get(declaration);
-      if (mapped) return callableFromOrigin(mapped, seen);
-      return resolveCallable(current, bindings);
-    }
-    if (
-      ts.isPropertyAccessExpression(current) ||
-      ts.isElementAccessExpression(current)
-    ) {
-      const name = accessName(current, bindings);
-      if (!name) return undefined;
-      return callableFromOrigin(
-        propertyOrigin(originForNode(current.expression, context), name),
-        seen,
-      );
-    }
-    if (ts.isCallExpression(current) && current.arguments.length === 0) {
-      const factory = resolveCallableWithOrigins(
-        current.expression,
-        context,
-        seen,
-      );
-      return factory
-        ? resolveCallableWithOrigins(
-            directReturnExpression(factory),
-            callContext(factory, current, context),
-            seen,
-          )
-        : undefined;
-    }
-    return resolveCallable(current, bindings);
+    return boundedOrigin(
+      resolution,
+      `callable:${current.pos}:${current.end}`,
+      undefined,
+      () => {
+        if (isCallableNode(current)) return { callable: current, context };
+        if (ts.isIdentifier(current)) {
+          const declaration = localDeclaration(current, bindings);
+          const mapped = declaration && context.get(declaration);
+          if (mapped) return resolvedCallableFromOrigin(mapped, resolution);
+          if (declaration && ts.isFunctionDeclaration(declaration)) {
+            return { callable: declaration, context };
+          }
+          if (declaration && ts.isVariableDeclaration(declaration)) {
+            return resolveCallableWithOrigins(
+              declaration.initializer,
+              context,
+              resolution,
+            );
+          }
+          if (declaration && ts.isBindingElement(declaration)) {
+            return resolvedCallableFromOrigin(
+              bindingElementOrigin(declaration, context, resolution),
+              resolution,
+            );
+          }
+          return undefined;
+        }
+        if (
+          ts.isPropertyAccessExpression(current) ||
+          ts.isElementAccessExpression(current)
+        ) {
+          const name = accessName(current, bindings);
+          if (!name) return undefined;
+          return resolvedCallableFromOrigin(
+            propertyOrigin(
+              originForNode(current.expression, context, resolution),
+              name,
+              resolution,
+            ),
+            resolution,
+          );
+        }
+        if (ts.isCallExpression(current)) {
+          return resolvedCallableFromOrigin(
+            originForNode(current, context, resolution),
+            resolution,
+          );
+        }
+        return undefined;
+      },
+    );
   }
 
   function expandedArgumentOrigins(
     call: ts.CallExpression,
     context: OriginContext,
+    resolution: OriginResolution,
   ) {
     const values: Origin[] = [];
     let ambiguousFrom: number | undefined;
     for (const argument of call.arguments) {
       if (ambiguousFrom !== undefined) continue;
       if (ts.isSpreadElement(argument)) {
-        const spread = originForNode(argument.expression, context);
-        if (spread.kind === "list") values.push(...spread.values);
+        const spread = listOrigins(
+          originForNode(argument.expression, context, resolution),
+          resolution,
+        );
+        if (spread) values.push(...spread);
         else ambiguousFrom = values.length;
       } else {
-        values.push(originForNode(argument, context));
+        values.push(originForNode(argument, context, resolution));
       }
     }
     return { ambiguousFrom, values };
@@ -1014,11 +1261,14 @@ function analyzeTask7VisualSource(source: string) {
     callable: CallableNode,
     call: ts.CallExpression,
     callerContext: OriginContext,
+    closureContext: OriginContext,
+    resolution: OriginResolution,
   ) {
-    const context = new Map(callerContext);
+    const context = new Map(closureContext);
     const { ambiguousFrom, values } = expandedArgumentOrigins(
       call,
       callerContext,
+      resolution,
     );
     let argumentIndex = 0;
     for (const parameter of callable.parameters) {
@@ -1028,37 +1278,39 @@ function analyzeTask7VisualSource(source: string) {
       if (parameter.dotDotDotToken) {
         origin = ambiguous
           ? unknownOrigin
-          : {
-              kind: "list",
-              values: values.slice(argumentIndex),
-            };
+          : { kind: "list", values: values.slice(argumentIndex) };
         argumentIndex = values.length;
       } else {
-        origin = ambiguous ? unknownOrigin : values[argumentIndex] ?? absentOrigin;
+        origin = ambiguous
+          ? unknownOrigin
+          : values[argumentIndex] ?? absentOrigin;
         argumentIndex += 1;
       }
       if (origin.kind === "absent" && parameter.initializer) {
-        origin = originForNode(parameter.initializer, context);
+        origin = originForNode(parameter.initializer, context, resolution);
       }
-      bindPattern(parameter.name, origin, context);
+      bindPattern(parameter.name, origin, context, resolution);
     }
     return context;
   }
 
-  function actionContext(callable: CallableNode) {
-    const context: OriginContext = new Map();
-    const first = callable.parameters[0];
+  function actionContext(
+    resolved: ResolvedCallable,
+    resolution: OriginResolution,
+  ) {
+    const context: OriginContext = new Map(resolved.context);
+    const [first, ...remaining] = resolved.callable.parameters;
     if (first) {
       const origin = first.dotDotDotToken
         ? ({ kind: "list", values: [runnerOrigin] } as Origin)
         : runnerOrigin;
-      bindPattern(first.name, origin, context);
+      bindPattern(first.name, origin, context, resolution);
     }
-    for (const parameter of callable.parameters.slice(1)) {
+    for (const parameter of remaining) {
       const origin = parameter.initializer
-        ? originForNode(parameter.initializer, context)
+        ? originForNode(parameter.initializer, context, resolution)
         : absentOrigin;
-      bindPattern(parameter.name, origin, context);
+      bindPattern(parameter.name, origin, context, resolution);
     }
     return context;
   }
@@ -1114,35 +1366,250 @@ function analyzeTask7VisualSource(source: string) {
   }
 
   function runnerCallbackContext(
-    callable: CallableNode,
-    closureContext: OriginContext,
+    resolved: ResolvedCallable,
+    resolution: OriginResolution,
   ) {
-    const context = new Map(closureContext);
-    for (const parameter of callable.parameters) {
+    const context = new Map(resolved.context);
+    for (const parameter of resolved.callable.parameters) {
       bindPattern(
         parameter.name,
         trustedPatternOrigin(parameter.name, Boolean(parameter.dotDotDotToken)),
         context,
+        resolution,
       );
     }
     return context;
   }
 
+  function originTrust(
+    origin: Origin,
+    resolution: OriginResolution,
+  ): "local" | "trusted" | "unknown" | "untrusted" {
+    return boundedOrigin(
+      resolution,
+      `trust:${originKey(origin)}`,
+      "unknown" as const,
+      () => {
+        if (origin.kind === "absent") return "unknown";
+        if (origin.kind === "trusted") return "trusted";
+        if (
+          origin.kind === "object" ||
+          origin.kind === "object-literal" ||
+          origin.kind === "object-rest" ||
+          origin.kind === "array-literal" ||
+          origin.kind === "list"
+        ) {
+          return "local";
+        }
+        if (origin.kind === "unknown") return "unknown";
+
+        const current = unwrapNode(origin.node);
+        if (
+          isCallableNode(current) ||
+          ts.isObjectLiteralExpression(current) ||
+          ts.isArrayLiteralExpression(current)
+        ) {
+          return "local";
+        }
+        if (ts.isIdentifier(current)) {
+          const declaration = localDeclaration(current, bindings);
+          const mapped = declaration && origin.context.get(declaration);
+          if (mapped) return originTrust(mapped, resolution);
+          if (declaration && ts.isFunctionDeclaration(declaration)) return "local";
+          if (
+            declaration &&
+            (ts.isParameter(declaration) || ts.isBindingElement(declaration))
+          ) {
+            return "unknown";
+          }
+          if (declaration && ts.isVariableDeclaration(declaration)) {
+            return originTrust(
+              originForNode(current, origin.context, resolution),
+              resolution,
+            );
+          }
+          if (!declaration) {
+            return ["Math", "JSON", "Number", "String"].includes(current.text)
+              ? "trusted"
+              : "untrusted";
+          }
+          return "untrusted";
+        }
+        const resolved = originForNode(current, origin.context, resolution);
+        return sameOrigin(origin, resolved)
+          ? "unknown"
+          : originTrust(resolved, resolution);
+      },
+    );
+  }
+
+  function originEvidence(origin: Origin): ts.Node | undefined {
+    if (origin.kind === "node") return origin.node;
+    if (origin.kind === "object-literal" || origin.kind === "array-literal") {
+      return origin.node;
+    }
+    if (origin.kind === "object-rest") return originEvidence(origin.source);
+    if (origin.kind === "list") {
+      const candidates = origin.values
+        .map(originEvidence)
+        .filter((node): node is ts.Node => Boolean(node));
+      return candidates.length === 1 ? candidates[0] : undefined;
+    }
+    return undefined;
+  }
+
+  function assignmentRootIdentifier(node: ts.Expression) {
+    let current = unwrapNode(node);
+    while (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      current = unwrapNode(current.expression);
+    }
+    return ts.isIdentifier(current) ? current : undefined;
+  }
+
+  function assignFlowTarget(
+    target: ts.Expression,
+    origin: Origin,
+    context: OriginContext,
+    resolution: OriginResolution,
+  ) {
+    const current = unwrapNode(target);
+    if (ts.isIdentifier(current)) {
+      const declaration = localDeclaration(current, bindings);
+      if (declaration) context.set(declaration, origin);
+      return;
+    }
+    if (ts.isObjectLiteralExpression(current)) {
+      const used = new Set<string>();
+      for (const property of current.properties) {
+        if (ts.isSpreadAssignment(property)) {
+          assignFlowTarget(
+            property.expression,
+            origin.kind === "unknown"
+              ? unknownOrigin
+              : { excluded: new Set(used), kind: "object-rest", source: origin },
+            context,
+            resolution,
+          );
+          continue;
+        }
+        const key = propertyNameText(property.name, bindings);
+        let value = key
+          ? propertyOrigin(origin, key, resolution)
+          : unknownOrigin;
+        if (key) used.add(key);
+        if (ts.isPropertyAssignment(property)) {
+          let assignmentTarget = property.initializer;
+          if (
+            ts.isBinaryExpression(assignmentTarget) &&
+            assignmentTarget.operatorToken.kind === ts.SyntaxKind.EqualsToken
+          ) {
+            if (value.kind === "absent") {
+              value = originForNode(
+                assignmentTarget.right,
+                context,
+                resolution,
+              );
+            }
+            assignmentTarget = assignmentTarget.left;
+          }
+          assignFlowTarget(assignmentTarget, value, context, resolution);
+        } else if (ts.isShorthandPropertyAssignment(property)) {
+          if (value.kind === "absent" && property.objectAssignmentInitializer) {
+            value = originForNode(
+              property.objectAssignmentInitializer,
+              context,
+              resolution,
+            );
+          }
+          assignFlowTarget(property.name, value, context, resolution);
+        }
+      }
+      return;
+    }
+    if (ts.isArrayLiteralExpression(current)) {
+      let offset = 0;
+      for (const element of current.elements) {
+        if (ts.isOmittedExpression(element)) {
+          offset += 1;
+          continue;
+        }
+        if (ts.isSpreadElement(element)) {
+          const values = listOrigins(origin, resolution);
+          assignFlowTarget(
+            element.expression,
+            values
+              ? { kind: "list", values: values.slice(offset) }
+              : unknownOrigin,
+            context,
+            resolution,
+          );
+          break;
+        }
+        let value = propertyOrigin(origin, String(offset), resolution);
+        let assignmentTarget = element;
+        if (
+          ts.isBinaryExpression(assignmentTarget) &&
+          assignmentTarget.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        ) {
+          if (value.kind === "absent") {
+            value = originForNode(
+              assignmentTarget.right,
+              context,
+              resolution,
+            );
+          }
+          assignmentTarget = assignmentTarget.left;
+        }
+        assignFlowTarget(assignmentTarget, value, context, resolution);
+        offset += 1;
+      }
+      return;
+    }
+    if (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      const previous = originForNode(current.expression, context, resolution);
+      if (
+        previous.kind !== "absent" &&
+        previous.kind !== "trusted" &&
+        previous.kind !== "unknown"
+      ) {
+        resolution.tainted.add(originKey(previous));
+      }
+      for (const [candidate, value] of context) {
+        if (sameOrigin(previous, value)) context.set(candidate, unknownOrigin);
+      }
+      const root = assignmentRootIdentifier(current.expression);
+      const declaration = root && localDeclaration(root, bindings);
+      if (declaration) context.set(declaration, unknownOrigin);
+    }
+  }
+
+  const approvedGlobalCalls = new Set(["Boolean", "Number", "String"]);
+
   function inspectRunnerCallback(
     component: string,
-    callable: CallableNode,
-    closureContext: OriginContext,
+    resolved: ResolvedCallable,
     activeCallables: Set<number>,
+    resolution: OriginResolution,
   ) {
-    if (activeCallables.has(callable.pos)) return;
-    activeCallables.add(callable.pos);
+    if (activeCallables.has(resolved.callable.pos)) {
+      recordViolation(component, "unresolved action helper", resolved.callable);
+      return;
+    }
+    activeCallables.add(resolved.callable.pos);
     inspectReachable(
       component,
-      callable,
+      resolved.callable.body,
       activeCallables,
-      runnerCallbackContext(callable, closureContext),
+      runnerCallbackContext(resolved, resolution),
+      resolution,
     );
-    activeCallables.delete(callable.pos);
+    activeCallables.delete(resolved.callable.pos);
   }
 
   function inspectTrustedCallCallbacks(
@@ -1151,19 +1618,20 @@ function analyzeTask7VisualSource(source: string) {
     method: string | undefined,
     activeCallables: Set<number>,
     context: OriginContext,
+    resolution: OriginResolution,
   ) {
     const requiredCallbackIndexes = method
       ? runnerCallbackArguments.get(method)
       : undefined;
     for (const [index, argument] of call.arguments.entries()) {
-      const origin = originForNode(argument, context);
-      const resolved = resolvedCallableFromOrigin(origin);
+      const origin = originForNode(argument, context, resolution);
+      const resolved = resolvedCallableFromOrigin(origin, resolution);
       if (resolved) {
         inspectRunnerCallback(
           component,
-          resolved.callable,
-          resolved.context,
+          resolved,
           activeCallables,
+          resolution,
         );
       } else if (requiredCallbackIndexes?.has(index)) {
         recordViolation(
@@ -1176,77 +1644,14 @@ function analyzeTask7VisualSource(source: string) {
     }
   }
 
-  function originTrust(
-    origin: Origin,
-    seen = new Set<ts.Node>(),
-  ): "local" | "trusted" | "unknown" | "untrusted" {
-    if (origin.kind === "absent") return "unknown";
-    if (origin.kind === "trusted") return "trusted";
-    if (origin.kind === "object" || origin.kind === "list") return "local";
-    if (origin.kind === "unknown") return "unknown";
-
-    const current = unwrapNode(origin.node);
-    if (seen.has(current)) return "unknown";
-    seen.add(current);
-    if (
-      ts.isArrowFunction(current) ||
-      ts.isFunctionExpression(current) ||
-      ts.isFunctionDeclaration(current) ||
-      ts.isMethodDeclaration(current) ||
-      ts.isObjectLiteralExpression(current) ||
-      ts.isArrayLiteralExpression(current)
-    ) {
-      return "local";
-    }
-    if (ts.isIdentifier(current)) {
-      const declaration = localDeclaration(current, bindings);
-      const mapped = declaration && origin.context.get(declaration);
-      if (mapped) return originTrust(mapped, seen);
-      if (declaration && ts.isFunctionDeclaration(declaration)) return "local";
-      if (
-        declaration &&
-        (ts.isParameter(declaration) || ts.isBindingElement(declaration))
-      ) {
-        return "unknown";
-      }
-      if (declaration && ts.isVariableDeclaration(declaration)) {
-        return originTrust(originForNode(current, origin.context), seen);
-      }
-      if (!declaration) {
-        return ["Math", "JSON", "Number", "String"].includes(current.text)
-          ? "trusted"
-          : "untrusted";
-      }
-      return "untrusted";
-    }
-    const resolved = originForNode(current, origin.context);
-    if (
-      resolved.kind !== "node" ||
-      resolved.node !== current ||
-      resolved.context !== origin.context
-    ) {
-      return originTrust(resolved, seen);
-    }
-    return "unknown";
-  }
-
-  function originEvidence(origin: Origin): ts.Node | undefined {
-    if (origin.kind === "node") return origin.node;
-    if (origin.kind === "list") {
-      const candidates = origin.values
-        .map(originEvidence)
-        .filter((node): node is ts.Node => Boolean(node));
-      return candidates.length === 1 ? candidates[0] : undefined;
-    }
-    return undefined;
-  }
-
-  const inspectReachable = (
+  function inspectReachable(
     component: string,
-    node: ts.Node,
+    node: ts.Node | undefined,
     activeCallables: Set<number>,
     context: OriginContext,
-  ) => {
+    resolution: OriginResolution,
+  ): void {
+    if (!node) return;
     if (
       ts.isIdentifier(node) &&
       /^(?:canonicalize|freezeCaseMotion|hideMatching|replaceWithCanonical|stabilize)/.test(
@@ -1256,20 +1661,413 @@ function analyzeTask7VisualSource(source: string) {
       recordViolation(component, "stabilization helper", node);
     }
 
+    if (
+      isCallableNode(node) ||
+      ts.isGetAccessorDeclaration(node) ||
+      ts.isSetAccessorDeclaration(node)
+    ) {
+      return;
+    }
+    if (ts.isBlock(node) || ts.isSourceFile(node)) {
+      for (const statement of node.statements) {
+        inspectReachable(
+          component,
+          statement,
+          activeCallables,
+          context,
+          resolution,
+        );
+      }
+      return;
+    }
+    if (ts.isVariableStatement(node)) {
+      for (const declaration of node.declarationList.declarations) {
+        inspectReachable(
+          component,
+          declaration,
+          activeCallables,
+          context,
+          resolution,
+        );
+      }
+      return;
+    }
+    if (ts.isVariableDeclaration(node)) {
+      if (node.initializer) {
+        inspectReachable(
+          component,
+          node.initializer,
+          activeCallables,
+          context,
+          resolution,
+        );
+      }
+      const origin = node.initializer
+        ? originForNode(node.initializer, context, resolution)
+        : forOfElementOrigin(node, context, resolution);
+      bindPattern(node.name, origin, context, resolution);
+      return;
+    }
+    if (ts.isExpressionStatement(node)) {
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        context,
+        resolution,
+      );
+      return;
+    }
+    if (ts.isIfStatement(node)) {
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        context,
+        resolution,
+      );
+      const before = new Map(context);
+      const whenTrue = new Map(before);
+      const whenFalse = new Map(before);
+      inspectReachable(
+        component,
+        node.thenStatement,
+        activeCallables,
+        whenTrue,
+        resolution,
+      );
+      if (node.elseStatement) {
+        inspectReachable(
+          component,
+          node.elseStatement,
+          activeCallables,
+          whenFalse,
+          resolution,
+        );
+      }
+      mergeFlowContexts(context, [whenTrue, whenFalse]);
+      return;
+    }
+    if (ts.isSwitchStatement(node)) {
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        context,
+        resolution,
+      );
+      const before = new Map(context);
+      const branches: OriginContext[] = [before];
+      for (const clause of node.caseBlock.clauses) {
+        const branch = new Map(before);
+        if (ts.isCaseClause(clause)) {
+          inspectReachable(
+            component,
+            clause.expression,
+            activeCallables,
+            branch,
+            resolution,
+          );
+        }
+        for (const statement of clause.statements) {
+          inspectReachable(
+            component,
+            statement,
+            activeCallables,
+            branch,
+            resolution,
+          );
+        }
+        branches.push(branch);
+      }
+      mergeFlowContexts(context, branches);
+      return;
+    }
+    if (ts.isForOfStatement(node)) {
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        context,
+        resolution,
+      );
+      const before = new Map(context);
+      const loopContext = new Map(before);
+      const element = iterableElementOrigin(
+        originForNode(node.expression, context, resolution),
+        resolution,
+      );
+      if (ts.isVariableDeclarationList(node.initializer)) {
+        for (const declaration of node.initializer.declarations) {
+          bindPattern(declaration.name, element, loopContext, resolution);
+        }
+      } else {
+        assignFlowTarget(node.initializer, element, loopContext, resolution);
+      }
+      inspectReachable(
+        component,
+        node.statement,
+        activeCallables,
+        loopContext,
+        resolution,
+      );
+      mergeFlowContexts(context, [before, loopContext]);
+      return;
+    }
+    if (ts.isForInStatement(node)) {
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        context,
+        resolution,
+      );
+      const before = new Map(context);
+      const loopContext = new Map(before);
+      if (ts.isVariableDeclarationList(node.initializer)) {
+        for (const declaration of node.initializer.declarations) {
+          bindPattern(declaration.name, unknownOrigin, loopContext, resolution);
+        }
+      } else {
+        assignFlowTarget(
+          node.initializer,
+          unknownOrigin,
+          loopContext,
+          resolution,
+        );
+      }
+      inspectReachable(
+        component,
+        node.statement,
+        activeCallables,
+        loopContext,
+        resolution,
+      );
+      mergeFlowContexts(context, [before, loopContext]);
+      return;
+    }
+    if (ts.isForStatement(node)) {
+      const before = new Map(context);
+      const loopContext = new Map(before);
+      if (node.initializer) {
+        inspectReachable(
+          component,
+          node.initializer,
+          activeCallables,
+          loopContext,
+          resolution,
+        );
+      }
+      if (node.condition) {
+        inspectReachable(
+          component,
+          node.condition,
+          activeCallables,
+          loopContext,
+          resolution,
+        );
+      }
+      inspectReachable(
+        component,
+        node.statement,
+        activeCallables,
+        loopContext,
+        resolution,
+      );
+      if (node.incrementor) {
+        inspectReachable(
+          component,
+          node.incrementor,
+          activeCallables,
+          loopContext,
+          resolution,
+        );
+      }
+      mergeFlowContexts(context, [before, loopContext]);
+      return;
+    }
+    if (ts.isWhileStatement(node) || ts.isDoStatement(node)) {
+      const before = new Map(context);
+      const loopContext = new Map(before);
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        loopContext,
+        resolution,
+      );
+      inspectReachable(
+        component,
+        node.statement,
+        activeCallables,
+        loopContext,
+        resolution,
+      );
+      mergeFlowContexts(context, [before, loopContext]);
+      return;
+    }
+    if (ts.isTryStatement(node)) {
+      const before = new Map(context);
+      const branches: OriginContext[] = [new Map(before)];
+      inspectReachable(
+        component,
+        node.tryBlock,
+        activeCallables,
+        branches[0],
+        resolution,
+      );
+      if (node.catchClause) {
+        const caught = new Map(before);
+        if (node.catchClause.variableDeclaration) {
+          bindPattern(
+            node.catchClause.variableDeclaration.name,
+            unknownOrigin,
+            caught,
+            resolution,
+          );
+        }
+        inspectReachable(
+          component,
+          node.catchClause.block,
+          activeCallables,
+          caught,
+          resolution,
+        );
+        branches.push(caught);
+      } else if (node.finallyBlock) {
+        branches.push(before);
+      }
+      mergeFlowContexts(context, branches);
+      if (node.finallyBlock) {
+        inspectReachable(
+          component,
+          node.finallyBlock,
+          activeCallables,
+          context,
+          resolution,
+        );
+      }
+      return;
+    }
+    if (ts.isReturnStatement(node) || ts.isThrowStatement(node)) {
+      if (node.expression) {
+        inspectReachable(
+          component,
+          node.expression,
+          activeCallables,
+          context,
+          resolution,
+        );
+      }
+      return;
+    }
+    if (ts.isConditionalExpression(node)) {
+      inspectReachable(
+        component,
+        node.condition,
+        activeCallables,
+        context,
+        resolution,
+      );
+      const whenTrue = new Map(context);
+      const whenFalse = new Map(context);
+      inspectReachable(
+        component,
+        node.whenTrue,
+        activeCallables,
+        whenTrue,
+        resolution,
+      );
+      inspectReachable(
+        component,
+        node.whenFalse,
+        activeCallables,
+        whenFalse,
+        resolution,
+      );
+      mergeFlowContexts(context, [whenTrue, whenFalse]);
+      return;
+    }
+    if (ts.isBinaryExpression(node)) {
+      const assignment =
+        node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+        node.operatorToken.kind <= ts.SyntaxKind.LastAssignment;
+      if (assignment) {
+        inspectReachable(
+          component,
+          node.right,
+          activeCallables,
+          context,
+          resolution,
+        );
+        if (
+          (ts.isPropertyAccessExpression(node.left) ||
+            ts.isElementAccessExpression(node.left)) &&
+          ["hidden", "innerHTML", "innerText", "outerHTML", "textContent"].includes(
+            accessName(node.left, bindings) ?? "",
+          )
+        ) {
+          recordViolation(component, "DOM rewrite", node);
+        }
+        const origin =
+          node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+            ? originForNode(node.right, context, resolution)
+            : unknownOrigin;
+        assignFlowTarget(node.left, origin, context, resolution);
+        return;
+      }
+      if (
+        node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+        node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+        node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+      ) {
+        inspectReachable(
+          component,
+          node.left,
+          activeCallables,
+          context,
+          resolution,
+        );
+        const skipped = new Map(context);
+        const evaluated = new Map(context);
+        inspectReachable(
+          component,
+          node.right,
+          activeCallables,
+          evaluated,
+          resolution,
+        );
+        mergeFlowContexts(context, [skipped, evaluated]);
+        return;
+      }
+    }
+    if (
+      ts.isPostfixUnaryExpression(node) ||
+      (ts.isPrefixUnaryExpression(node) &&
+        (node.operator === ts.SyntaxKind.PlusPlusToken ||
+          node.operator === ts.SyntaxKind.MinusMinusToken))
+    ) {
+      assignFlowTarget(node.operand, unknownOrigin, context, resolution);
+    }
     if (ts.isCallExpression(node)) {
       const callee = unwrapNode(node.expression);
-      const callable = resolveCallableWithOrigins(callee, context);
+      const resolved = resolveCallableWithOrigins(
+        callee,
+        context,
+        resolution,
+      );
       if (ts.isIdentifier(callee)) {
-        if (callable) {
+        if (resolved) {
           inspectLocalCall(
             component,
-            callable,
+            resolved,
             node,
             activeCallables,
             context,
+            resolution,
           );
-        } else {
-          const origin = originForNode(callee, context);
+        } else if (!approvedGlobalCalls.has(callee.text)) {
+          const origin = originForNode(callee, context, resolution);
           recordViolation(
             component,
             "unresolved action helper",
@@ -1282,9 +2080,7 @@ function analyzeTask7VisualSource(source: string) {
         ts.isElementAccessExpression(callee)
       ) {
         const method = accessName(callee, bindings);
-        const unresolvedComputedMember =
-          ts.isElementAccessExpression(callee) && method === undefined;
-        if (unresolvedComputedMember) {
+        if (ts.isElementAccessExpression(callee) && method === undefined) {
           recordViolation(component, "unresolved action member", callee);
         } else {
           if (["evaluate", "evaluateAll", "evaluateHandle"].includes(method ?? "")) {
@@ -1309,16 +2105,20 @@ function analyzeTask7VisualSource(source: string) {
           if (method === "setProperty") {
             recordViolation(component, "style mutation", node);
           }
-
-          const receiver = originForNode(callee.expression, context);
-          const receiverTrust = originTrust(receiver);
-          if (callable) {
+          const receiver = originForNode(
+            callee.expression,
+            context,
+            resolution,
+          );
+          const receiverTrust = originTrust(receiver, resolution);
+          if (resolved) {
             inspectLocalCall(
               component,
-              callable,
+              resolved,
               node,
               activeCallables,
               context,
+              resolution,
             );
           } else if (receiverTrust !== "trusted") {
             recordViolation(
@@ -1335,22 +2135,42 @@ function analyzeTask7VisualSource(source: string) {
               method,
               activeCallables,
               context,
+              resolution,
             );
           }
         }
-      } else if (callable) {
+      } else if (resolved) {
         inspectLocalCall(
           component,
-          callable,
+          resolved,
           node,
           activeCallables,
           context,
+          resolution,
         );
       } else {
         recordViolation(component, "unresolved action helper", node);
       }
-    }
 
+      inspectReachable(
+        component,
+        node.expression,
+        activeCallables,
+        context,
+        resolution,
+      );
+      for (const argument of node.arguments) {
+        if (isCallableNode(unwrapNode(argument))) continue;
+        inspectReachable(
+          component,
+          argument,
+          activeCallables,
+          context,
+          resolution,
+        );
+      }
+      return;
+    }
     if (
       ts.isPropertyAccessExpression(node) ||
       ts.isElementAccessExpression(node)
@@ -1360,47 +2180,54 @@ function analyzeTask7VisualSource(source: string) {
       }
     }
 
-    if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
-      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
-      (ts.isPropertyAccessExpression(node.left) ||
-        ts.isElementAccessExpression(node.left)) &&
-      ["hidden", "innerHTML", "innerText", "outerHTML", "textContent"].includes(
-        accessName(node.left, bindings) ?? "",
-      )
-    ) {
-      recordViolation(component, "DOM rewrite", node);
-    }
-
     ts.forEachChild(node, (child) => {
-      if (isCallableNode(child)) return;
-      inspectReachable(component, child, activeCallables, context);
+      if (
+        isCallableNode(child) ||
+        ts.isGetAccessorDeclaration(child) ||
+        ts.isSetAccessorDeclaration(child)
+      ) {
+        return;
+      }
+      inspectReachable(
+        component,
+        child,
+        activeCallables,
+        context,
+        resolution,
+      );
     });
-  };
+  }
 
   function inspectLocalCall(
     component: string,
-    callable: CallableNode,
+    resolved: ResolvedCallable,
     call: ts.CallExpression,
     activeCallables: Set<number>,
     callerContext: OriginContext,
+    resolution: OriginResolution,
   ) {
-    if (activeCallables.has(callable.pos)) return;
-    activeCallables.add(callable.pos);
+    if (activeCallables.has(resolved.callable.pos)) {
+      recordViolation(component, "unresolved action helper", call);
+      return;
+    }
+    activeCallables.add(resolved.callable.pos);
     inspectReachable(
       component,
-      callable,
+      resolved.callable.body,
       activeCallables,
-      callContext(callable, call, callerContext),
+      callContext(
+        resolved.callable,
+        call,
+        callerContext,
+        resolved.context,
+        resolution,
+      ),
+      resolution,
     );
-    activeCallables.delete(callable.pos);
+    activeCallables.delete(resolved.callable.pos);
   }
 
-  const inspectAction = (
-    component: string,
-    node: ts.Node,
-  ) => {
+  const inspectAction = (component: string, node: ts.Node) => {
     const registration = unwrapNode(node);
     if (
       ts.isIdentifier(registration) &&
@@ -1410,18 +2237,23 @@ function analyzeTask7VisualSource(source: string) {
     ) {
       recordViolation(component, "stabilization helper", registration);
     }
-    const context: OriginContext = new Map();
-    const callable = resolveCallableWithOrigins(node, context);
-    if (!callable) {
+    const resolution = createOriginResolution();
+    const resolved = resolveCallableWithOrigins(
+      node,
+      new Map(),
+      resolution,
+    );
+    if (!resolved) {
       recordViolation(component, "unresolved action registration", node);
       return;
     }
-    const activeCallables = new Set<number>([callable.pos]);
+    const activeCallables = new Set<number>([resolved.callable.pos]);
     inspectReachable(
       component,
-      callable,
+      resolved.callable.body,
       activeCallables,
-      actionContext(callable),
+      actionContext(resolved, resolution),
+      resolution,
     );
   };
 
@@ -2785,6 +3617,342 @@ describe("Task 7 React visual cases", () => {
     expect(fixture.violations).toEqual([
       { component: "context-window", kind: "unresolved action helper" },
       { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("tracks local and parameter reassignment through one and two wrappers", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function oneWrapper(helper, control) {
+        helper = importedHelpers;
+        await helper.inspect(control);
+      }
+      async function innerWrapper(helper, control) {
+        helper = importedHelpers;
+        await helper.inspect(control);
+      }
+      async function twoWrappers(helper, control) {
+        await innerWrapper(helper, control);
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        let local = safeLocal;
+        local = importedHelpers;
+        await local.inspect(control);
+        await oneWrapper(safeLocal, control);
+        await twoWrappers(safeLocal, control);
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "reassigned-origins", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("tracks compound and destructuring assignments without laundering aliases", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        let compound = safeLocal;
+        compound &&= importedHelpers;
+        await compound.inspect(control);
+
+        let objectAlias = safeLocal;
+        ({ helper: objectAlias } = { helper: importedHelpers });
+        await objectAlias.inspect(control);
+
+        let arrayAlias = safeLocal;
+        [arrayAlias] = [importedHelpers];
+        await arrayAlias.inspect(control);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "assignment-forms", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("allows immutable and local-only reassignment flows", () => {
+    const fixture = analyzeTask7VisualSource(`
+      const firstLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      const secondLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function normalize(helper, control) {
+        helper = secondLocal;
+        await helper.inspect(control);
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        const immutable = firstLocal;
+        await immutable.inspect(control);
+
+        let reassigned = firstLocal;
+        reassigned = secondLocal;
+        await reassigned.inspect(control);
+
+        let destructured = firstLocal;
+        ({ helper: destructured } = { helper: secondLocal });
+        await destructured.inspect(control);
+        await normalize(firstLocal, control);
+      }
+      const CASES = new Map([
+        ["context-cards", [{ name: "safe-reassignment", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("merges conditional assignment paths before trusting later calls", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      const safeLocal = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      async function logicalAction({ canvas }, ready) {
+        let helper = importedHelpers;
+        ready || (helper = safeLocal);
+        await helper.inspect(canvas.getByRole("button"));
+      }
+      async function switchAction({ canvas }, mode) {
+        let helper = importedHelpers;
+        switch (mode) {
+          case "safe":
+            helper = safeLocal;
+            break;
+        }
+        await helper.inspect(canvas.getByRole("button"));
+      }
+      async function forInAction({ canvas }) {
+        let helper = importedHelpers;
+        for (const key in {}) {
+          void key;
+          helper = safeLocal;
+        }
+        await helper.inspect(canvas.getByRole("button"));
+      }
+      async function finallyAction({ canvas }) {
+        let helper = importedHelpers;
+        try {
+          await canvas.getByRole("button").count();
+          helper = safeLocal;
+        } finally {
+          await helper.inspect(canvas.getByRole("button"));
+        }
+      }
+      const CASES = new Map([
+        ["context-window", [{ name: "logical-flow", action: logicalAction }]],
+        ["memory-inspector", [{ name: "switch-flow", action: switchAction }]],
+        ["context-cards", [{ name: "for-in-flow", action: forInAction }]],
+        ["context-spillover", [{ name: "finally-flow", action: finallyAction }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("keeps nested member mutations untrusted through direct and aliased writes", () => {
+    const fixture = analyzeTask7VisualSource(`
+      import * as importedHelpers from "./visual-helpers.mjs";
+      async function inspect(control) {
+        await control.click();
+      }
+      const aliasedContainer = { helpers: { inspect } };
+      const directContainer = { helpers: { inspect } };
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button");
+        const alias = aliasedContainer.helpers;
+        alias.inspect = importedHelpers.inspect;
+        await aliasedContainer.helpers.inspect(control);
+
+        directContainer.helpers.inspect = importedHelpers.inspect;
+        await directContainer.helpers.inspect(control);
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "nested-member-writes", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([
+      { component: "memory-inspector", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("terminates and fails closed on used self, mutual, and forward object cycles", () => {
+    let fixture: ReturnType<typeof analyzeTask7VisualSource> | undefined;
+    expect(() => {
+      fixture = analyzeTask7VisualSource(`
+        var selfCycle = { helper: selfCycle };
+        var mutualLeft = { helper: mutualRight };
+        var mutualRight = { helper: mutualLeft };
+        var forwardLeft = { helper: forwardRight };
+        var forwardRight = { helper: forwardLeft };
+        async function selfAction({ canvas }) {
+          await selfCycle.helper.inspect(canvas.getByRole("button"));
+        }
+        async function mutualAction({ canvas }) {
+          await mutualLeft.helper.inspect(canvas.getByRole("button"));
+        }
+        async function forwardAction({ canvas }) {
+          await forwardRight.helper.inspect(canvas.getByRole("button"));
+        }
+        const CASES = new Map([
+          ["context-window", [{ name: "self-cycle", action: selfAction }]],
+          ["memory-inspector", [{ name: "mutual-cycle", action: mutualAction }]],
+          ["context-cards", [{ name: "forward-cycle", action: forwardAction }]],
+        ]);
+      `);
+    }).not.toThrow();
+
+    expect(fixture?.violations).toEqual([
+      { component: "context-cards", kind: "unresolved action helper" },
+      { component: "context-window", kind: "unresolved action helper" },
+      { component: "memory-inspector", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("terminates on cycles through arrays, returns, and object spreads", () => {
+    let fixture: ReturnType<typeof analyzeTask7VisualSource> | undefined;
+    expect(() => {
+      fixture = analyzeTask7VisualSource(`
+        var cyclicArray = [cyclicArray];
+        function returnCycle() {
+          return returnedCycle;
+        }
+        var returnedCycle = { helper: returnCycle() };
+        var spreadLeft = { ...spreadRight };
+        var spreadRight = { ...spreadLeft };
+        async function action({ canvas }) {
+          const control = canvas.getByRole("button");
+          await cyclicArray[0].inspect(control);
+          await returnedCycle.helper.inspect(control);
+          await spreadLeft.helper.inspect(control);
+        }
+        const CASES = new Map([
+          ["context-spillover", [{ name: "composite-cycles", action }]],
+        ]);
+      `);
+    }).not.toThrow();
+
+    expect(fixture?.violations).toEqual([
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+      { component: "context-spillover", kind: "unresolved action helper" },
+    ]);
+  });
+
+  test("does not expand unused cyclic properties", () => {
+    let fixture: ReturnType<typeof analyzeTask7VisualSource> | undefined;
+    expect(() => {
+      fixture = analyzeTask7VisualSource(`
+        const safeLocal = {
+          async inspect(control) {
+            await control.click();
+          },
+        };
+        var selfCycle = { helper: safeLocal, unused: selfCycle };
+        var mutualLeft = { helper: safeLocal, unused: mutualRight };
+        var mutualRight = { unused: mutualLeft };
+        async function action({ canvas }) {
+          const control = canvas.getByRole("button");
+          await selfCycle.helper.inspect(control);
+          await mutualLeft.helper.inspect(control);
+        }
+        const CASES = new Map([
+          ["context-cards", [{ name: "unused-cycles", action }]],
+        ]);
+      `);
+    }).not.toThrow();
+
+    expect(fixture?.violations).toEqual([]);
+  });
+
+  test("allows bounded local origin graphs", () => {
+    const depth = 24;
+    const declarations = Array.from(
+      { length: depth },
+      (_, index) => `const node${index + 1} = { helper: node${index} };`,
+    ).join("\n");
+    const helper = `node${depth}${".helper".repeat(depth)}`;
+    const fixture = analyzeTask7VisualSource(`
+      const node0 = {
+        async inspect(control) {
+          await control.click();
+        },
+      };
+      ${declarations}
+      async function action({ canvas }) {
+        await ${helper}.inspect(canvas.getByRole("button"));
+      }
+      const CASES = new Map([
+        ["memory-inspector", [{ name: "bounded-local-graph", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual([]);
+  });
+
+  test("fails closed when the shared origin work limit is exhausted", () => {
+    const depth = Math.ceil(MAX_ORIGIN_WORK / 2) + 32;
+    const declarations = Array.from(
+      { length: depth },
+      (_, index) => `const node${index + 1} = { helper: node${index} };`,
+    ).join("\n");
+    const helper = `node${depth}${".helper".repeat(depth)}`;
+    let fixture: ReturnType<typeof analyzeTask7VisualSource> | undefined;
+    expect(() => {
+      fixture = analyzeTask7VisualSource(`
+        const node0 = {
+          async inspect() {},
+        };
+        ${declarations}
+        async function action() {
+          await ${helper}.inspect();
+        }
+        const CASES = new Map([
+          ["context-window", [{ name: "origin-work-limit", action }]],
+        ]);
+      `);
+    }).not.toThrow();
+
+    expect(fixture?.violations).toEqual([
       { component: "context-window", kind: "unresolved action helper" },
     ]);
   });
