@@ -1614,17 +1614,6 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     let found = false;
     const visit = (child: ts.Node) => {
       if (found) return;
-      if (ts.isCallExpression(child)) {
-        const callee = unwrapVisualExpression(child.expression);
-        if (
-          ts.isPropertyAccessExpression(callee) &&
-          callee.name.text === "get" &&
-          guardedRegistryRoot(callee.expression) === strictCasesDeclaration
-        ) {
-          for (const argument of child.arguments) visit(argument);
-          return;
-        }
-      }
       if (ts.isIdentifier(child) && guardedRegistryRoot(child)) {
         found = true;
         return;
@@ -1775,6 +1764,83 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     return guarded;
   }
 
+  function isExactLiveCasesReader(node: ts.Node): boolean {
+    if (
+      !ts.isFunctionDeclaration(node) ||
+      node.name?.text !== "casesForComponent" ||
+      node.asteriskToken ||
+      !node.body ||
+      node.body.statements.length !== 1 ||
+      node.parameters.length !== 1 ||
+      node.modifiers?.length !== 1 ||
+      node.modifiers[0].kind !== ts.SyntaxKind.ExportKeyword
+    ) {
+      return false;
+    }
+    const parameter = node.parameters[0];
+    if (
+      !ts.isIdentifier(parameter.name) ||
+      parameter.name.text !== "componentId" ||
+      parameter.dotDotDotToken ||
+      parameter.questionToken ||
+      parameter.type ||
+      parameter.initializer
+    ) {
+      return false;
+    }
+    const statement = node.body.statements[0];
+    if (!ts.isReturnStatement(statement) || !statement.expression) return false;
+    const returned = unwrapVisualExpression(statement.expression);
+    if (
+      !ts.isBinaryExpression(returned) ||
+      returned.operatorToken.kind !== ts.SyntaxKind.QuestionQuestionToken
+    ) {
+      return false;
+    }
+    const lookup = unwrapVisualExpression(returned.left);
+    if (
+      !ts.isCallExpression(lookup) ||
+      lookup.questionDotToken ||
+      lookup.typeArguments?.length ||
+      lookup.arguments.length !== 1
+    ) {
+      return false;
+    }
+    const callee = unwrapVisualExpression(lookup.expression);
+    const receiver =
+      ts.isPropertyAccessExpression(callee) && !callee.questionDotToken
+        ? unwrapVisualExpression(callee.expression)
+        : null;
+    const argument = unwrapVisualExpression(lookup.arguments[0]);
+    if (
+      !ts.isPropertyAccessExpression(callee) ||
+      callee.name.text !== "get" ||
+      !receiver ||
+      !ts.isIdentifier(receiver) ||
+      declarationFor(receiver, checker, sourceFile) !== strictCasesDeclaration ||
+      !ts.isIdentifier(argument) ||
+      declarationFor(argument, checker, sourceFile) !== parameter
+    ) {
+      return false;
+    }
+    const fallback = unwrapVisualExpression(returned.right);
+    if (
+      !ts.isArrayLiteralExpression(fallback) ||
+      fallback.elements.length !== 1
+    ) {
+      return false;
+    }
+    const defaultCase = fallback.elements[0];
+    return (
+      !ts.isSpreadElement(defaultCase) &&
+      !ts.isOmittedExpression(defaultCase) &&
+      ts.isIdentifier(defaultCase) &&
+      defaultCase.text === "DEFAULT_CASE" &&
+      declarationFor(defaultCase, checker, sourceFile) ===
+        topLevelVariable("DEFAULT_CASE")
+    );
+  }
+
   function bindingReadsGuardedAccessor(
     name: ts.BindingName,
     initializer: ts.Expression,
@@ -1833,6 +1899,7 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
   function inspectRegistrationMutation(node: ts.Node): void {
     if (
       returnCapableFunction(node) &&
+      !isExactLiveCasesReader(node) &&
       functionReturnsGuardedRegistry(node)
     ) {
       recordViolation(
@@ -2680,6 +2747,44 @@ describe("Task 7 React visual cases", () => {
       alias.action = dishonestAction;`,
     ],
   ])("rejects guarded return exposure through %s", (_label, mutation) => {
+    const source = `${guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)}
+      ${mutation}`;
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "<unresolved>",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test.each([
+    [
+      "dynamic computed shorthand CASES.get result",
+      `const getSelected = () => CASES.get("context-window")[1];
+      const holder = { getSelected };
+      const method = "getSelected";
+      const alias = holder[method]();
+      alias.action = dishonestAction;`,
+    ],
+    [
+      "transparent dynamic computed shorthand CASES.get result",
+      `const getSelected = () => (CASES.get("context-window")!)[1];
+      const holder = { getSelected };
+      const method = "getSelected";
+      const alias = holder[method]();
+      alias.action = dishonestAction;`,
+    ],
+    [
+      "nested shorthand CASES.get result",
+      `const getSelected = () => CASES.get("context-window")[1];
+      const holder = { nested: { getSelected } };
+      const alias = holder.nested.getSelected();
+      alias.action = dishonestAction;`,
+    ],
+  ])("rejects %s return exposure", (_label, mutation) => {
     const source = `${guardedTask7Source(`
       async function action({ canvas }) {
         await canvas.getByRole("button").click();
