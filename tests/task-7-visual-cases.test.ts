@@ -1593,19 +1593,273 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     return found;
   }
 
+  function returnCapableFunction(
+    node: ts.Node,
+  ): node is
+    | ts.ArrowFunction
+    | ts.FunctionDeclaration
+    | ts.FunctionExpression
+    | ts.GetAccessorDeclaration
+    | ts.MethodDeclaration {
+    return (
+      ts.isArrowFunction(node) ||
+      ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isGetAccessorDeclaration(node) ||
+      ts.isMethodDeclaration(node)
+    );
+  }
+
+  function registrationMemberDeclaration(
+    access: ts.ElementAccessExpression | ts.PropertyAccessExpression,
+  ): ts.Declaration | null {
+    const location = ts.isPropertyAccessExpression(access)
+      ? access.name
+      : access.argumentExpression;
+    let symbol = location ? checker.getSymbolAtLocation(location) : undefined;
+    const member = registrationMemberName(access);
+    if (!symbol && member) {
+      symbol = checker.getTypeAtLocation(access.expression).getProperty(member);
+    }
+    const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+    return declaration?.getSourceFile() === sourceFile ? declaration : null;
+  }
+
+  function callableReturnTarget(
+    expression: ts.Expression,
+    visiting = new Set<ts.Declaration>(),
+  ):
+    | ts.ArrowFunction
+    | ts.FunctionDeclaration
+    | ts.FunctionExpression
+    | ts.GetAccessorDeclaration
+    | ts.MethodDeclaration
+    | null {
+    const current = unwrapVisualExpression(expression);
+    if (returnCapableFunction(current)) return current;
+    if (ts.isPropertyAccessExpression(current)) {
+      if (current.name.text === "call" || current.name.text === "apply") {
+        return callableReturnTarget(current.expression, visiting);
+      }
+    } else if (ts.isElementAccessExpression(current)) {
+      const member = registrationMemberName(current);
+      if (member === "call" || member === "apply") {
+        return callableReturnTarget(current.expression, visiting);
+      }
+    }
+
+    let declaration: ts.Declaration | null = null;
+    if (ts.isIdentifier(current)) {
+      declaration = declarationFor(current, checker, sourceFile);
+    } else if (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      declaration = registrationMemberDeclaration(current);
+    }
+    if (!declaration || visiting.has(declaration)) return null;
+    if (returnCapableFunction(declaration)) return declaration;
+    visiting.add(declaration);
+    try {
+      if (
+        (ts.isVariableDeclaration(declaration) ||
+          ts.isPropertyAssignment(declaration) ||
+          ts.isParameter(declaration) ||
+          ts.isBindingElement(declaration)) &&
+        declaration.initializer
+      ) {
+        return callableReturnTarget(declaration.initializer, visiting);
+      }
+      return null;
+    } finally {
+      visiting.delete(declaration);
+    }
+  }
+
+  const guardedReturningFunctions = new Set<ts.Node>();
+
+  function containsGuardedReturnEscape(
+    node: ts.Node,
+    visitingFunctions = new Set<ts.Node>(),
+  ): boolean {
+    let found = false;
+    const visit = (child: ts.Node) => {
+      if (found) return;
+      if (ts.isCallExpression(child)) {
+        const target = callableReturnTarget(child.expression);
+        if (target && functionReturnsGuardedRegistry(target, visitingFunctions)) {
+          found = true;
+          return;
+        }
+      }
+      if (
+        ts.isPropertyAccessExpression(child) ||
+        ts.isElementAccessExpression(child)
+      ) {
+        const declaration = registrationMemberDeclaration(child);
+        if (
+          declaration &&
+          ts.isGetAccessorDeclaration(declaration) &&
+          functionReturnsGuardedRegistry(declaration, visitingFunctions)
+        ) {
+          found = true;
+          return;
+        }
+      }
+      if (child !== node && returnCapableFunction(child)) return;
+      ts.forEachChild(child, visit);
+    };
+    visit(node);
+    return found;
+  }
+
+  function functionReturnsGuardedRegistry(
+    functionNode:
+      | ts.ArrowFunction
+      | ts.FunctionDeclaration
+      | ts.FunctionExpression
+      | ts.GetAccessorDeclaration
+      | ts.MethodDeclaration,
+    visitingFunctions = new Set<ts.Node>(),
+  ): boolean {
+    if (guardedReturningFunctions.has(functionNode)) return true;
+    if (visitingFunctions.has(functionNode)) return false;
+    visitingFunctions.add(functionNode);
+    const returned: ts.Expression[] = [];
+    if (ts.isArrowFunction(functionNode) && !ts.isBlock(functionNode.body)) {
+      returned.push(functionNode.body);
+    } else if (functionNode.body) {
+      const visit = (child: ts.Node) => {
+        if (child !== functionNode.body && returnCapableFunction(child)) return;
+        if (ts.isReturnStatement(child) && child.expression) {
+          returned.push(child.expression);
+          return;
+        }
+        ts.forEachChild(child, visit);
+      };
+      visit(functionNode.body);
+    }
+    const guarded = returned.some(
+      (expression) =>
+        containsGuardedRegistry(expression) ||
+        containsGuardedReturnEscape(expression, visitingFunctions),
+    );
+    visitingFunctions.delete(functionNode);
+    if (guarded) guardedReturningFunctions.add(functionNode);
+    return guarded;
+  }
+
+  function bindingReadsGuardedAccessor(
+    name: ts.BindingName,
+    initializer: ts.Expression,
+  ): boolean {
+    if (ts.isIdentifier(name)) return false;
+    const visit = (pattern: ts.BindingPattern, type: ts.Type): boolean => {
+      for (const [index, element] of pattern.elements.entries()) {
+        if (ts.isOmittedExpression(element)) continue;
+        const member = ts.isObjectBindingPattern(pattern)
+          ? staticPropertyName(
+              element.propertyName ??
+                (ts.isIdentifier(element.name) ? element.name : undefined),
+            )
+          : String(index);
+        const symbol = member ? type.getProperty(member) : undefined;
+        const declaration =
+          symbol?.valueDeclaration ?? symbol?.declarations?.[0] ?? null;
+        if (
+          declaration &&
+          ts.isGetAccessorDeclaration(declaration) &&
+          functionReturnsGuardedRegistry(declaration)
+        ) {
+          return true;
+        }
+        if (symbol && !ts.isIdentifier(element.name)) {
+          const nestedType = checker.getTypeOfSymbolAtLocation(symbol, element);
+          if (visit(element.name, nestedType)) return true;
+        }
+      }
+      return false;
+    };
+    return visit(name, checker.getTypeAtLocation(initializer));
+  }
+
+  function bindingDefaultsEscapeGuardedRegistry(name: ts.BindingName): boolean {
+    if (ts.isIdentifier(name)) return false;
+    for (const element of name.elements) {
+      if (ts.isOmittedExpression(element)) continue;
+      if (
+        element.initializer &&
+        (containsGuardedRegistry(element.initializer) ||
+          containsGuardedReturnEscape(element.initializer))
+      ) {
+        return true;
+      }
+      if (
+        !ts.isIdentifier(element.name) &&
+        bindingDefaultsEscapeGuardedRegistry(element.name)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function inspectRegistrationMutation(node: ts.Node): void {
-    if (
+    if (ts.isVariableDeclaration(node)) {
+      const initializer = node.initializer;
+      const directGuarded = initializer
+        ? containsGuardedRegistry(initializer)
+        : false;
+      const opaqueGuarded = initializer
+        ? containsGuardedReturnEscape(initializer)
+        : false;
+      const accessorGuarded =
+        initializer && !ts.isIdentifier(node.name)
+          ? bindingReadsGuardedAccessor(node.name, initializer)
+          : false;
+      if (
+        opaqueGuarded ||
+        accessorGuarded ||
+        (!ts.isIdentifier(node.name) && directGuarded) ||
+        bindingDefaultsEscapeGuardedRegistry(node.name)
+      ) {
+        recordViolation(
+          "<unresolved>",
+          "unresolved action registration",
+          node,
+        );
+      }
+    } else if (
+      (ts.isForOfStatement(node) || ts.isForInStatement(node)) &&
+      (containsGuardedRegistry(node.expression) ||
+        containsGuardedReturnEscape(node.expression))
+    ) {
+      recordViolation(
+        "<unresolved>",
+        "unresolved action registration",
+        node,
+      );
+    } else if (
       ts.isBinaryExpression(node) &&
       node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
       node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
     ) {
       const guardedLeft = guardedRegistryRoot(node.left);
+      const opaqueLeft = containsGuardedReturnEscape(node.left);
       const assignedAlias =
         node.operatorToken.kind === ts.SyntaxKind.EqualsToken
           ? registryAliasDeclaration(node.left)
           : null;
       const guardedRight =
         guardedRegistryRoot(node.right) || containsGuardedRegistry(node.right);
+      const opaqueRight = containsGuardedReturnEscape(node.right);
+      if (opaqueLeft || opaqueRight) {
+        recordViolation(
+          "<unresolved>",
+          "unresolved action registration",
+          node,
+        );
+      }
       if (assignedAlias && !guardedLeft && guardedRight) {
         guardedRegistryAliases.add(assignedAlias);
       } else if (!assignedAlias && !guardedLeft && guardedRight) {
@@ -1643,6 +1897,13 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
         node,
       );
     } else if (ts.isCallExpression(node)) {
+      if (containsGuardedReturnEscape(node)) {
+        recordViolation(
+          "<unresolved>",
+          "unresolved action registration",
+          node,
+        );
+      }
       const callee = unwrapVisualExpression(node.expression);
       if (
         ts.isPropertyAccessExpression(callee) ||
@@ -1674,23 +1935,35 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
           node,
         );
       }
-      if (node.arguments.some(containsGuardedRegistry)) {
+      if (
+        node.arguments.some(
+          (argument) =>
+            containsGuardedRegistry(argument) ||
+            containsGuardedReturnEscape(argument),
+        )
+      ) {
         recordViolation(
           "<unresolved>",
           "unresolved action registration",
           node,
         );
       }
-    } else if (
-      ts.isNewExpression(node) &&
-      node !== casesInitializer &&
-      node.arguments?.some(containsGuardedRegistry)
-    ) {
-      recordViolation(
-        "<unresolved>",
-        "unresolved action registration",
-        node,
-      );
+    } else if (ts.isNewExpression(node) && node !== casesInitializer) {
+      const target = callableReturnTarget(node.expression);
+      if (
+        (target && functionReturnsGuardedRegistry(target)) ||
+        node.arguments?.some(
+          (argument) =>
+            containsGuardedRegistry(argument) ||
+            containsGuardedReturnEscape(argument),
+        )
+      ) {
+        recordViolation(
+          "<unresolved>",
+          "unresolved action registration",
+          node,
+        );
+      }
     }
     ts.forEachChild(node, inspectRegistrationMutation);
   }
@@ -2272,12 +2545,66 @@ describe("Task 7 React visual cases", () => {
       selected.action = dishonestAction;`,
     ],
     [
+      "single nested BindingElement alias",
+      `const [[, [, selected]]] = TASK7_CASES;
+      selected.action = dishonestAction;`,
+    ],
+    [
+      "reverse container destructuring alias",
+      `const selectedCase = TASK7_CASES[0][1][1];
+      const holder = { selectedCase };
+      const { selectedCase: selected } = holder;
+      selected.action = dishonestAction;`,
+    ],
+    [
+      "for-of destructuring alias",
+      `for (const [, visualCases] of TASK7_CASES) {
+        const [, selected] = visualCases;
+        selected.action = dishonestAction;
+      }`,
+    ],
+    [
       "nested container alias",
       `const selected = TASK7_CASES[0][1][1];
       const holder = { nested: { selected } };
       holder.nested.selected.action = dishonestAction;`,
     ],
   ])("rejects action replacement through a %s", (_label, mutation) => {
+    const source = `${guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)}
+      ${mutation}`;
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "<unresolved>",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test.each([
+    [
+      "getter-return alias",
+      `const selectedCase = TASK7_CASES[0][1][1];
+      const holder = { get selected() { return selectedCase; } };
+      holder.selected.action = dishonestAction;`,
+    ],
+    [
+      "function-return alias",
+      `const selectedCase = TASK7_CASES[0][1][1];
+      function selectedAlias() { return selectedCase; }
+      const selected = selectedAlias();
+      selected.action = dishonestAction;`,
+    ],
+    [
+      "getter-return alias through destructuring",
+      `const selectedCase = TASK7_CASES[0][1][1];
+      const holder = { get selected() { return selectedCase; } };
+      const { selected } = holder;
+      selected.action = dishonestAction;`,
+    ],
+  ])("rejects action replacement through an opaque %s", (_label, mutation) => {
     const source = `${guardedTask7Source(`
       async function action({ canvas }) {
         await canvas.getByRole("button").click();
