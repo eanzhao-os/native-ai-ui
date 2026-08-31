@@ -1610,6 +1610,32 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     );
   }
 
+  function containsExposedGuardedRegistry(node: ts.Node): boolean {
+    let found = false;
+    const visit = (child: ts.Node) => {
+      if (found) return;
+      if (ts.isCallExpression(child)) {
+        const callee = unwrapVisualExpression(child.expression);
+        if (
+          ts.isPropertyAccessExpression(callee) &&
+          callee.name.text === "get" &&
+          guardedRegistryRoot(callee.expression) === strictCasesDeclaration
+        ) {
+          for (const argument of child.arguments) visit(argument);
+          return;
+        }
+      }
+      if (ts.isIdentifier(child) && guardedRegistryRoot(child)) {
+        found = true;
+        return;
+      }
+      if (child !== node && returnCapableFunction(child)) return;
+      ts.forEachChild(child, visit);
+    };
+    visit(node);
+    return found;
+  }
+
   function registrationMemberDeclaration(
     access: ts.ElementAccessExpression | ts.PropertyAccessExpression,
   ): ts.Declaration | null {
@@ -1741,7 +1767,7 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
     }
     const guarded = returned.some(
       (expression) =>
-        containsGuardedRegistry(expression) ||
+        containsExposedGuardedRegistry(expression) ||
         containsGuardedReturnEscape(expression, visitingFunctions),
     );
     visitingFunctions.delete(functionNode);
@@ -1805,7 +1831,16 @@ function analyzeTask7VisualSource(source: string): Task7GuardResult {
   }
 
   function inspectRegistrationMutation(node: ts.Node): void {
-    if (ts.isVariableDeclaration(node)) {
+    if (
+      returnCapableFunction(node) &&
+      functionReturnsGuardedRegistry(node)
+    ) {
+      recordViolation(
+        "<unresolved>",
+        "unresolved action registration",
+        node,
+      );
+    } else if (ts.isVariableDeclaration(node)) {
       const initializer = node.initializer;
       const directGuarded = initializer
         ? containsGuardedRegistry(initializer)
@@ -2620,6 +2655,46 @@ describe("Task 7 React visual cases", () => {
 
   test.each([
     [
+      "shorthand property",
+      `const selected = TASK7_CASES[0][1][1];
+      const getSelected = () => selected;
+      const holder = { getSelected };
+      const alias = holder.getSelected();
+      alias.action = dishonestAction;`,
+    ],
+    [
+      "dynamic computed shorthand method access",
+      `const selected = TASK7_CASES[0][1][1];
+      const getSelected = () => selected;
+      const holder = { getSelected };
+      const method = "getSelected";
+      const alias = holder[method]();
+      alias.action = dishonestAction;`,
+    ],
+    [
+      "nested object shorthand",
+      `const selected = TASK7_CASES[0][1][1];
+      const getSelected = () => selected;
+      const holder = { nested: { getSelected } };
+      const alias = holder.nested.getSelected();
+      alias.action = dishonestAction;`,
+    ],
+  ])("rejects guarded return exposure through %s", (_label, mutation) => {
+    const source = `${guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)}
+      ${mutation}`;
+
+    expect(analyzeTask7VisualSource(source).violations).toContainEqual({
+      component: "<unresolved>",
+      kind: "unresolved action registration",
+    });
+  });
+
+  test.each([
+    [
       "nested reverse case container",
       `const selected = { name: "selected", action };
       const inner = { selected };
@@ -2792,6 +2867,30 @@ describe("Task 7 React visual cases", () => {
         const unrelatedTuple = [
           "unrelated-component",
           [{ name: "settled", action: unrelatedAction }],
+        ];
+        const CASES = new Map([`,
+      )
+      .replace(
+        TASK7_REGISTRATION_END,
+        `${TASK7_REGISTRATION_END},
+        unrelatedTuple`,
+      );
+
+    expect(analyzeTask7VisualSource(source).violations).toEqual([]);
+  });
+
+  test("allows an unused unrelated function-valued constituent", () => {
+    const source = guardedTask7Source(`
+      async function action({ canvas }) {
+        await canvas.getByRole("button").click();
+      }
+    `)
+      .replace(
+        "const CASES = new Map([",
+        `const unused = () => "unused";
+        const unrelatedTuple = [
+          "unrelated-component",
+          [{ name: "settled", details: { unused } }],
         ];
         const CASES = new Map([`,
       )
