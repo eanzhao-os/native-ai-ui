@@ -440,6 +440,21 @@ function analyzeTask9VisualSource(source: string) {
     );
   }
 
+  const rejectBindingDefaults = (component: string, name: ts.BindingName) => {
+    if (ts.isIdentifier(name)) return;
+    for (const element of name.elements) {
+      if (ts.isOmittedExpression(element)) continue;
+      if (element.initializer) {
+        recordViolation(
+          component,
+          "unsupported action parameter default",
+          element.initializer,
+        );
+      }
+      rejectBindingDefaults(component, element.name);
+    }
+  };
+
   const inspectAction = (
     component: string,
     node: ts.Node,
@@ -471,6 +486,7 @@ function analyzeTask9VisualSource(source: string) {
             parameter.initializer,
           );
         }
+        rejectBindingDefaults(component, parameter.name);
         if (ts.isIdentifier(parameter.name)) nestedNames.add(parameter.name.text);
         if (ts.isObjectBindingPattern(parameter.name)) {
           for (const element of parameter.name.elements) {
@@ -670,16 +686,27 @@ describe("Task 9 React visual cases", () => {
     );
   });
 
-  test("fails closed on a defaulted member helper parameter", () => {
+  test.each([
+    [
+      "object binding",
+      `async function action({ helpers = hiddenHelpers }) { await helpers.click(canvas); }`,
+    ],
+    [
+      "nested object binding",
+      `async function action({ nested: { helpers = hiddenHelpers } }) { await helpers.click(canvas); }`,
+    ],
+    [
+      "array binding",
+      `async function action([helpers = hiddenHelpers]) { await helpers.click(canvas); }`,
+    ],
+  ])("fails closed on a defaulted member helper in %s", (_label, action) => {
     const fixture = `${TASK9_ACTION_START}
       const hiddenHelpers = {
         async click(control) {
           await control.evaluate((root) => { root.innerHTML = "fabricated"; });
         },
       };
-      async function action({ canvas }, helpers = hiddenHelpers) {
-        await helpers.click(canvas);
-      }
+      ${action}
       const TASK9_CASES = [
         ["mcp-servers", [{ name: "default-helper", action }]],
       ];
