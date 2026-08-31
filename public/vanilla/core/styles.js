@@ -1513,9 +1513,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .border-t-ink-2 {
     border-top-color: var(--ink-2);
   }
-  .border-t-orange {
-    border-top-color: var(--orange);
-  }
   .\\!bg-transparent {
     background-color: transparent !important;
   }
@@ -2997,9 +2994,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
       --tw-ring-color: color-mix(in oklab, var(--accent) 55%, transparent);
     }
   }
-  .focus-visible\\:ring-inset:focus-visible {
-    --tw-ring-color: var(--inset);
-  }
   .focus-visible\\:ring-red\\/45:focus-visible {
     --tw-ring-color: var(--red);
     @supports (color: color-mix(in lab, red, red)) {
@@ -3016,9 +3010,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   .focus-visible\\:outline-none:focus-visible {
     --tw-outline-style: none;
     outline-style: none;
-  }
-  .focus-visible\\:ring-inset:focus-visible {
-    --tw-ring-inset: inset;
   }
   .active\\:scale-95:active {
     --tw-scale-x: 95%;

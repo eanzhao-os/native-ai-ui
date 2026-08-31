@@ -15,6 +15,14 @@ function controlledElement(control: HTMLElement) {
   return target!;
 }
 
+function expectInsetAccentFocusIndicator(control: HTMLElement) {
+  const classes = control.getAttribute("class")?.split(/\s+/) ?? [];
+  expect(classes).toContain(
+    "focus-visible:shadow-[inset_0_0_0_2px_var(--accent)]",
+  );
+  expect(classes).not.toContain("focus-visible:ring-inset");
+}
+
 async function advance(milliseconds: number) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(milliseconds);
@@ -141,6 +149,43 @@ describe("LspDiagnostics", () => {
     expect(screen.getByText("2 issues in scope")).not.toBeNull();
   });
 
+  test("serializes fixes while one diagnostic is pending", async () => {
+    vi.useFakeTimers();
+    render(<LspDiagnostics />);
+
+    const firstFix = screen.getByRole("button", { name: "Auto-Fix CS0103" });
+    const secondFix = screen.getByRole("button", { name: "Auto-Fix CS8618" });
+    fireEvent.click(firstFix);
+
+    expect(firstFix.hasAttribute("disabled")).toBe(true);
+    expect(secondFix.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(secondFix);
+
+    await advance(600);
+
+    expect(screen.queryByText("CS0103")).toBeNull();
+    expect(screen.getByText("CS8618")).not.toBeNull();
+    await advance(600);
+    expect(screen.getByText("CS8618")).not.toBeNull();
+  });
+
+  test("recovers focus from the latest visible diagnostics after a filter change", async () => {
+    vi.useFakeTimers();
+    render(<LspDiagnostics />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Warnings" }));
+    const warningFix = screen.getByRole("button", { name: "Auto-Fix CS8618" });
+    warningFix.focus();
+    fireEvent.click(warningFix);
+    fireEvent.click(screen.getByRole("button", { name: "Errors" }));
+
+    await advance(600);
+
+    const visibleFix = screen.getByRole("button", { name: "Auto-Fix CS0103" });
+    expect(document.activeElement).toBe(visibleFix);
+    expect(screen.queryByText("CS8618")).toBeNull();
+  });
+
   test("exposes selected diagnostic filters and localized source positions", () => {
     render(<LspDiagnostics lang="zh" />);
 
@@ -173,6 +218,18 @@ describe("SandboxManager", () => {
     fireEvent.click(process);
     expect(process.getAttribute("aria-expanded")).toBe("false");
     expect(controlledElement(process).hidden).toBe(true);
+  });
+
+  test("uses an unambiguous inset accent focus indicator for process disclosures", () => {
+    render(<SandboxManager />);
+
+    const process = screen.getByRole("button", {
+      name: /Process 1402: dotnet run --project src\/Harness\.Boot/,
+    });
+    process.focus();
+
+    expect(document.activeElement).toBe(process);
+    expectInsetAccentFocusIndicator(process);
   });
 
   test("reports resource meters and localized process disclosure names", () => {
@@ -279,6 +336,42 @@ describe("McpServers", () => {
     expect(
       within(controlledElement(ripgrep)).getByText("ripgrep__search"),
     ).not.toBeNull();
+  });
+
+  test("uses an unambiguous inset accent focus indicator for server disclosures", () => {
+    render(<McpServers />);
+
+    const ripgrep = screen.getByRole("button", { name: "Server ripgrep" });
+    ripgrep.focus();
+
+    expect(document.activeElement).toBe(ripgrep);
+    expectInsetAccentFocusIndicator(ripgrep);
+  });
+
+  test("keeps the retry action stable and moves focus to the disclosure while busy", async () => {
+    vi.useFakeTimers();
+    render(<McpServers />);
+
+    const web = screen.getByRole("button", { name: "Server web-fetch" });
+    fireEvent.click(web);
+    const region = controlledElement(web);
+    const retry = within(region).getByRole("button", {
+      name: "Retry web-fetch",
+    }) as HTMLButtonElement;
+    retry.focus();
+    fireEvent.click(retry);
+
+    expect(within(region).getByRole("button", { name: "Retry web-fetch" })).toBe(
+      retry,
+    );
+    expect(retry.disabled).toBe(true);
+    expect(retry.getAttribute("aria-busy")).toBe("true");
+    expect(document.activeElement).toBe(web);
+
+    await advance(1600);
+
+    expect(within(region).queryByRole("button", { name: "Retry web-fetch" })).toBeNull();
+    expect(document.activeElement).toBe(web);
   });
 
   test("retries the failed server without nesting controls and announces recovery", async () => {

@@ -239,7 +239,7 @@ export default function SandboxManager({
                       current === process.pid ? null : process.pid,
                     )
                   }
-                  className="grid min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-hover/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/55 motion-reduce:transition-none"
+                  className="grid min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-hover/65 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] motion-reduce:transition-none"
                 >
                   <span className="font-mono text-[9.5px] text-ink-3">
                     #{process.pid}

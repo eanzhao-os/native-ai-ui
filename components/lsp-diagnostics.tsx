@@ -70,9 +70,10 @@ export default function LspDiagnostics({
   const [filter, setFilter] = useState<Filter>("all");
   const [diagnostics, setDiagnostics] =
     useState<Diagnostic[]>(INITIAL_DIAGNOSTICS);
-  const [fixingIds, setFixingIds] = useState<string[]>([]);
-  const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const [fixingId, setFixingId] = useState<string | null>(null);
+  const [focusAfterFix, setFocusAfterFix] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const fixingIdRef = useRef<string | null>(null);
   const fixButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const filterButtonRefs = useRef(new Map<Filter, HTMLButtonElement>());
 
@@ -81,14 +82,18 @@ export default function LspDiagnostics({
   );
 
   useEffect(() => {
-    if (!focusTarget) return;
-    if (focusTarget === "filter") {
-      filterButtonRefs.current.get(filter)?.focus();
+    if (!focusAfterFix) return;
+    const nextVisible = diagnostics.find(
+      (diagnostic) =>
+        filter === "all" || diagnostic.severity === filter,
+    );
+    if (nextVisible) {
+      fixButtonRefs.current.get(nextVisible.id)?.focus();
     } else {
-      fixButtonRefs.current.get(focusTarget)?.focus();
+      filterButtonRefs.current.get(filter)?.focus();
     }
-    setFocusTarget(null);
-  }, [diagnostics, filter, focusTarget]);
+    setFocusAfterFix(null);
+  }, [diagnostics, filter, focusAfterFix]);
 
   const handleFilter = (nextFilter: Filter) => {
     setFilter(nextFilter);
@@ -115,22 +120,19 @@ export default function LspDiagnostics({
 
   const handleFix = (id: string) => {
     const diagnostic = diagnostics.find((item) => item.id === id);
-    if (!diagnostic || fixingIds.includes(id)) return;
+    if (!diagnostic || fixingIdRef.current) return;
 
-    const remaining = diagnostics.filter(
-      (item) =>
-        item.id !== id &&
-        (filter === "all" || item.severity === filter),
-    );
-    setFixingIds((current) => [...current, id]);
+    fixingIdRef.current = id;
+    setFixingId(id);
     setAnnouncement(
       zh ? `正在修复 ${diagnostic.code}` : `Fixing ${diagnostic.code}`,
     );
 
     setTimeout(() => {
       setDiagnostics((current) => current.filter((item) => item.id !== id));
-      setFixingIds((current) => current.filter((fixingId) => fixingId !== id));
-      setFocusTarget(remaining[0]?.id ?? "filter");
+      fixingIdRef.current = null;
+      setFixingId(null);
+      setFocusAfterFix(id);
       setAnnouncement(
         zh ? `已修复 ${diagnostic.code}` : `Fixed ${diagnostic.code}`,
       );
@@ -223,7 +225,8 @@ export default function LspDiagnostics({
           </div>
         ) : (
           filtered.map((diagnostic) => {
-            const isFixing = fixingIds.includes(diagnostic.id);
+            const isFixing = fixingId === diagnostic.id;
+            const fixesPending = fixingId !== null;
             const isError = diagnostic.severity === "error";
             return (
               <div
@@ -275,8 +278,8 @@ export default function LspDiagnostics({
                     }
                     aria-busy={isFixing}
                     onClick={() => handleFix(diagnostic.id)}
-                    disabled={isFixing}
-                    className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-line-strong bg-surface px-2.5 text-[10.5px] font-medium text-accent-ink transition-colors hover:border-accent/40 hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 disabled:cursor-wait disabled:opacity-55 motion-reduce:transition-none"
+                    disabled={fixesPending}
+                    className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control border border-line-strong bg-surface px-2.5 text-[10.5px] font-medium text-accent-ink transition-colors hover:border-accent/40 hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/55 disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none"
                   >
                     {isFixing ? (zh ? "修复中" : "Fixing") : zh ? "一键修复" : "Auto-Fix"}
                     <svg

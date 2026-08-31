@@ -62,7 +62,26 @@ const EXPECTED_CASES = {
 type CallableNode =
   | ts.ArrowFunction
   | ts.FunctionDeclaration
-  | ts.FunctionExpression;
+  | ts.FunctionExpression
+  | ts.MethodDeclaration;
+
+const SAFE_TASK9_MEMBER_CALLS = new Set([
+  "and",
+  "boundingBox",
+  "click",
+  "count",
+  "focus",
+  "getAttribute",
+  "getByRole",
+  "getByText",
+  "includes",
+  "isChecked",
+  "isDisabled",
+  "locator",
+  "press",
+  "toFixed",
+  "waitFor",
+]);
 
 type Registration = {
   cases: ts.ArrayLiteralExpression;
@@ -207,6 +226,107 @@ function analyzeTask9VisualSource(source: string) {
     return resolved;
   };
 
+  const memberName = (
+    access: ts.ElementAccessExpression | ts.PropertyAccessExpression,
+  ) =>
+    ts.isPropertyAccessExpression(access)
+      ? access.name.text
+      : staticText(access.argumentExpression);
+
+  const resolveMemberValue = (
+    access: ts.ElementAccessExpression | ts.PropertyAccessExpression,
+    visiting = new Set<ts.Node>(),
+  ): ts.Node | undefined => {
+    if (visiting.has(access)) return undefined;
+    visiting.add(access);
+    const name = memberName(access);
+    if (!name) return undefined;
+
+    let receiver: ts.Node | undefined = resolveExpression(access.expression);
+    if (
+      receiver &&
+      (ts.isPropertyAccessExpression(receiver) ||
+        ts.isElementAccessExpression(receiver))
+    ) {
+      receiver = resolveMemberValue(receiver, visiting);
+    }
+    if (!receiver || !ts.isObjectLiteralExpression(receiver)) return undefined;
+    if (receiver.properties.some(ts.isSpreadAssignment)) return undefined;
+
+    const matches = receiver.properties.filter(
+      (property) => propertyNameText(property.name) === name,
+    );
+    if (matches.length !== 1) return undefined;
+    const [property] = matches;
+    if (ts.isMethodDeclaration(property)) return property;
+    if (ts.isPropertyAssignment(property)) {
+      const value = resolveExpression(property.initializer);
+      return value &&
+        (ts.isPropertyAccessExpression(value) ||
+          ts.isElementAccessExpression(value))
+        ? resolveMemberValue(value, visiting)
+        : value;
+    }
+    if (ts.isShorthandPropertyAssignment(property)) {
+      return resolveExpression(property.name);
+    }
+    return undefined;
+  };
+
+  const resolveCallable = (
+    expression: ts.Expression,
+    visiting = new Set<ts.Node>(),
+  ): CallableNode | undefined => {
+    const current = unwrapVisualExpression(expression);
+    if (visiting.has(current)) return undefined;
+    if (
+      ts.isArrowFunction(current) ||
+      ts.isFunctionDeclaration(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isMethodDeclaration(current)
+    ) {
+      return current;
+    }
+    visiting.add(current);
+    if (ts.isIdentifier(current)) {
+      const target = callables.get(current.text) ?? expressions.get(current.text);
+      return target && ts.isExpression(target)
+        ? resolveCallable(target, visiting)
+        : target &&
+            (ts.isFunctionDeclaration(target) || ts.isMethodDeclaration(target))
+          ? target
+          : undefined;
+    }
+    if (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      const memberVisiting = new Set(visiting);
+      memberVisiting.delete(current);
+      const target = resolveMemberValue(current, memberVisiting);
+      return target && ts.isExpression(target)
+        ? resolveCallable(target, visiting)
+        : target && ts.isMethodDeclaration(target)
+          ? target
+          : undefined;
+    }
+    return undefined;
+  };
+
+  const memberRootName = (expression: ts.Expression): string | undefined => {
+    const current = unwrapVisualExpression(expression);
+    if (ts.isIdentifier(current)) return current.text;
+    if (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      return memberRootName(current.expression);
+    }
+    if (ts.isCallExpression(current)) return memberRootName(current.expression);
+    if (ts.isAwaitExpression(current)) return memberRootName(current.expression);
+    return undefined;
+  };
+
   const resolveArray = (
     expression: ts.Expression | undefined,
   ): ts.ArrayLiteralExpression | undefined => {
@@ -336,7 +456,8 @@ function analyzeTask9VisualSource(source: string) {
     if (
       ts.isFunctionDeclaration(node) ||
       ts.isArrowFunction(node) ||
-      ts.isFunctionExpression(node)
+      ts.isFunctionExpression(node) ||
+      ts.isMethodDeclaration(node)
     ) {
       if (!nodeWithin(node, actionRange, sourceFile)) {
         recordViolation(component, "action helper outside Task 9 markers", node);
@@ -364,9 +485,28 @@ function analyzeTask9VisualSource(source: string) {
     if (ts.isCallExpression(node)) {
       const callee = unwrapVisualExpression(node.expression);
       if (ts.isIdentifier(callee) && !localNames.has(callee.text)) {
-        const target = callables.get(callee.text) ?? expressions.get(callee.text);
+        const target = resolveCallable(callee);
         if (target) inspectAction(component, target, visited, localNames);
         else recordViolation(component, "unresolved action helper", callee);
+      } else if (
+        ts.isPropertyAccessExpression(callee) ||
+        ts.isElementAccessExpression(callee)
+      ) {
+        const target = resolveCallable(callee);
+        if (target) {
+          inspectAction(component, target, visited, localNames);
+        } else {
+          const method = memberName(callee);
+          const root = memberRootName(callee.expression);
+          if (
+            !method ||
+            !root ||
+            (!localNames.has(root) && !callables.has(root)) ||
+            !SAFE_TASK9_MEMBER_CALLS.has(method)
+          ) {
+            recordViolation(component, "unresolved action helper", callee);
+          }
+        }
       }
     }
 
@@ -483,6 +623,84 @@ describe("Task 9 React visual cases", () => {
         { component: "mcp-servers", kind: "DOM rewrite" },
       ]),
     );
+  });
+
+  test.each([
+    [
+      "object method",
+      `const helpers = {
+        async run(control) {
+          await control.evaluate((root) => { root.innerHTML = "fabricated"; });
+        },
+      };`,
+    ],
+    [
+      "property alias",
+      `async function rewrite(control) {
+        await control.evaluate((root) => { root.innerHTML = "fabricated"; });
+      }
+      const helpers = { run: rewrite };`,
+    ],
+  ])("classifies DOM fabrication reached through a local %s helper", (_label, helper) => {
+    const fixture = `${TASK9_ACTION_START}
+      ${helper}
+      async function action({ canvas }) { await helpers.run(canvas); }
+      const TASK9_CASES = [
+        ["mcp-servers", [{ name: "fabricated", action }]],
+      ];
+      ${TASK9_ACTION_END}
+      const CASES = new Map([
+        ${TASK9_REGISTRATION_START}
+        ...TASK9_CASES,
+        ${TASK9_REGISTRATION_END}
+      ]);`;
+
+    expect(analyzeTask9VisualSource(fixture).violations).toEqual(
+      expect.arrayContaining([
+        { component: "mcp-servers", kind: "DOM evaluation" },
+        { component: "mcp-servers", kind: "DOM rewrite" },
+      ]),
+    );
+  });
+
+  test("fails closed on an unresolved member helper", () => {
+    const fixture = `${TASK9_ACTION_START}
+      async function action({ canvas }) { await helpers.run(canvas); }
+      const TASK9_CASES = [
+        ["sandbox-manager", [{ name: "unresolved", action }]],
+      ];
+      ${TASK9_ACTION_END}
+      const CASES = new Map([
+        ${TASK9_REGISTRATION_START}
+        ...TASK9_CASES,
+        ${TASK9_REGISTRATION_END}
+      ]);`;
+
+    expect(analyzeTask9VisualSource(fixture).violations).toContainEqual({
+      component: "sandbox-manager",
+      kind: "unresolved action helper",
+    });
+  });
+
+  test("accepts a resolved member helper that only drives Playwright controls", () => {
+    const fixture = `${TASK9_ACTION_START}
+      const helpers = {
+        async run(control) {
+          await control.getByRole("button").click();
+        },
+      };
+      async function action({ canvas }) { await helpers.run(canvas); }
+      const TASK9_CASES = [
+        ["job-scheduler", [{ name: "safe", action }]],
+      ];
+      ${TASK9_ACTION_END}
+      const CASES = new Map([
+        ${TASK9_REGISTRATION_START}
+        ...TASK9_CASES,
+        ${TASK9_REGISTRATION_END}
+      ]);`;
+
+    expect(analyzeTask9VisualSource(fixture).violations).toEqual([]);
   });
 
   test("rejects helpers outside the extractable Task 9 action range", () => {

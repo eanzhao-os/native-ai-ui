@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -131,9 +131,21 @@ export default function McpServers({
   const [retrying, setRetrying] = useState(false);
   const [recovered, setRecovered] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const retryButtonRef = useRef<HTMLButtonElement>(null);
+  const webDisclosureRef = useRef<HTMLButtonElement>(null);
+  const restoreRetryFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (!recovered || !restoreRetryFocusRef.current) return;
+    restoreRetryFocusRef.current = false;
+    webDisclosureRef.current?.focus();
+  }, [recovered]);
 
   const handleRetry = () => {
     if (retrying || recovered) return;
+    restoreRetryFocusRef.current =
+      document.activeElement === retryButtonRef.current;
+    if (restoreRetryFocusRef.current) webDisclosureRef.current?.focus();
     setRetrying(true);
     setAnnouncement(zh ? "正在重新连接 web-fetch" : "Reconnecting web-fetch");
     setTimeout(() => {
@@ -218,6 +230,7 @@ export default function McpServers({
               } dark:border-line-strong`}
             >
               <button
+                ref={server.id === "web" ? webDisclosureRef : undefined}
                 type="button"
                 aria-label={
                   zh ? `服务器 ${server.name}` : `Server ${server.name}`
@@ -225,7 +238,7 @@ export default function McpServers({
                 aria-controls={detailsId}
                 aria-expanded={isExpanded}
                 onClick={() => setExpanded(isExpanded ? null : server.id)}
-                className="grid min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-hover/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/55 motion-reduce:transition-none"
+                className="grid min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-hover/60 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] motion-reduce:transition-none"
               >
                 <span
                   aria-hidden="true"
@@ -279,20 +292,31 @@ export default function McpServers({
                 hidden={!isExpanded}
                 className="border-t border-line-strong bg-surface/70 px-3 py-2.5"
               >
-                {status === "error" ? (
+                {status === "error" || status === "handshaking" ? (
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="min-w-0 flex-1 font-mono text-[10px] leading-relaxed text-red">
-                      {zh ? server.errorZh : server.errorEn}
+                    <span
+                      className={`min-w-0 flex-1 font-mono text-[10px] leading-relaxed ${
+                        retrying ? "text-ink-3" : "text-red"
+                      }`}
+                    >
+                      {retrying
+                        ? "initialize → tools/list…"
+                        : zh
+                          ? server.errorZh
+                          : server.errorEn}
                     </span>
                     <button
+                      ref={retryButtonRef}
                       type="button"
                       aria-label={
                         zh
                           ? `重连 ${server.name}`
                           : `Retry ${server.name}`
                       }
+                      aria-busy={retrying}
                       onClick={handleRetry}
-                      className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 text-[10.5px] font-medium text-ink-2 transition-colors hover:border-red/35 hover:bg-red-tint hover:text-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red/45 motion-reduce:transition-none"
+                      disabled={retrying}
+                      className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 text-[10.5px] font-medium text-ink-2 transition-colors hover:border-red/35 hover:bg-red-tint hover:text-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red/45 disabled:cursor-wait disabled:bg-inset disabled:text-ink-3 disabled:opacity-50 motion-reduce:transition-none"
                     >
                       <svg
                         aria-hidden="true"
@@ -304,18 +328,22 @@ export default function McpServers({
                         strokeWidth="2.4"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                        className={
+                          retrying
+                            ? "animate-spin text-orange motion-reduce:animate-none"
+                            : ""
+                        }
                       >
                         <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
                       </svg>
-                      {zh ? "重连" : "Retry"}
+                      {retrying
+                        ? zh
+                          ? "重连中"
+                          : "Retrying"
+                        : zh
+                          ? "重连"
+                          : "Retry"}
                     </button>
-                  </div>
-                ) : status === "handshaking" ? (
-                  <div className="flex min-h-11 items-center gap-2">
-                    <span className="size-3.5 shrink-0 animate-spin rounded-full border-[1.5px] border-line-strong border-t-orange motion-reduce:animate-none" />
-                    <span className="font-mono text-[10.5px] text-ink-3">
-                      initialize → tools/list…
-                    </span>
                   </div>
                 ) : (
                   <ul role="list" className="flex flex-col gap-1.5">
