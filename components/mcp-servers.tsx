@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -133,19 +133,12 @@ export default function McpServers({
   const [announcement, setAnnouncement] = useState("");
   const retryButtonRef = useRef<HTMLButtonElement>(null);
   const webDisclosureRef = useRef<HTMLButtonElement>(null);
-  const restoreRetryFocusRef = useRef(false);
-
-  useEffect(() => {
-    if (!recovered || !restoreRetryFocusRef.current) return;
-    restoreRetryFocusRef.current = false;
-    webDisclosureRef.current?.focus();
-  }, [recovered]);
 
   const handleRetry = () => {
     if (retrying || recovered) return;
-    restoreRetryFocusRef.current =
-      document.activeElement === retryButtonRef.current;
-    if (restoreRetryFocusRef.current) webDisclosureRef.current?.focus();
+    if (document.activeElement === retryButtonRef.current) {
+      webDisclosureRef.current?.focus();
+    }
     setRetrying(true);
     setAnnouncement(zh ? "正在重新连接 web-fetch" : "Reconnecting web-fetch");
     setTimeout(() => {

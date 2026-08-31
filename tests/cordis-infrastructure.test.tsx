@@ -374,6 +374,30 @@ describe("McpServers", () => {
     expect(document.activeElement).toBe(web);
   });
 
+  test("does not steal focus back after the user moves during handshaking", async () => {
+    vi.useFakeTimers();
+    render(<McpServers />);
+
+    const filesystem = screen.getByRole("button", {
+      name: "Server filesystem",
+    });
+    const web = screen.getByRole("button", { name: "Server web-fetch" });
+    fireEvent.click(web);
+    const retry = within(controlledElement(web)).getByRole("button", {
+      name: "Retry web-fetch",
+    });
+    retry.focus();
+    fireEvent.click(retry);
+    expect(document.activeElement).toBe(web);
+
+    filesystem.focus();
+    expect(document.activeElement).toBe(filesystem);
+
+    await advance(1600);
+
+    expect(document.activeElement).toBe(filesystem);
+  });
+
   test("retries the failed server without nesting controls and announces recovery", async () => {
     vi.useFakeTimers();
     render(<McpServers />);

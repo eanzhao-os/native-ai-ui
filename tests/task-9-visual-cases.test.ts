@@ -464,6 +464,13 @@ function analyzeTask9VisualSource(source: string) {
       }
       const nestedNames = new Set(localNames);
       for (const parameter of node.parameters) {
+        if (parameter.initializer) {
+          recordViolation(
+            component,
+            "unsupported action parameter default",
+            parameter.initializer,
+          );
+        }
         if (ts.isIdentifier(parameter.name)) nestedNames.add(parameter.name.text);
         if (ts.isObjectBindingPattern(parameter.name)) {
           for (const element of parameter.name.elements) {
@@ -661,6 +668,32 @@ describe("Task 9 React visual cases", () => {
         { component: "mcp-servers", kind: "DOM rewrite" },
       ]),
     );
+  });
+
+  test("fails closed on a defaulted member helper parameter", () => {
+    const fixture = `${TASK9_ACTION_START}
+      const hiddenHelpers = {
+        async click(control) {
+          await control.evaluate((root) => { root.innerHTML = "fabricated"; });
+        },
+      };
+      async function action({ canvas }, helpers = hiddenHelpers) {
+        await helpers.click(canvas);
+      }
+      const TASK9_CASES = [
+        ["mcp-servers", [{ name: "default-helper", action }]],
+      ];
+      ${TASK9_ACTION_END}
+      const CASES = new Map([
+        ${TASK9_REGISTRATION_START}
+        ...TASK9_CASES,
+        ${TASK9_REGISTRATION_END}
+      ]);`;
+
+    expect(analyzeTask9VisualSource(fixture).violations).toContainEqual({
+      component: "mcp-servers",
+      kind: "unsupported action parameter default",
+    });
   });
 
   test("fails closed on an unresolved member helper", () => {
