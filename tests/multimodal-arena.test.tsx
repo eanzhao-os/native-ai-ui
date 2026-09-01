@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import AudioOrb from "@/components/audio-orb";
 import InsightCards from "@/components/insight-cards";
@@ -158,9 +159,65 @@ describe("InsightCards", () => {
     expect(tooltip.textContent).toContain("Today, 11:42");
     expect(tooltip.textContent).toContain("Mint Chip");
     expect(tooltip.textContent).toContain("-3.52%");
+    const tooltipTime = within(tooltip).getByText("Today, 11:42").closest("time");
+    const tableTime = within(
+      screen.getByRole("table", { name: "Return comparison data" }),
+    ).getByText("11:42").closest("time");
+    expect(tooltipTime?.getAttribute("datetime")).toBe(
+      "2026-08-29T11:42:00.000Z",
+    );
+    expect(tableTime?.getAttribute("datetime")).toBe(
+      "2026-08-29T11:42:00.000Z",
+    );
+    expect(tooltipTime?.getAttribute("datetime")).toBe(
+      tableTime?.getAttribute("datetime"),
+    );
     const activeId = chart.getAttribute("aria-activedescendant");
     expect(activeId).toMatch(/-point-4$/);
     expect(document.getElementById(activeId!)).not.toBeNull();
+  });
+
+  test("formats the localized tooltip from the selected point timestamp", () => {
+    render(<InsightCards lang="zh" />);
+
+    const chart = screen.getByRole("group", { name: "收益对比趋势图" });
+    chart.focus();
+    fireEvent.keyDown(chart, { key: "End" });
+
+    const tooltipTime = within(screen.getByRole("tooltip"))
+      .getByText("今天 12:00")
+      .closest("time");
+    const tableTime = within(
+      screen.getByRole("table", { name: "收益对比数据" }),
+    ).getByText("12:00").closest("time");
+    expect(tooltipTime?.getAttribute("datetime")).toBe(
+      "2026-08-29T12:00:00.000Z",
+    );
+    expect(tooltipTime?.getAttribute("datetime")).toBe(
+      tableTime?.getAttribute("datetime"),
+    );
+  });
+
+  test("renders exact point timestamps deterministically during SSR", () => {
+    const now = vi.spyOn(Date, "now");
+    let first = "";
+    let second = "";
+    try {
+      now.mockReturnValue(Date.UTC(2020, 0, 1));
+      first = renderToStaticMarkup(<InsightCards lang="en" />);
+      now.mockReturnValue(Date.UTC(2040, 0, 1));
+      second = renderToStaticMarkup(<InsightCards lang="en" />);
+    } finally {
+      now.mockRestore();
+    }
+
+    expect(second).toBe(first);
+    expect(first).toMatch(
+      /<time datetime="2026-08-29T11:18:00\.000Z">11:18<\/time>/i,
+    );
+    expect(first).toMatch(
+      /<time datetime="2026-08-29T12:00:00\.000Z">12:00<\/time>/i,
+    );
   });
 
   test("moves and clears chart selection from the keyboard", () => {
@@ -216,7 +273,7 @@ describe("RecommendationCard", () => {
   });
 
   test("responds honestly to review and dismiss alternatives", () => {
-    const { rerender } = render(<RecommendationCard />);
+    const { unmount } = render(<RecommendationCard />);
 
     fireEvent.click(screen.getByRole("button", { name: "Alternatives" }));
     fireEvent.click(
@@ -231,7 +288,8 @@ describe("RecommendationCard", () => {
       "Configuration ready for review",
     );
 
-    rerender(<RecommendationCard lang="zh" />);
+    unmount();
+    render(<RecommendationCard lang="zh" />);
     fireEvent.click(screen.getByRole("button", { name: "备选方案" }));
     fireEvent.click(screen.getByRole("button", { name: /全品类 SKU 紧急补货/ }));
     fireEvent.click(screen.getByRole("button", { name: "忽略" }));
@@ -241,4 +299,57 @@ describe("RecommendationCard", () => {
     )).toBe(true);
     expect(screen.getByRole("status").textContent).toContain("建议已忽略");
   });
+
+  test.each([
+    {
+      action: "Accept",
+      attemptedAlternative: /Switch to vanilla_madagascar/,
+      completed: "Accepted",
+      option: null,
+      status: "Recommendation accepted and added to the restock plan.",
+    },
+    {
+      action: "Configure",
+      attemptedAlternative: /Full restock across every SKU/,
+      completed: "Configured",
+      option: /Switch to vanilla_madagascar/,
+      status: "Configuration ready for review.",
+    },
+    {
+      action: "Dismiss",
+      attemptedAlternative: /Reorder from cone_king/,
+      completed: "Dismissed",
+      option: /Full restock across every SKU/,
+      status: "Recommendation dismissed; no restock action will run.",
+    },
+  ])(
+    "keeps $completed terminal after attempted alternative actions",
+    ({ action, attemptedAlternative, completed, option, status }) => {
+      render(<RecommendationCard />);
+
+      const alternatives = screen.getByRole("button", { name: "Alternatives" });
+      if (option) {
+        fireEvent.click(alternatives);
+        fireEvent.click(screen.getByRole("button", { name: option }));
+      }
+      fireEvent.click(alternatives);
+      const attemptedSelection = screen.getByRole("button", {
+        name: attemptedAlternative,
+      });
+      const terminalAction = screen.getByRole("button", { name: action });
+
+      fireEvent.click(terminalAction);
+
+      expect(alternatives.hasAttribute("disabled")).toBe(true);
+      expect(attemptedSelection.isConnected).toBe(false);
+      fireEvent.click(attemptedSelection);
+      fireEvent.click(alternatives);
+      fireEvent.click(terminalAction);
+
+      const completedAction = screen.getByRole("button", { name: completed });
+      expect(completedAction.hasAttribute("disabled")).toBe(true);
+      expect(screen.getAllByRole("status")).toHaveLength(1);
+      expect(screen.getByRole("status").textContent).toContain(status);
+    },
+  );
 });

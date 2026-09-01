@@ -19,47 +19,59 @@ import { useLang } from "@/lib/lang-context";
  * ───────────────────────────────────────────────────────── */
 
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
-const DISPLAY_END_MINUTE = 12 * 60;
+const SNAPSHOT_END = Date.UTC(2026, 7, 29, 12, 0, 0) / 1000;
 
 const formatPercent = (value: number) =>
   `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 const formatMoney = (value: number) =>
   `$${Math.round(value).toLocaleString("en-US")}`;
 
-type InsightPoint = LivelinePoint & {
-  displayMinute: number;
-};
+type InsightPoint = LivelinePoint;
 
-function formatClockMinute(minute: number) {
-  const hour = Math.floor(minute / 60) % 24;
-  const remainder = minute % 60;
-  return `${String(hour).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+function pointDate(time: number) {
+  return new Date(time * 1000);
 }
 
-function formatPointTime(point: InsightPoint, zh: boolean) {
-  const clock = formatClockMinute(point.displayMinute);
+function formatClockTime(time: number) {
+  const date = pointDate(time);
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
+    date.getUTCMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function formatPointTime(time: number, zh: boolean) {
+  const clock = formatClockTime(time);
   return zh ? `今天 ${clock}` : `Today, ${clock}`;
 }
 
-function makePoints(
-  values: number[],
-  snapshotEnd: number,
-  gapSeconds = 6,
-  displayGapMinutes = 6,
-): InsightPoint[] {
+function formatPointDateTime(time: number) {
+  return pointDate(time).toISOString();
+}
+
+function makePoints(values: number[], gapMinutes = 6): InsightPoint[] {
   return values.map((value, index) => {
     const remaining = values.length - 1 - index;
     return {
-      time: snapshotEnd - remaining * gapSeconds,
+      time: SNAPSHOT_END - remaining * gapMinutes * 60,
       value,
-      displayMinute: DISPLAY_END_MINUTE - remaining * displayGapMinutes,
     };
   });
 }
 
-function useSnapshotEnd() {
-  const [snapshotEnd] = useState(() => Math.floor(Date.now() / 1000));
-  return snapshotEnd;
+function useLivelineTimeOffset() {
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    // Liveline filters against wall-clock time. Translate only its rendering
+    // copy after hydration; canonical point.time values and labels stay fixed.
+    setOffset(Math.floor(Date.now() / 1000) - SNAPSHOT_END);
+  }, []);
+
+  return offset;
+}
+
+function offsetPoints(points: InsightPoint[], offset: number): InsightPoint[] {
+  return points.map((point) => ({ ...point, time: point.time + offset }));
 }
 
 function useDarkMode() {
@@ -170,16 +182,23 @@ function useChartSelection(pointCount: number) {
 
 function ChartTooltip({
   id,
+  pointTime,
   rows,
-  time,
+  zh,
 }: {
   id: string;
+  pointTime: number;
   rows: { label: string; value: string; color: string }[];
-  time: string;
+  zh: boolean;
 }) {
   return (
     <div id={id} role="tooltip" className="insight-chart-tooltip">
-      <span className="insight-chart-tooltip-time">{time}</span>
+      <time
+        className="insight-chart-tooltip-time"
+        dateTime={formatPointDateTime(pointTime)}
+      >
+        {formatPointTime(pointTime, zh)}
+      </time>
       {rows.map((row) => (
         <div key={row.label} className="insight-chart-tooltip-row">
           <span className="insight-chart-tooltip-label">
@@ -199,7 +218,7 @@ function ChartTooltip({
 
 function CompareCard({ zh }: { zh: boolean }) {
   const dark = useDarkMode();
-  const snapshotEnd = useSnapshotEnd();
+  const timeOffset = useLivelineTimeOffset();
   const selection = useChartSelection(8);
   const instanceId = useId().replaceAll(":", "");
   const chartId = `insight-compare-${instanceId}`;
@@ -207,18 +226,23 @@ function CompareCard({ zh }: { zh: boolean }) {
   const tooltipId = `${chartId}-tooltip`;
   const data = useMemo(
     () => ({
-      mint: makePoints(
-        [-2.9, -3.4, -3.05, -3.86, -3.52, -4.1, -3.82, -4.41],
-        snapshotEnd,
-      ),
-      pistachio: makePoints(
-        [0.22, 0.58, 0.42, 0.91, 0.76, 1.08, 0.96, 1.15],
-        snapshotEnd,
-      ),
+      mint: makePoints([
+        -2.9, -3.4, -3.05, -3.86, -3.52, -4.1, -3.82, -4.41,
+      ]),
+      pistachio: makePoints([
+        0.22, 0.58, 0.42, 0.91, 0.76, 1.08, 0.96, 1.15,
+      ]),
     }),
-    [snapshotEnd],
+    [],
   );
 
+  const renderData = useMemo(
+    () => ({
+      mint: offsetPoints(data.mint, timeOffset),
+      pistachio: offsetPoints(data.pistachio, timeOffset),
+    }),
+    [data.mint, data.pistachio, timeOffset],
+  );
   const latestMint = data.mint.at(-1)?.value ?? -4.41;
   const latestPistachio = data.pistachio.at(-1)?.value ?? 1.15;
   const mintColor = seriesColor("orange", dark);
@@ -228,19 +252,26 @@ function CompareCard({ zh }: { zh: boolean }) {
       {
         id: "mint",
         label: "",
-        data: data.mint,
+        data: renderData.mint,
         value: latestMint,
         color: mintColor,
       },
       {
         id: "pistachio",
         label: "",
-        data: data.pistachio,
+        data: renderData.pistachio,
         value: latestPistachio,
         color: pistachioColor,
       },
     ],
-    [data.mint, data.pistachio, latestMint, latestPistachio, mintColor, pistachioColor],
+    [
+      latestMint,
+      latestPistachio,
+      mintColor,
+      pistachioColor,
+      renderData.mint,
+      renderData.pistachio,
+    ],
   );
   const activePoint =
     selection.activeIndex === null ? null : data.mint[selection.activeIndex];
@@ -308,23 +339,25 @@ function CompareCard({ zh }: { zh: boolean }) {
           onPointerCancel={selection.clearHover}
         >
           <Liveline
+            key={timeOffset}
             data={[]}
             value={0}
             series={series}
             theme={dark ? "dark" : "light"}
             grid={false}
             pulse={false}
-            window={42}
+            window={42 * 60}
             paused
             scrub={false}
             cursor="default"
             lineWidth={2}
             padding={{ top: 24, right: 0, bottom: 22, left: 0 }}
+            formatTime={(time) => formatClockTime(time - timeOffset)}
             formatValue={formatPercent}
           />
           {data.mint.map((point, index) => (
-            <span key={point.displayMinute} id={`${chartId}-point-${index}`} className="sr-only">
-              {formatPointTime(point, zh)} · Mint Chip {formatPercent(point.value)} · Pistachio {formatPercent(data.pistachio[index].value)}
+            <span key={point.time} id={`${chartId}-point-${index}`} className="sr-only">
+              {formatPointTime(point.time, zh)} · Mint Chip {formatPercent(point.value)} · Pistachio {formatPercent(data.pistachio[index].value)}
             </span>
           ))}
           {activePoint && selection.activeIndex !== null && (
@@ -336,7 +369,7 @@ function CompareCard({ zh }: { zh: boolean }) {
               >
                 <ChartTooltip
                   id={tooltipId}
-                  time={formatPointTime(activePoint, zh)}
+                  pointTime={activePoint.time}
                   rows={[
                     {
                       label: "Mint Chip",
@@ -349,6 +382,7 @@ function CompareCard({ zh }: { zh: boolean }) {
                       color: pistachioColor,
                     },
                   ]}
+                  zh={zh}
                 />
               </span>
             </>
@@ -366,8 +400,12 @@ function CompareCard({ zh }: { zh: boolean }) {
         </thead>
         <tbody>
           {data.mint.map((point, index) => (
-            <tr key={point.displayMinute}>
-              <td>{formatClockMinute(point.displayMinute)}</td>
+            <tr key={point.time}>
+              <td>
+                <time dateTime={formatPointDateTime(point.time)}>
+                  {formatClockTime(point.time)}
+                </time>
+              </td>
               <td>{formatPercent(point.value)}</td>
               <td>{formatPercent(data.pistachio[index].value)}</td>
             </tr>
@@ -380,22 +418,26 @@ function CompareCard({ zh }: { zh: boolean }) {
 
 function AnomalyCard({ zh }: { zh: boolean }) {
   const dark = useDarkMode();
-  const snapshotEnd = useSnapshotEnd();
+  const timeOffset = useLivelineTimeOffset();
   const [metric, setMetric] = useState<"spend" | "usage">("spend");
   const selection = useChartSelection(8);
   const instanceId = useId().replaceAll(":", "");
   const chartId = `insight-anomaly-${instanceId}`;
   const tooltipId = `${chartId}-tooltip`;
   const spend = useMemo(
-    () => makePoints([274, 289, 264, 307, 331, 1210, 1718, 2112], snapshotEnd, 7, 8),
-    [snapshotEnd],
+    () => makePoints([274, 289, 264, 307, 331, 1210, 1718, 2112], 8),
+    [],
   );
   const usage = useMemo(
-    () => makePoints([18, 19, 17, 21, 22, 58, 81, 96], snapshotEnd, 7, 8),
-    [snapshotEnd],
+    () => makePoints([18, 19, 17, 21, 22, 58, 81, 96], 8),
+    [],
   );
 
   const data = metric === "spend" ? spend : usage;
+  const renderData = useMemo(
+    () => offsetPoints(data, timeOffset),
+    [data, timeOffset],
+  );
   const value = data.at(-1)?.value ?? (metric === "spend" ? 2112 : 96);
   const threshold = metric === "spend" ? "$2,112" : "82 kWh";
   const moneyLabel = formatMoney(spend.at(-1)?.value ?? 2112);
@@ -478,7 +520,8 @@ function AnomalyCard({ zh }: { zh: boolean }) {
           onPointerCancel={selection.clearHover}
         >
           <Liveline
-            data={data}
+            key={timeOffset}
+            data={renderData}
             value={value}
             theme={dark ? "dark" : "light"}
             color={color}
@@ -488,10 +531,11 @@ function AnomalyCard({ zh }: { zh: boolean }) {
             pulse={false}
             momentum={false}
             paused
-            window={49}
+            window={56 * 60}
             lineWidth={2}
             cursor="crosshair"
             padding={{ top: 18, right: 0, bottom: 22, left: 0 }}
+            formatTime={(time) => formatClockTime(time - timeOffset)}
             formatValue={(current) =>
               metric === "spend"
                 ? formatMoney(current)
@@ -499,8 +543,8 @@ function AnomalyCard({ zh }: { zh: boolean }) {
             }
           />
           {data.map((point, index) => (
-            <span key={point.displayMinute} id={`${chartId}-point-${index}`} className="sr-only">
-              {formatPointTime(point, zh)} · {metric === "spend" ? formatMoney(point.value) : `${Math.round(point.value)} kWh`}
+            <span key={point.time} id={`${chartId}-point-${index}`} className="sr-only">
+              {formatPointTime(point.time, zh)} · {metric === "spend" ? formatMoney(point.value) : `${Math.round(point.value)} kWh`}
             </span>
           ))}
           {activePoint && selection.activeIndex !== null && (
@@ -512,7 +556,7 @@ function AnomalyCard({ zh }: { zh: boolean }) {
               >
                 <ChartTooltip
                   id={tooltipId}
-                  time={formatPointTime(activePoint, zh)}
+                  pointTime={activePoint.time}
                   rows={[
                     {
                       label:
@@ -530,6 +574,7 @@ function AnomalyCard({ zh }: { zh: boolean }) {
                       color,
                     },
                   ]}
+                  zh={zh}
                 />
               </span>
             </>

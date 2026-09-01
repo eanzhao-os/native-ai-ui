@@ -99,14 +99,26 @@ export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "
   const [openDrawer, setOpenDrawer] = useState(false);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const current = options.find((option) => option.key === activeKey) ?? options[0];
+  const terminal = outcome !== null;
   const completed = outcome === current.outcome;
   const focusClasses =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
   const selectOption = (key: OptionKey) => {
+    if (terminal) return;
     setActiveKey(key);
-    setOutcome(null);
     setOpenDrawer(false);
+  };
+
+  const toggleDrawer = () => {
+    if (terminal) return;
+    setOpenDrawer((open) => !open);
+  };
+
+  const completeCurrent = () => {
+    if (terminal) return;
+    setOpenDrawer(false);
+    setOutcome(current.outcome);
   };
 
   return (
@@ -133,7 +145,7 @@ export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "
           </div>
         )}
 
-        {openDrawer && (
+        {openDrawer && !terminal && (
           <div className="mt-3.5 space-y-1 border-t border-line/70 pt-3">
             <span className="mb-2 block text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-3">
               {zh ? "备选方案" : "Alternative Actions"}
@@ -183,17 +195,18 @@ export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            aria-expanded={openDrawer}
-            onClick={() => setOpenDrawer((open) => !open)}
-            className={`min-h-11 rounded-control border border-line bg-surface px-3 text-[11.5px] font-semibold text-ink-2 transition-[background-color,border-color,color,transform] hover:border-line-strong hover:bg-hover hover:text-ink active:scale-[0.98] ${focusClasses}`}
+            aria-expanded={openDrawer && !terminal}
+            disabled={terminal}
+            onClick={toggleDrawer}
+            className={`min-h-11 rounded-control border border-line bg-surface px-3 text-[11.5px] font-semibold text-ink-2 transition-[background-color,border-color,color,transform] hover:border-line-strong hover:bg-hover hover:text-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 ${focusClasses}`}
           >
             {zh ? "备选方案" : "Alternatives"}
           </button>
           <button
             type="button"
             aria-pressed={completed}
-            disabled={completed}
-            onClick={() => setOutcome(current.outcome)}
+            disabled={terminal}
+            onClick={completeCurrent}
             className={`min-h-11 rounded-control px-3.5 text-[11.5px] font-semibold transition-[background-color,color,opacity,transform] active:scale-[0.98] ${focusClasses} ${
               completed
                 ? "cursor-not-allowed bg-green-tint text-green shadow-hairline"

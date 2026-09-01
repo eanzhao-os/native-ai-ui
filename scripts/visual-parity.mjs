@@ -507,6 +507,11 @@ async function resetVirtualTime(page) {
   await page.evaluate(() => window.__naiResetVirtualClock());
 }
 
+async function resetFreshMountBaseline(page) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await resetVirtualTime(page);
+}
+
 function frameworkButton(section, framework) {
   return section
     .getByRole("button", {
@@ -533,7 +538,7 @@ async function freshMount(page, section, component, framework) {
     await waitForMounted(page, component, otherFramework);
   }
 
-  await resetVirtualTime(page);
+  await resetFreshMountBaseline(page);
   await target.click();
   await finishFreshMount(page, component, framework);
 }
@@ -556,13 +561,13 @@ async function freshReactOnlyMount(page, component) {
     await page
       .locator(`#${component}`)
       .waitFor({ state: "detached", timeout: 20_000 });
-    await resetVirtualTime(page);
+    await resetFreshMountBaseline(page);
     await search.fill(component);
   }
 
   const locators = componentLocators(page, component);
   if (!hasSearch) {
-    await resetVirtualTime(page);
+    await resetFreshMountBaseline(page);
     await frameworkButton(locators.section, "react").click();
   }
   await finishFreshMount(page, component, "react");

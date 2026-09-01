@@ -1954,6 +1954,7 @@ function parityCommandFixture({
   chainedTimer = false,
   detectCoordinateRewrite = false,
   reactOffset = 0,
+  recordReducedMotion = false,
   stalledImage = false,
   vanillaOffset = reactOffset,
   vanillaThrows = false,
@@ -1961,6 +1962,7 @@ function parityCommandFixture({
   chainedTimer?: boolean;
   detectCoordinateRewrite?: boolean;
   reactOffset?: number;
+  recordReducedMotion?: boolean;
   stalledImage?: boolean;
   vanillaOffset?: number;
   vanillaThrows?: boolean;
@@ -2002,6 +2004,7 @@ function parityCommandFixture({
     const viewport = section.querySelector(".viewport");
     const chainedTimer = ${JSON.stringify(chainedTimer)};
     const reactOffset = ${JSON.stringify(reactOffset)};
+    const recordReducedMotion = ${JSON.stringify(recordReducedMotion)};
     const stalledImage = ${JSON.stringify(stalledImage)};
     const vanillaOffset = ${JSON.stringify(vanillaOffset)};
     ${detectCoordinateRewrite ? `new MutationObserver(() => {
@@ -2036,6 +2039,13 @@ function parityCommandFixture({
         content.className = "visual-box";
         content.style.left = reactOffset + "px";
         content.style.background = contextColor();
+        if (recordReducedMotion) {
+          content.dataset.reducedMotion = matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches
+            ? "reduce"
+            : "no-preference";
+        }
         if (chainedTimer) {
           content.textContent = "initial";
           const observer = new MutationObserver(() => {
@@ -2339,6 +2349,74 @@ describe("browser visual environment", () => {
     );
     expect(report.summary).toEqual({ failed: 0, passed: 2, total: 2 });
     expect(report.results.every((result: { ok: boolean }) => result.ok)).toBe(true);
+    await expectServerClosed(report.baseUrl);
+  }, 60_000);
+
+  test("resets reduced motion before the next mount after a case override", async () => {
+    const { registryPath, root } = parityCommandFixture({
+      recordReducedMotion: true,
+    });
+    const artifactDir = temporaryDirectory(
+      "native-ai-ui-reduced-motion-reset-artifacts-",
+    );
+    mutableCases.set("demo", [
+      {
+        name: "motion-override",
+        advanceMs: 0,
+        action: async ({ canvas, page }: { canvas: any; page: any }) => {
+          expect(
+            await canvas.locator(".visual-box").getAttribute("data-reduced-motion"),
+          ).toBe("reduce");
+          await page.emulateMedia({ reducedMotion: "no-preference" });
+          expect(
+            await page.evaluate(() =>
+              matchMedia("(prefers-reduced-motion: reduce)").matches,
+            ),
+          ).toBe(false);
+        },
+      },
+      {
+        name: "next-mount",
+        advanceMs: 0,
+        action: async ({ canvas, page }: { canvas: any; page: any }) => {
+          expect(
+            await page.evaluate(() =>
+              matchMedia("(prefers-reduced-motion: reduce)").matches,
+            ),
+          ).toBe(true);
+          expect(
+            await canvas.locator(".visual-box").getAttribute("data-reduced-motion"),
+          ).toBe("reduce");
+        },
+      },
+    ]);
+
+    const exitCode = await runVisualCommand(
+      [
+        "--react-only",
+        "--components",
+        "demo",
+        "--themes",
+        "light",
+        "--locales",
+        "en",
+      ],
+      {
+        artifactDir,
+        basePath: "/",
+        outputRoot: root,
+        port: 0,
+        registryPath,
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    const report = JSON.parse(
+      readFileSync(join(artifactDir, "report.json"), "utf8"),
+    );
+    expect(report.summary).toEqual({ failed: 0, passed: 2, total: 2 });
+    expect(report.results.map((result: { error: string | null }) => result.error))
+      .toEqual([null, null]);
     await expectServerClosed(report.baseUrl);
   }, 60_000);
 
