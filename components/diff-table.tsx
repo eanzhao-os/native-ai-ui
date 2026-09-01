@@ -26,11 +26,7 @@ const STAGE_STEPS = [800, 1_000, 1_000];
 const CHANGE_IDS = ["rocky-road", "bubblegum", "pistachio"];
 
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false,
-  );
+  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;

@@ -41,9 +41,12 @@ const GRAMMAR_EN =
   "Churn the pistachio batch first thing Saturday so it has time to firm up before the afternoon rush.";
 const GRAMMAR_ZH =
   "周六一开工，先搅拌开心果这一批，让它在下午高峰前有足够时间凝冻成型。";
-const CUSTOM_EN =
+const CUSTOM_DIRECT_EN =
   "Churn pistachio early Saturday; let it firm before the afternoon rush.";
-const CUSTOM_ZH = "周六先搅拌开心果，下午高峰前完成凝冻。";
+const CUSTOM_DIRECT_ZH = "周六先搅拌开心果，下午高峰前完成凝冻。";
+const CUSTOM_SHORTER_EN =
+  "Churn pistachio Saturday morning; let it firm before the rush.";
+const CUSTOM_SHORTER_ZH = "周六早上搅拌开心果，高峰前凝冻成型。";
 const EXPLANATION_EN =
   "This sentence prioritizes the Saturday churn so the batch has enough setting time before peak service.";
 const EXPLANATION_ZH =
@@ -52,34 +55,85 @@ const EXPLANATION_ZH =
 type Mode = "idle" | "thinking" | "streaming" | "result";
 type Action = "explain" | "improve" | "shorten" | "tone" | "grammar" | "custom";
 type FocusTarget = "toolbar" | "result" | "idle";
+type CustomPromptKey = "direct" | "shorter";
 
-function rewriteFor(action: Exclude<Action, "explain">, zh: boolean) {
+const CUSTOM_PROMPTS: Record<CustomPromptKey, {
+  instructionEn: string;
+  instructionZh: string;
+  resultEn: string;
+  resultZh: string;
+}> = {
+  direct: {
+    instructionEn: "Make it more direct",
+    instructionZh: "改得更直接",
+    resultEn: CUSTOM_DIRECT_EN,
+    resultZh: CUSTOM_DIRECT_ZH,
+  },
+  shorter: {
+    instructionEn: "Make it shorter",
+    instructionZh: "写得更简短",
+    resultEn: CUSTOM_SHORTER_EN,
+    resultZh: CUSTOM_SHORTER_ZH,
+  },
+};
+
+function resolveCustomPrompt(prompt: string, zh: boolean): CustomPromptKey | null {
+  const normalized = prompt.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  for (const [key, definition] of Object.entries(CUSTOM_PROMPTS) as [CustomPromptKey, typeof CUSTOM_PROMPTS[CustomPromptKey]][]) {
+    const instruction = zh ? definition.instructionZh : definition.instructionEn;
+    if (normalized === instruction.toLocaleLowerCase()) return key;
+  }
+  return null;
+}
+
+function unsupportedPromptStatus(zh: boolean) {
+  return zh
+    ? "不支持该指令。请尝试“改得更直接”或“写得更简短”。"
+    : "Unsupported instruction. Try “Make it more direct” or “Make it shorter”.";
+}
+
+function rewriteFor(
+  action: Exclude<Action, "explain">,
+  zh: boolean,
+  customPrompt: CustomPromptKey | null,
+) {
   if (action === "shorten") return zh ? SHORTEN_ZH : SHORTEN_EN;
   if (action === "tone") return zh ? TONE_ZH : TONE_EN;
   if (action === "grammar") return zh ? GRAMMAR_ZH : GRAMMAR_EN;
-  if (action === "custom") return zh ? CUSTOM_ZH : CUSTOM_EN;
+  if (action === "custom" && customPrompt) {
+    const definition = CUSTOM_PROMPTS[customPrompt];
+    return zh ? definition.resultZh : definition.resultEn;
+  }
   return zh ? REWRITE_ZH : REWRITE_EN;
 }
 
-function progressStatus(action: Action, zh: boolean, customPrompt: string) {
+function progressStatus(
+  action: Action,
+  zh: boolean,
+  customPrompt: CustomPromptKey | null,
+) {
   if (action === "explain") return zh ? "解释处理中" : "Explanation in progress";
   if (action === "improve") return zh ? "优化处理中" : "Improvement in progress";
   if (action === "shorten") return zh ? "精简处理中" : "Shortening in progress";
   if (action === "tone") return zh ? "语气调整处理中" : "Tone change in progress";
   if (action === "grammar") return zh ? "语法修正处理中" : "Grammar fix in progress";
-  return zh
-    ? `自定义编辑处理中：“${customPrompt}”`
-    : `Custom edit in progress: “${customPrompt}”`;
+  return customPrompt === "shorter"
+    ? zh ? "自定义精简处理中" : "Shorter edit in progress"
+    : zh ? "自定义直接改写处理中" : "Direct edit in progress";
 }
 
-function readyStatus(action: Exclude<Action, "explain">, zh: boolean, customPrompt: string) {
+function readyStatus(
+  action: Exclude<Action, "explain">,
+  zh: boolean,
+  customPrompt: CustomPromptKey | null,
+) {
   if (action === "improve") return zh ? "优化文本已就绪" : "Improved text ready";
   if (action === "shorten") return zh ? "精简文本已就绪" : "Shortened text ready";
   if (action === "tone") return zh ? "语气调整已就绪" : "Tone change ready";
   if (action === "grammar") return zh ? "语法修正已就绪" : "Grammar fix ready";
-  return zh
-    ? `自定义编辑已就绪：“${customPrompt}”`
-    : `Custom edit ready: “${customPrompt}”`;
+  return customPrompt === "shorter"
+    ? zh ? "自定义精简已就绪" : "Shorter edit ready"
+    : zh ? "自定义直接改写已就绪" : "Direct edit ready";
 }
 
 const iconProps = {
@@ -120,7 +174,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
   const [committedText, setCommittedText] = useState(initial);
   const [draftText, setDraftText] = useState(initial);
   const [prompt, setPrompt] = useState("");
-  const [submittedPrompt, setSubmittedPrompt] = useState("");
+  const [submittedCustomPrompt, setSubmittedCustomPrompt] = useState<CustomPromptKey | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [explanation, setExplanation] = useState("");
   const [announcement, setAnnouncement] = useState("");
@@ -150,7 +204,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
     setAction("improve");
     setCommittedText(initial);
     setDraftText(initial);
-    setSubmittedPrompt("");
+    setSubmittedCustomPrompt(null);
     setExpanded(false);
     setExplanation("");
     setAnnouncement("");
@@ -168,11 +222,11 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
         return;
       }
 
-      setDraftText(rewriteFor(action, zh));
+      setDraftText(rewriteFor(action, zh, submittedCustomPrompt));
       setMode("streaming");
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [action, mode, zh]);
+  }, [action, mode, submittedCustomPrompt, zh]);
 
   useEffect(() => {
     const pending = pendingFocusRef.current;
@@ -201,15 +255,24 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
             ? zh ? "调整语气" : "Changing tone"
             : action === "grammar"
               ? zh ? "修正文法" : "Fixing grammar"
-              : zh ? "自定义编辑" : "Applying custom edit";
+              : submittedCustomPrompt === "shorter"
+                ? zh ? "自定义精简" : "Applying shorter edit"
+                : zh ? "自定义直接改写" : "Applying direct edit";
 
   const run = (nextAction: Action) => {
-    const activePrompt = nextAction === "custom" ? prompt.trim() : "";
+    const customPrompt = nextAction === "custom"
+      ? resolveCustomPrompt(prompt, zh)
+      : null;
+    if (nextAction === "custom" && !customPrompt) {
+      setAnnouncement(unsupportedPromptStatus(zh));
+      return;
+    }
+
     setAction(nextAction);
-    setSubmittedPrompt(activePrompt);
+    setSubmittedCustomPrompt(customPrompt);
     setExpanded(false);
     setExplanation("");
-    setAnnouncement(progressStatus(nextAction, zh, activePrompt));
+    setAnnouncement(progressStatus(nextAction, zh, customPrompt));
 
     if (reducedMotion) {
       pendingFocusRef.current = "result";
@@ -218,8 +281,8 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
         setExplanation(next);
         setAnnouncement(next);
       } else {
-        setDraftText(rewriteFor(nextAction, zh));
-        setAnnouncement(readyStatus(nextAction, zh, activePrompt));
+        setDraftText(rewriteFor(nextAction, zh, customPrompt));
+        setAnnouncement(readyStatus(nextAction, zh, customPrompt));
       }
       setMode("result");
       return;
@@ -234,7 +297,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
     setMode("idle");
     setExpanded(false);
     setPrompt("");
-    setSubmittedPrompt("");
+    setSubmittedCustomPrompt(null);
     setExplanation("");
     setAnnouncement(message);
   };
@@ -252,6 +315,12 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
   const retry = () => run(action);
   const busy = mode === "thinking" || mode === "streaming";
   const rewriteVisible = mode === "streaming" || (mode === "result" && action !== "explain");
+  const resolvedCustomPrompt = resolveCustomPrompt(prompt, zh);
+  const unsupportedCustomPrompt =
+    mode === "idle" && prompt.trim().length > 0 && !resolvedCustomPrompt;
+  const statusText = unsupportedCustomPrompt
+    ? unsupportedPromptStatus(zh)
+    : announcement;
 
   return (
     <div className="w-full max-w-[520px]">
@@ -269,7 +338,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
                   if (action === "explain") return;
                   pendingFocusRef.current = "result";
                   setMode("result");
-                  setAnnouncement(readyStatus(action, zh, submittedPrompt));
+                  setAnnouncement(readyStatus(action, zh, submittedCustomPrompt));
                 }}
               />
             ) : rewriteVisible ? (
@@ -351,7 +420,12 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
                     className="h-9 min-w-0 flex-1 bg-transparent pr-2 pl-3 text-[12px] text-ink placeholder:text-ink-3 focus:outline-none"
                   />
                   {prompt.trim() ? (
-                    <button type="submit" aria-label={zh ? "发送编辑指令" : "Send edit instruction"} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-canvas focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent">
+                    <button
+                      type="submit"
+                      disabled={!resolvedCustomPrompt}
+                      aria-label={zh ? "发送编辑指令" : "Send edit instruction"}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-canvas disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+                    >
                       {icons.send}
                     </button>
                   ) : null}
@@ -402,7 +476,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
         </div>
 
         <div role="status" aria-live="polite" aria-atomic="true" className="mt-2 min-h-4 text-center text-[10.5px] font-medium text-ink-3">
-          {announcement}
+          {statusText}
         </div>
       </div>
     </div>

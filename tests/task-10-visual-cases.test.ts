@@ -111,9 +111,7 @@ type VisualSourceViolation = {
 
 type ActionEvidence = {
   calls: Map<string, number>;
-  comparisons: number;
-  guards: number;
-  throws: number;
+  verifiedCalls: Map<string, number>;
 };
 
 function propertyNameText(name: ts.PropertyName | undefined) {
@@ -352,6 +350,117 @@ function analyzeTask10VisualSource(source: string) {
     violations.push({ component, kind });
   };
 
+  const enclosingVerificationScope = (node: ts.Node): ts.Node => {
+    let current: ts.Node | undefined = node.parent;
+    while (current && current !== sourceFile) {
+      if (ts.isFunctionLike(current)) return current;
+      current = current.parent;
+    }
+    return sourceFile;
+  };
+
+  function variableParticipatesInVerification(
+    declaration: ts.VariableDeclaration,
+    seen: Set<ts.VariableDeclaration>,
+  ): boolean {
+    if (!ts.isIdentifier(declaration.name) || seen.has(declaration)) return false;
+    const declarationName = declaration.name.text;
+    const nextSeen = new Set(seen).add(declaration);
+    const scope = enclosingVerificationScope(declaration);
+    let verified = false;
+    const visit = (node: ts.Node) => {
+      if (verified) return;
+      if (node !== scope && ts.isFunctionLike(node)) return;
+      if (
+        ts.isIdentifier(node) &&
+        node !== declaration.name &&
+        node.text === declarationName &&
+        resultParticipatesInVerification(node, nextSeen)
+      ) {
+        verified = true;
+        return;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(scope);
+    return verified;
+  }
+
+  function resultParticipatesInVerification(
+    node: ts.Node,
+    seen = new Set<ts.VariableDeclaration>(),
+  ): boolean {
+    let current = node;
+    while (current.parent) {
+      const parent = current.parent;
+      if (
+        ts.isAwaitExpression(parent) ||
+        ts.isParenthesizedExpression(parent) ||
+        ts.isAsExpression(parent) ||
+        ts.isTypeAssertionExpression(parent) ||
+        ts.isNonNullExpression(parent) ||
+        ts.isSatisfiesExpression(parent)
+      ) {
+        current = parent;
+        continue;
+      }
+      if (
+        (ts.isPropertyAccessExpression(parent) ||
+          ts.isElementAccessExpression(parent)) &&
+        parent.expression === current
+      ) {
+        current = parent;
+        continue;
+      }
+      if (ts.isCallExpression(parent) && parent.expression === current) {
+        current = parent;
+        continue;
+      }
+      if (ts.isPrefixUnaryExpression(parent) && parent.operand === current) {
+        current = parent;
+        continue;
+      }
+      if (
+        ts.isBinaryExpression(parent) &&
+        (parent.left === current || parent.right === current)
+      ) {
+        current = parent;
+        continue;
+      }
+      if (
+        (ts.isIfStatement(parent) ||
+          ts.isWhileStatement(parent) ||
+          ts.isDoStatement(parent)) &&
+        parent.expression === current
+      ) {
+        return true;
+      }
+      if (
+        ts.isForStatement(parent) &&
+        parent.condition === current
+      ) {
+        return true;
+      }
+      if (
+        ts.isConditionalExpression(parent) &&
+        parent.condition === current
+      ) {
+        return true;
+      }
+      if (ts.isThrowStatement(parent) && parent.expression === current) {
+        return true;
+      }
+      if (
+        ts.isVariableDeclaration(parent) &&
+        parent.initializer === current
+      ) {
+        return variableParticipatesInVerification(parent, seen);
+      }
+      return false;
+    }
+    return false;
+  }
+
   const inspectReachable = (
     component: string,
     node: ts.Node,
@@ -371,7 +480,15 @@ function analyzeTask10VisualSource(source: string) {
           : ts.isIdentifier(callee)
             ? callee.text
             : null;
-      if (name) evidence.calls.set(name, (evidence.calls.get(name) ?? 0) + 1);
+      if (name) {
+        evidence.calls.set(name, (evidence.calls.get(name) ?? 0) + 1);
+        if (name === "waitFor" || resultParticipatesInVerification(node)) {
+          evidence.verifiedCalls.set(
+            name,
+            (evidence.verifiedCalls.get(name) ?? 0) + 1,
+          );
+        }
+      }
 
       if (ts.isIdentifier(callee) && callee.text !== "advance") {
         const target = callables.get(callee.text) ?? constExpressions.get(callee.text);
@@ -396,9 +513,6 @@ function analyzeTask10VisualSource(source: string) {
         }
       }
     }
-    if (ts.isBinaryExpression(node)) evidence.comparisons += 1;
-    if (ts.isIfStatement(node)) evidence.guards += 1;
-    if (ts.isThrowStatement(node)) evidence.throws += 1;
 
     if (ts.isIdentifier(node)) {
       if (/^(?:canonicalize|freezeCaseMotion|hideMatching|replaceWithCanonical|stabilize)/.test(node.text)) {
@@ -498,6 +612,11 @@ function analyzeTask10VisualSource(source: string) {
 
   const hasCall = (evidence: ActionEvidence, name: string, minimum = 1) =>
     (evidence.calls.get(name) ?? 0) >= minimum;
+  const hasVerifiedCall = (
+    evidence: ActionEvidence,
+    name: string,
+    minimum = 1,
+  ) => (evidence.verifiedCalls.get(name) ?? 0) >= minimum;
 
   const validatePostcondition = (
     component: string,
@@ -512,10 +631,7 @@ function analyzeTask10VisualSource(source: string) {
     if (SCROLLED_CASES.has(key)) {
       if (
         !hasCall(evidence, "wheel") ||
-        !hasCall(evidence, "boundingBox", 2) ||
-        evidence.comparisons === 0 ||
-        evidence.guards === 0 ||
-        evidence.throws === 0
+        !hasVerifiedCall(evidence, "boundingBox", 2)
       ) {
         recordViolation(
           component,
@@ -528,10 +644,8 @@ function analyzeTask10VisualSource(source: string) {
 
     if (key === STREAMING_CASE) {
       if (
-        !hasCall(evidence, "textContent") ||
-        !hasCall(evidence, "trim") ||
-        evidence.guards === 0 ||
-        evidence.throws === 0
+        !hasVerifiedCall(evidence, "textContent") ||
+        !hasVerifiedCall(evidence, "trim")
       ) {
         recordViolation(
           component,
@@ -545,7 +659,7 @@ function analyzeTask10VisualSource(source: string) {
     const requiredCalls = NAMED_POSTCONDITION_CALLS[key];
     if (
       !requiredCalls ||
-      requiredCalls.some((name) => !hasCall(evidence, name))
+      requiredCalls.some((name) => !hasVerifiedCall(evidence, name))
     ) {
       recordViolation(component, "missing named state postcondition", node);
     }
@@ -578,9 +692,7 @@ function analyzeTask10VisualSource(source: string) {
       );
       const evidence: ActionEvidence = {
         calls: new Map(),
-        comparisons: 0,
-        guards: 0,
-        throws: 0,
+        verifiedCalls: new Map(),
       };
       if (action) {
         const current = ts.isExpression(action)
@@ -709,6 +821,87 @@ describe("Task 10 React visual cases", () => {
       component: "artifact-sandbox",
       kind: "missing named state postcondition",
     });
+  });
+
+  test.each([
+    [
+      "getAttribute",
+      'await control.getAttribute("aria-pressed");',
+      "artifact-sandbox",
+      "tablet",
+    ],
+    ["count", "await control.count();", "artifact-sandbox", "focused"],
+    [
+      "inputValue",
+      "await control.inputValue();",
+      "selection-actions",
+      "prompted",
+    ],
+  ])(
+    "rejects a semantic no-op %s postcondition call",
+    (_method, observation, component, caseName) => {
+      const fixture = analyzeTask10VisualSource(`
+        async function action({ canvas }) {
+          const control = canvas.getByRole("button", { name: "Control" });
+          ${observation}
+        }
+        const CASES = new Map([
+          [${JSON.stringify(component)}, [{ name: ${JSON.stringify(caseName)}, action }]],
+        ]);
+      `);
+
+      expect(fixture.violations).toContainEqual({
+        component,
+        kind: "missing named state postcondition",
+      });
+    },
+  );
+
+  test("rejects a no-op observation hidden behind a local helper", () => {
+    const fixture = analyzeTask10VisualSource(`
+      async function observe(control) {
+        return control.getAttribute("aria-pressed");
+      }
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button", { name: "Tablet" });
+        await observe(control);
+      }
+      const CASES = new Map([
+        ["artifact-sandbox", [{ name: "tablet", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "artifact-sandbox",
+      kind: "missing named state postcondition",
+    });
+  });
+
+  test("rejects an imported assertion helper that consumes an unverified observation", () => {
+    const fixture = analyzeTask10VisualSource(`
+      import { assertState } from "./visual-helper.mjs";
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button", { name: "Tablet" });
+        const value = await control.getAttribute("aria-pressed");
+        await assertState(value);
+      }
+      const CASES = new Map([
+        ["artifact-sandbox", [{ name: "tablet", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        {
+          component: "artifact-sandbox",
+          kind: "imported action helper",
+        },
+        {
+          component: "artifact-sandbox",
+          kind: "missing named state postcondition",
+        },
+      ]),
+    );
   });
 
   test("rejects a scrolled state that never proves scroll displacement", () => {

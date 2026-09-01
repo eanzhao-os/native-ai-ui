@@ -16,6 +16,7 @@ import {
   buildStyleModule,
   buildTailwindCssForSources,
   extractComponentExtras,
+  extractReducedMotionOverrides,
   extractSharedKeyframes,
   rewriteShadowSelectors,
   tailwindSourceSetCachePath,
@@ -160,6 +161,22 @@ describe("Vanilla Shadow CSS generation", () => {
     );
     expect(generatorSource).not.toContain(".shimmer-label");
   }, 30_000);
+
+  test("drops document-only reduced-motion rules without emitting orphan selectors", () => {
+    const globals = readFileSync(resolve("app/globals.css"), "utf8");
+    const reducedMotionCss = extractReducedMotionOverrides(globals);
+    const orphanRules: string[] = [];
+
+    postcss.parse(reducedMotionCss).walkRules((rule) => {
+      if (rule.selectors.some((selector) => selector.trim() === "")) {
+        orphanRules.push(rule.toString());
+      }
+    });
+
+    expect(reducedMotionCss).not.toContain("html:focus-within");
+    expect(reducedMotionCss).not.toContain("{scroll-behavior:auto}");
+    expect(orphanRules).toEqual([]);
+  });
 
   test("keeps inherited shadow tokens valid while retaining their utilities", async () => {
     const moduleSource = await buildStyleModule();

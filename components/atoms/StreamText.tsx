@@ -18,11 +18,7 @@ function streamUnits(text: string) {
 }
 
 export function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false,
-  );
+  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;

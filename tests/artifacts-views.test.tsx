@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import ArtifactSandbox from "@/components/artifact-sandbox";
 import DiffTable from "@/components/diff-table";
@@ -348,23 +350,56 @@ describe("SelectionActions", () => {
     );
   });
 
-  test("gives the visual custom prompt its own deterministic result and status", async () => {
+  test.each([
+    [
+      "Make it more direct",
+      "Churn pistachio early Saturday; let it firm before the afternoon rush.",
+      "Direct edit ready",
+    ],
+    [
+      "Make it shorter",
+      "Churn pistachio Saturday morning; let it firm before the rush.",
+      "Shorter edit ready",
+    ],
+  ])(
+    "applies the supported custom prompt %s with its own result",
+    async (instruction, result, status) => {
+      vi.useFakeTimers();
+      render(<SelectionActions />);
+
+      await advance(300);
+      const prompt = screen.getByRole("textbox", { name: "Describe edits" });
+      fireEvent.change(prompt, { target: { value: instruction } });
+      const send = screen.getByRole("button", { name: "Send edit instruction" });
+      expect((send as HTMLButtonElement).disabled).toBe(false);
+      fireEvent.click(send);
+      await advance(700);
+      await advance(3_000);
+
+      expect(screen.getByText(result)).not.toBeNull();
+      expect(screen.getByRole("status").textContent).toContain(status);
+    },
+  );
+
+  test("disables and reports an unsupported custom instruction without applying it", async () => {
     vi.useFakeTimers();
     render(<SelectionActions />);
 
     await advance(300);
     const prompt = screen.getByRole("textbox", { name: "Describe edits" });
-    fireEvent.change(prompt, { target: { value: "Make it more direct" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send edit instruction" }));
-    await advance(700);
-    await advance(3_000);
+    fireEvent.change(prompt, { target: { value: "Rewrite this as a haiku" } });
 
-    expect(screen.getByText(
-      "Churn pistachio early Saturday; let it firm before the afternoon rush.",
-    )).not.toBeNull();
+    const send = screen.getByRole("button", { name: "Send edit instruction" });
+    expect((send as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole("status").textContent).toContain(
-      "Custom edit ready: “Make it more direct”",
+      "Unsupported instruction. Try “Make it more direct” or “Make it shorter”.",
     );
+    fireEvent.submit(prompt.closest("form")!);
+
+    expect(screen.queryByRole("button", { name: "Keep" })).toBeNull();
+    expect(screen.getByText(
+      "Churn it first thing Saturday so the batch has time to firm up before the afternoon rush.",
+    )).not.toBeNull();
   });
 
   test("resets locale-derived state on prop rerender but preserves the authored prompt", async () => {
@@ -387,7 +422,9 @@ describe("SelectionActions", () => {
     )).not.toBeNull();
     expect((screen.getByRole("textbox", { name: "描述修改要求" }) as HTMLInputElement).value)
       .toBe("Keep my exact instruction");
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByRole("status").textContent).toContain(
+      "不支持该指令。请尝试“改得更直接”或“写得更简短”。",
+    );
   });
 
   test("resets locale-derived state after a resolved context language toggle", async () => {
@@ -417,7 +454,9 @@ describe("SelectionActions", () => {
     )).not.toBeNull();
     expect((screen.getByRole("textbox", { name: "描述修改要求" }) as HTMLInputElement).value)
       .toBe("Authored prompt");
-    expect(screen.getByRole("status").textContent).toBe("");
+    expect(screen.getByRole("status").textContent).toContain(
+      "不支持该指令。请尝试“改得更直接”或“写得更简短”。",
+    );
   });
 
   test("keeps the delayed toolbar unmounted until reveal", async () => {
@@ -492,6 +531,52 @@ describe("SelectionActions", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Keep" }),
     );
+  });
+});
+
+describe("Reduced motion hydration", () => {
+  test("keeps server and first client markup aligned before applying the preference", async () => {
+    const browserWindow = window;
+    vi.stubGlobal("window", undefined);
+    const tree = (
+      <div>
+        <div data-hydration-diff=""><DiffTable /></div>
+        <span data-hydration-stream=""><StreamText text="Hydrate safely" /></span>
+        <div data-hydration-selection=""><SelectionActions /></div>
+      </div>
+    );
+    const serverMarkup = renderToString(tree);
+    vi.stubGlobal("window", browserWindow);
+    reducedMotion(true);
+
+    expect(serverMarkup).toContain("Analyzing 3 changes");
+    expect(serverMarkup).toContain("stream-caret");
+    expect(serverMarkup).not.toContain('aria-label="Selection actions"');
+
+    const container = document.createElement("div");
+    document.body.append(container);
+    container.innerHTML = serverMarkup;
+    const recoverableErrors: unknown[] = [];
+    let root: Root | undefined;
+
+    await act(async () => {
+      root = hydrateRoot(container, tree, {
+        onRecoverableError: (error) => recoverableErrors.push(error),
+      });
+      await Promise.resolve();
+    });
+
+    expect(recoverableErrors).toEqual([]);
+    expect(within(container).getByText("3 of 3 changes selected")).not.toBeNull();
+    const stream = container.querySelector("[data-hydration-stream]");
+    expect(stream?.textContent).toBe("Hydrate safely");
+    expect(stream?.querySelector(".stream-caret")).toBeNull();
+    expect(within(container).getByRole("toolbar", {
+      name: "Selection actions",
+    })).not.toBeNull();
+
+    await act(async () => root?.unmount());
+    container.remove();
   });
 });
 

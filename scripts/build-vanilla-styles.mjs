@@ -72,10 +72,11 @@ export function extractReducedMotionOverrides(css) {
     if (rule.params.trim() !== "(prefers-reduced-motion: reduce)") return;
     const shadowRule = rule.clone();
     shadowRule.walkRules((child) => {
-      child.selectors = child.selectors.filter(
+      const selectors = child.selectors.filter(
         (selector) => selector.trim() !== "html:focus-within",
       );
-      if (child.selectors.length === 0) child.remove();
+      if (selectors.length === 0) child.remove();
+      else child.selectors = selectors;
     });
     matches.push(shadowRule.toString());
   });

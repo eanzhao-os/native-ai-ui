@@ -3677,7 +3677,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
 @keyframes spin{to{transform:rotate(1turn)}}
 @keyframes pixel-on{0%,to{opacity:.15}18%,42%{opacity:1}62%{opacity:.15}}
 @media (prefers-reduced-motion: reduce) {
-  {scroll-behavior:auto}
   *,*::before,*::after{
     animation-duration:.01ms !important;
     animation-iteration-count:1 !important;
