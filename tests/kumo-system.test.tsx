@@ -534,6 +534,64 @@ describe("AuthorizationSurface", () => {
     );
   });
 
+  test("hands focused provider control into and back out of the automatic prompt", async () => {
+    vi.useFakeTimers();
+    render(<AuthorizationSurface />);
+
+    const signIn = screen.getByRole("button", { name: "Sign in to deepseek" });
+    signIn.focus();
+
+    await advance(1_400);
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Access token"));
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw" }), {
+      detail: 0,
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Sign in to deepseek" }),
+    );
+  });
+
+  test("restores the focused provider after the automatic flow completes", async () => {
+    vi.useFakeTimers();
+    render(<AuthorizationSurface />);
+
+    const signIn = screen.getByRole("button", { name: "Sign in to deepseek" });
+    signIn.focus();
+
+    await advance(1_400);
+
+    const input = screen.getByLabelText("Access token");
+    expect(document.activeElement).toBe(input);
+    fireEvent.change(input, { target: { value: "dsk-live-test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Authorize" }), {
+      detail: 0,
+    });
+    await advance(900);
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Sign out of deepseek" }),
+    );
+  });
+
+  test("does not steal outside focus when the automatic prompt opens", async () => {
+    vi.useFakeTimers();
+    render(
+      <>
+        <button type="button">Outside control</button>
+        <AuthorizationSurface />
+      </>,
+    );
+
+    const outside = screen.getByRole("button", { name: "Outside control" });
+    outside.focus();
+
+    await advance(1_400);
+
+    expect(screen.getByLabelText("Access token")).not.toBeNull();
+    expect(document.activeElement).toBe(outside);
+  });
+
   test("gates configured and completion entry animations behind motion-safe styles", async () => {
     vi.useFakeTimers();
     setMotionPreference(true);

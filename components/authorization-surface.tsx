@@ -60,8 +60,11 @@ export default function AuthorizationSurface({
   const fullSecret = "dsk-live-9824f1a8c901";
 
   const beginFlow = (key: string, moveFocus = false) => {
-    originatingProviderRef.current = moveFocus ? key : null;
-    promptFocusRequestedRef.current = moveFocus;
+    const focusedProvider = Object.entries(providerControlRefs.current).find(
+      ([, control]) => control === document.activeElement,
+    )?.[0];
+    originatingProviderRef.current = moveFocus ? key : (focusedProvider ?? null);
+    promptFocusRequestedRef.current = moveFocus || focusedProvider !== undefined;
     setFlowKey(key);
     setPhase("prompt");
     setSecret("");
@@ -114,8 +117,8 @@ export default function AuthorizationSurface({
     if (phase === "settling") {
       const timer = setTimeout(() => {
         const provider = flowKey ?? "deepseek";
-        if (originatingProviderRef.current === provider) {
-          providerFocusRequestedRef.current = provider;
+        if (originatingProviderRef.current) {
+          providerFocusRequestedRef.current = originatingProviderRef.current;
           originatingProviderRef.current = null;
         }
         setConfigured((current) => ({ ...current, [provider]: true }));

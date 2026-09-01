@@ -104,6 +104,23 @@ const OBSERVATION_METHODS = new Set([
   "textContent",
 ]);
 
+const LOCATOR_DERIVATION_METHODS = new Set([
+  "and",
+  "filter",
+  "first",
+  "getByAltText",
+  "getByLabel",
+  "getByPlaceholder",
+  "getByRole",
+  "getByTestId",
+  "getByText",
+  "getByTitle",
+  "last",
+  "locator",
+  "nth",
+  "or",
+]);
+
 type CallableNode =
   | ts.ArrowFunction
   | ts.FunctionDeclaration
@@ -124,6 +141,19 @@ type ActionEvidence = {
   approvedInteractions: number;
   postconditions: number;
 };
+
+type ActionProvenance =
+  | { kind: "advance" }
+  | { kind: "browser-context" }
+  | { kind: "canvas" }
+  | { kind: "keyboard" }
+  | { kind: "locator" }
+  | { kind: "object"; properties: Map<string, ActionProvenance> }
+  | { kind: "page" }
+  | { kind: "runner-args" }
+  | { kind: "unknown" };
+
+type ActionEnvironment = Map<ts.Symbol, ActionProvenance>;
 
 function propertyNameText(name: ts.PropertyName | undefined) {
   if (!name || ts.isComputedPropertyName(name)) return undefined;
@@ -541,33 +571,223 @@ function analyzeTask12VisualSource(source: string) {
       ts.isReturnStatement(current.parent);
   };
 
-  const collectActionEvidence = (
-    node: ts.CallExpression,
-    evidence: ActionEvidence,
-  ) => {
-    const normalized = normalizeVisualCall(node, operationResolver);
-    const path = expressionPath(normalized.expression);
-    const method = path.at(-1);
-    if (
-      method === "advance" ||
-      (method && APPROVED_INTERACTION_METHODS.has(method))
-    ) {
-      evidence.approvedInteractions += 1;
+  const UNKNOWN_PROVENANCE: ActionProvenance = { kind: "unknown" };
+  const RUNNER_ARGS_PROVENANCE: ActionProvenance = { kind: "runner-args" };
+  const CANVAS_PROVENANCE: ActionProvenance = { kind: "canvas" };
+  const PAGE_PROVENANCE: ActionProvenance = { kind: "page" };
+  const ADVANCE_PROVENANCE: ActionProvenance = { kind: "advance" };
+  const LOCATOR_PROVENANCE: ActionProvenance = { kind: "locator" };
+  const KEYBOARD_PROVENANCE: ActionProvenance = { kind: "keyboard" };
+  const BROWSER_CONTEXT_PROVENANCE: ActionProvenance = {
+    kind: "browser-context",
+  };
+
+  const provenanceProperty = (
+    provenance: ActionProvenance,
+    property: string | null,
+  ): ActionProvenance => {
+    if (!property) return UNKNOWN_PROVENANCE;
+    if (provenance.kind === "runner-args") {
+      if (property === "canvas") return CANVAS_PROVENANCE;
+      if (property === "page") return PAGE_PROVENANCE;
+      if (property === "advance") return ADVANCE_PROVENANCE;
+      return UNKNOWN_PROVENANCE;
+    }
+    if (provenance.kind === "object") {
+      return provenance.properties.get(property) ?? UNKNOWN_PROVENANCE;
+    }
+    if (provenance.kind === "page" && property === "keyboard") {
+      return KEYBOARD_PROVENANCE;
+    }
+    return UNKNOWN_PROVENANCE;
+  };
+
+  const expressionProvenance = (
+    expression: ts.Expression | undefined,
+    environment: ActionEnvironment,
+    visiting = new Set<ts.Symbol>(),
+  ): ActionProvenance => {
+    if (!expression) return UNKNOWN_PROVENANCE;
+    const current = unwrapVisualExpression(expression);
+    if (ts.isIdentifier(current)) {
+      const symbol = checker.getSymbolAtLocation(current);
+      if (!symbol) return UNKNOWN_PROVENANCE;
+      const bound = environment.get(symbol);
+      if (bound) return bound;
+      if (visiting.has(symbol)) return UNKNOWN_PROVENANCE;
+      const declaration = symbol.declarations?.find(
+        (candidate): candidate is ts.VariableDeclaration =>
+          ts.isVariableDeclaration(candidate) && Boolean(candidate.initializer),
+      );
+      if (!declaration?.initializer) return UNKNOWN_PROVENANCE;
+      const nextVisiting = new Set(visiting).add(symbol);
+      return expressionProvenance(
+        declaration.initializer,
+        environment,
+        nextVisiting,
+      );
     }
     if (
-      (method === "waitFor" && isAwaitedOrReturned(node)) ||
-      (method !== undefined &&
-        OBSERVATION_METHODS.has(method) &&
-        resultParticipatesInVerification(node))
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
     ) {
-      evidence.postconditions += 1;
+      return provenanceProperty(
+        expressionProvenance(current.expression, environment, visiting),
+        memberName(current),
+      );
+    }
+    if (ts.isObjectLiteralExpression(current)) {
+      const properties = new Map<string, ActionProvenance>();
+      for (const property of current.properties) {
+        if (ts.isSpreadAssignment(property)) {
+          const spread = expressionProvenance(
+            property.expression,
+            environment,
+            visiting,
+          );
+          if (spread.kind === "object") {
+            for (const [name, provenance] of spread.properties) {
+              properties.set(name, provenance);
+            }
+          }
+          continue;
+        }
+        const name = propertyNameText(property.name);
+        if (!name) continue;
+        if (ts.isPropertyAssignment(property)) {
+          properties.set(
+            name,
+            expressionProvenance(property.initializer, environment, visiting),
+          );
+        } else if (ts.isShorthandPropertyAssignment(property)) {
+          const valueSymbol = checker.getShorthandAssignmentValueSymbol(property);
+          properties.set(
+            name,
+            (valueSymbol && environment.get(valueSymbol)) ??
+              expressionProvenance(property.name, environment, visiting),
+          );
+        } else {
+          properties.set(name, UNKNOWN_PROVENANCE);
+        }
+      }
+      return { kind: "object", properties };
+    }
+    if (ts.isCallExpression(current)) {
+      const normalized = normalizeVisualCall(current, operationResolver);
+      if (normalized.args === null) return UNKNOWN_PROVENANCE;
+      const target = normalized.expression;
+      if (
+        !ts.isPropertyAccessExpression(target) &&
+        !ts.isElementAccessExpression(target)
+      ) {
+        return UNKNOWN_PROVENANCE;
+      }
+      const receiver = expressionProvenance(
+        target.expression,
+        environment,
+        visiting,
+      );
+      const method = memberName(target);
+      if (
+        method &&
+        LOCATOR_DERIVATION_METHODS.has(method) &&
+        (receiver.kind === "canvas" ||
+          receiver.kind === "locator" ||
+          receiver.kind === "page")
+      ) {
+        return LOCATOR_PROVENANCE;
+      }
+      if (receiver.kind === "page" && method === "context") {
+        return BROWSER_CONTEXT_PROVENANCE;
+      }
+      return UNKNOWN_PROVENANCE;
+    }
+    if (ts.isConditionalExpression(current)) {
+      const whenTrue = expressionProvenance(
+        current.whenTrue,
+        environment,
+        visiting,
+      );
+      const whenFalse = expressionProvenance(
+        current.whenFalse,
+        environment,
+        visiting,
+      );
+      return whenTrue.kind === whenFalse.kind
+        ? whenTrue
+        : UNKNOWN_PROVENANCE;
+    }
+    return UNKNOWN_PROVENANCE;
+  };
+
+  const bindActionProvenance = (
+    name: ts.BindingName,
+    provenance: ActionProvenance,
+    environment: ActionEnvironment,
+  ) => {
+    if (ts.isIdentifier(name)) {
+      const symbol = checker.getSymbolAtLocation(name);
+      if (symbol) environment.set(symbol, provenance);
+      return;
+    }
+    if (ts.isObjectBindingPattern(name)) {
+      for (const element of name.elements) {
+        if (element.dotDotDotToken) {
+          bindActionProvenance(
+            element.name,
+            UNKNOWN_PROVENANCE,
+            environment,
+          );
+          continue;
+        }
+        const property = element.propertyName
+          ? staticText(element.propertyName)
+          : ts.isIdentifier(element.name)
+            ? element.name.text
+            : null;
+        bindActionProvenance(
+          element.name,
+          provenanceProperty(provenance, property),
+          environment,
+        );
+      }
+      return;
+    }
+    for (const element of name.elements) {
+      if (ts.isOmittedExpression(element)) continue;
+      bindActionProvenance(element.name, UNKNOWN_PROVENANCE, environment);
     }
   };
+
+  const isApprovedInteractionReceiver = (
+    method: string,
+    receiver: ActionProvenance,
+  ) => {
+    if (method === "emulateMedia") return receiver.kind === "page";
+    if (method === "grantPermissions" || method === "clearPermissions") {
+      return receiver.kind === "browser-context";
+    }
+    if (method === "press") {
+      return (
+        receiver.kind === "canvas" ||
+        receiver.kind === "keyboard" ||
+        receiver.kind === "locator" ||
+        receiver.kind === "page"
+      );
+    }
+    return (
+      receiver.kind === "canvas" ||
+      receiver.kind === "locator" ||
+      receiver.kind === "page"
+    );
+  };
+
+  const isApprovedPostconditionReceiver = (receiver: ActionProvenance) =>
+    receiver.kind === "canvas" || receiver.kind === "locator";
 
   const inspectReachable = (
     component: string,
     node: ts.Node,
-    evidence: ActionEvidence,
     visited = new Set<ts.Node>(),
   ) => {
     if (visited.has(node)) return;
@@ -586,19 +806,212 @@ function analyzeTask12VisualSource(source: string) {
         recordViolation(component, "stabilization helper", node);
       }
       const target = callables.get(node.text);
-      if (target) inspectReachable(component, target, evidence, visited);
+      if (target) inspectReachable(component, target, visited);
     }
 
     if (ts.isCallExpression(node)) {
-      collectActionEvidence(node, evidence);
       const target = resolveCallable(node.expression);
-      if (target) inspectReachable(component, target, evidence, visited);
+      if (target) inspectReachable(component, target, visited);
     }
 
     ts.forEachChild(node, (child) =>
-      inspectReachable(component, child, evidence, visited),
+      inspectReachable(component, child, visited),
     );
   };
+
+  function analyzeCallableEvidence(
+    component: string,
+    callable: CallableNode,
+    evidence: ActionEvidence,
+    callerEnvironment: ActionEnvironment,
+    argumentExpressions: readonly ts.Expression[] | null,
+    entryAction: boolean,
+    callStack: Set<CallableNode>,
+  ) {
+    if (callStack.has(callable) || !callable.body) return;
+    const environment = new Map(callerEnvironment);
+    for (const [index, parameter] of callable.parameters.entries()) {
+      const provenance = entryAction && index === 0
+        ? RUNNER_ARGS_PROVENANCE
+        : argumentExpressions?.[index]
+          ? expressionProvenance(
+              argumentExpressions[index],
+              callerEnvironment,
+            )
+          : UNKNOWN_PROVENANCE;
+      bindActionProvenance(parameter.name, provenance, environment);
+    }
+
+    const nextStack = new Set(callStack).add(callable);
+    inspectActionEvidence(
+      component,
+      callable.body,
+      evidence,
+      environment,
+      nextStack,
+    );
+  }
+
+  function inspectActionEvidence(
+    component: string,
+    node: ts.Node,
+    evidence: ActionEvidence,
+    environment: ActionEnvironment,
+    callStack: Set<CallableNode>,
+  ) {
+    if (ts.isFunctionLike(node)) return;
+
+    if (ts.isVariableDeclaration(node)) {
+      if (node.initializer) {
+        inspectActionEvidence(
+          component,
+          node.initializer,
+          evidence,
+          environment,
+          callStack,
+        );
+        bindActionProvenance(
+          node.name,
+          expressionProvenance(node.initializer, environment),
+          environment,
+        );
+      } else {
+        bindActionProvenance(node.name, UNKNOWN_PROVENANCE, environment);
+      }
+      return;
+    }
+
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(node.left)
+    ) {
+      inspectActionEvidence(
+        component,
+        node.right,
+        evidence,
+        environment,
+        callStack,
+      );
+      bindActionProvenance(
+        node.left,
+        expressionProvenance(node.right, environment),
+        environment,
+      );
+      return;
+    }
+
+    if (ts.isCallExpression(node)) {
+      const normalized = normalizeVisualCall(node, operationResolver);
+      const targetExpression = normalized.expression;
+      if (
+        ts.isPropertyAccessExpression(targetExpression) ||
+        ts.isElementAccessExpression(targetExpression)
+      ) {
+        inspectActionEvidence(
+          component,
+          targetExpression.expression,
+          evidence,
+          environment,
+          callStack,
+        );
+      }
+      for (const argument of node.arguments) {
+        inspectActionEvidence(
+          component,
+          argument,
+          evidence,
+          environment,
+          callStack,
+        );
+      }
+
+      const path = expressionPath(targetExpression);
+      const method = path.at(-1);
+      const target = resolveCallable(targetExpression);
+      const receiver =
+        ts.isPropertyAccessExpression(targetExpression) ||
+        ts.isElementAccessExpression(targetExpression)
+          ? expressionProvenance(targetExpression.expression, environment)
+          : UNKNOWN_PROVENANCE;
+      const callee = expressionProvenance(targetExpression, environment);
+
+      let approvedInteraction = false;
+      if (callee.kind === "advance") {
+        approvedInteraction = true;
+      } else if (method && APPROVED_INTERACTION_METHODS.has(method)) {
+        if (
+          (ts.isPropertyAccessExpression(targetExpression) ||
+            ts.isElementAccessExpression(targetExpression)) &&
+          isApprovedInteractionReceiver(method, receiver)
+        ) {
+          approvedInteraction = true;
+        } else if (
+          ts.isPropertyAccessExpression(targetExpression) ||
+          ts.isElementAccessExpression(targetExpression) ||
+          !target
+        ) {
+          recordViolation(
+            component,
+            "unapproved interaction receiver",
+            node,
+          );
+        }
+      }
+      if (approvedInteraction) evidence.approvedInteractions += 1;
+
+      const postcondition =
+        method === "waitFor"
+          ? isAwaitedOrReturned(node)
+          : method !== undefined &&
+              OBSERVATION_METHODS.has(method) &&
+              resultParticipatesInVerification(node);
+      if (method === "waitFor" || (method && OBSERVATION_METHODS.has(method))) {
+        if (
+          (ts.isPropertyAccessExpression(targetExpression) ||
+            ts.isElementAccessExpression(targetExpression)) &&
+          isApprovedPostconditionReceiver(receiver)
+        ) {
+          if (postcondition && evidence.approvedInteractions > 0) {
+            evidence.postconditions += 1;
+          }
+        } else if (
+          ts.isPropertyAccessExpression(targetExpression) ||
+          ts.isElementAccessExpression(targetExpression) ||
+          !target
+        ) {
+          recordViolation(
+            component,
+            "unapproved postcondition receiver",
+            node,
+          );
+        }
+      }
+
+      if (target) {
+        analyzeCallableEvidence(
+          component,
+          target,
+          evidence,
+          environment,
+          normalized.args,
+          false,
+          callStack,
+        );
+      }
+      return;
+    }
+
+    ts.forEachChild(node, (child) =>
+      inspectActionEvidence(
+        component,
+        child,
+        evidence,
+        environment,
+        callStack,
+      ),
+    );
+  }
 
   const resolveObjectLiteral = (
     expression: ts.Expression,
@@ -707,7 +1120,16 @@ function analyzeTask12VisualSource(source: string) {
             ? action
             : undefined;
         if (target) {
-          inspectReachable(registration.component, target, evidence);
+          inspectReachable(registration.component, target);
+          analyzeCallableEvidence(
+            registration.component,
+            target,
+            evidence,
+            new Map(),
+            null,
+            true,
+            new Set(),
+          );
         } else {
           recordViolation(
             registration.component,
@@ -822,12 +1244,17 @@ describe("Task 12 React visual cases", () => {
   test("accepts actions that drive live controls and verify a postcondition", () => {
     const fixture = analyzeTask12VisualSource(`
       async function action({ canvas, page }) {
-        const control = canvas.getByRole("combobox", { name: "Search flavors" });
-        await control.fill("seasonal");
-        await control.focus();
-        await page.keyboard.press("ArrowDown");
-        await page.keyboard.press("Enter");
-        await canvas.getByText("Selected Compare seasonal flavors").waitFor();
+        const root = canvas;
+        const control = root.getByRole("combobox", { name: "Search flavors" });
+        const controlAlias = control;
+        await controlAlias.fill("seasonal");
+        await controlAlias.focus();
+        const browserPage = page;
+        const keyboard = browserPage.keyboard;
+        await keyboard.press("ArrowDown");
+        await keyboard.press("Enter");
+        const selected = root.getByText("Selected Compare seasonal flavors");
+        await selected.waitFor();
       }
       const CASES = new Map([
         ["search", [{ name: "chosen", action }]],
@@ -836,6 +1263,73 @@ describe("Task 12 React visual cases", () => {
 
     expect(fixture.duplicateComponents).toEqual([]);
     expect(fixture.violations).toEqual([]);
+  });
+
+  test("rejects fake receivers that borrow approved method names", () => {
+    const fixture = analyzeTask12VisualSource(`
+      const fake = {
+        async click() {},
+        async waitFor() {},
+      };
+      async function action() {
+        const receiver = fake;
+        await receiver.click();
+        await receiver.waitFor();
+      }
+      const CASES = new Map([
+        ["search", [{ name: "results", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "search", kind: "unapproved interaction receiver" },
+        { component: "search", kind: "unapproved postcondition receiver" },
+        { component: "search", kind: "missing approved interaction" },
+        { component: "search", kind: "missing postcondition" },
+      ]),
+    );
+  });
+
+  test("requires the verified postcondition to follow the real interaction", () => {
+    const fixture = analyzeTask12VisualSource(`
+      async function action({ canvas }) {
+        await canvas.getByText("Compare seasonal flavors").waitFor();
+        await canvas.getByRole("combobox", { name: "Search flavors" }).fill("seasonal");
+      }
+      const CASES = new Map([
+        ["search", [{ name: "results", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "search",
+      kind: "missing postcondition",
+    });
+  });
+
+  test("rejects imported action-name aliases with no runner receiver", () => {
+    const fixture = analyzeTask12VisualSource(`
+      import { importedClick, importedWaitFor } from "./fake-actions.mjs";
+      const click = importedClick;
+      const waitFor = importedWaitFor;
+      async function action() {
+        await click();
+        await waitFor();
+      }
+      const CASES = new Map([
+        ["search", [{ name: "results", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "search", kind: "unapproved interaction receiver" },
+        { component: "search", kind: "unapproved postcondition receiver" },
+        { component: "search", kind: "missing approved interaction" },
+        { component: "search", kind: "missing postcondition" },
+      ]),
+    );
   });
 
   test("rejects an interactive state backed by an empty action", () => {
