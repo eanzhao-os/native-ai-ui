@@ -1937,6 +1937,279 @@ const TASK10_CASES = [
 ];
 /* TASK 10 VISUAL ACTIONS END */
 
+/* TASK 11 VISUAL ACTIONS START */
+async function assertTask11Target(control, label) {
+  const box = await control.boundingBox();
+  if (!box) throw new Error(`${label} is not visibly measurable`);
+  if (box.width < 44 || box.height < 44) {
+    throw new Error(
+      `${label} hit area is ${box.width.toFixed(1)}×${box.height.toFixed(1)}; expected at least 44×44`,
+    );
+  }
+}
+
+async function focusTask11Control({ canvas, page }, control, label) {
+  await control.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error(`${label} did not receive visible keyboard focus`);
+  }
+  await assertTask11Target(control, label);
+}
+
+async function enableTask11AudioMotion({ advance, canvas, page }, milliseconds) {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await advance(1);
+  if (milliseconds > 0) await advance(milliseconds);
+  await canvas.getByRole("status").getByText(/Speaking|回答中/).waitFor();
+}
+
+async function showTask11AudioInitial(args) {
+  await enableTask11AudioMotion(args, 0);
+}
+
+async function showTask11AudioSettled(args) {
+  await enableTask11AudioMotion(args, 2600);
+}
+
+async function restartTask11Recording({ canvas }) {
+  await canvas.getByRole("button", { name: /End Voice|挂断通话/ }).click();
+  const ended = canvas.getByRole("button", { name: /Voice ended|通话已结束/ });
+  if (!(await ended.isDisabled())) {
+    throw new Error("Ended voice action remained enabled");
+  }
+  const start = canvas.getByRole("button", {
+    name: /Start voice conversation|开始语音对话/,
+  });
+  await assertTask11Target(start, "Audio recording control");
+  await start.click();
+  await canvas.getByText(/Listening to your request|正在聆听您的指令/).waitFor();
+  const listening = canvas
+    .getByRole("group", { name: /Voice state|语音状态/ })
+    .getByRole("button", { name: /^(Listening|倾听中)$/ });
+  if ((await listening.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Audio recording did not enter listening state");
+  }
+}
+
+async function muteTask11Audio({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Mute microphone|将麦克风静音/,
+  });
+  await assertTask11Target(control, "Audio mute control");
+  await control.click();
+  const unmute = canvas.getByRole("button", {
+    name: /Unmute microphone|取消麦克风静音/,
+  });
+  if ((await unmute.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Audio mute control did not become pressed");
+  }
+}
+
+async function endTask11Audio({ canvas }) {
+  await canvas.getByRole("button", { name: /End Voice|挂断通话/ }).click();
+  const ended = canvas.getByRole("button", { name: /Voice ended|通话已结束/ });
+  if (!(await ended.isDisabled())) {
+    throw new Error("Ended voice action remained enabled");
+  }
+  await canvas.getByRole("status").getByText(/Idle|已就绪/).waitFor();
+}
+
+async function focusTask11Audio(args) {
+  const control = args.canvas
+    .getByRole("group", { name: /Voice state|语音状态/ })
+    .getByRole("button", { name: /^(Listening|倾听中)$/ });
+  await focusTask11Control(args, control, "Audio state control");
+}
+
+async function voteTask11Model({ canvas }, name) {
+  const group = canvas.getByRole("group", {
+    name: /Choose higher-quality response|选择更高质量的回答/,
+  });
+  const control = group.getByRole("button", { name });
+  await assertTask11Target(control, "Arena vote control");
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Arena vote did not become pressed");
+  }
+  await canvas
+    .getByRole("status")
+    .getByText(/Preferences recorded for RLHF dataset|偏好投票已记录至 RLHF 训练数据集/)
+    .waitFor();
+}
+
+async function voteTask11ModelA(args) {
+  await voteTask11Model(args, /Model A Better|模型 A 更好/);
+}
+
+async function voteTask11Tie(args) {
+  await voteTask11Model(args, /^(Tie|平手 \/ 均可)$/);
+}
+
+async function voteTask11ModelB(args) {
+  await voteTask11Model(args, /Model B Better|模型 B 更好/);
+}
+
+async function focusTask11Arena(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Model A Better|模型 A 更好/,
+  });
+  await focusTask11Control(args, control, "Arena vote control");
+}
+
+async function showTask11CompareTooltip({ canvas }) {
+  const chart = canvas.getByRole("group", {
+    name: /Return comparison chart|收益对比趋势图/,
+  });
+  await chart.hover({ position: { x: 190, y: 88 } });
+  await canvas.getByRole("tooltip").waitFor();
+  if (!(await chart.getAttribute("aria-activedescendant"))) {
+    throw new Error("Comparison chart did not expose its active point");
+  }
+}
+
+async function openTask11Anomaly({ canvas }) {
+  await canvas.getByRole("button", { name: /Next insight|下一条洞察/ }).click();
+  await canvas.getByText(/High freezer spend|冷柜支出偏高/).waitFor();
+}
+
+async function selectTask11Usage(args) {
+  await openTask11Anomaly(args);
+  const control = args.canvas.getByRole("button", { name: /^(Usage|用电)$/ });
+  await assertTask11Target(control, "Insight metric control");
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Usage metric did not become selected");
+  }
+}
+
+async function showTask11UsageTooltip(args) {
+  await selectTask11Usage(args);
+  const chart = args.canvas.getByRole("group", {
+    name: /Usage trend chart|用电趋势图/,
+  });
+  await chart.hover({ position: { x: 210, y: 88 } });
+  await args.canvas.getByRole("tooltip").waitFor();
+  if (!(await chart.getAttribute("aria-activedescendant"))) {
+    throw new Error("Usage chart did not expose its active point");
+  }
+}
+
+async function selectTask11Allocation({ canvas }) {
+  const next = canvas.getByRole("button", { name: /Next insight|下一条洞察/ });
+  await next.click();
+  await next.click();
+  const control = canvas.getByRole("button", { name: "Chocolate: 22.8%" });
+  await assertTask11Target(control, "Allocation segment");
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Chocolate allocation did not become selected");
+  }
+  await canvas.getByText("$16,278").waitFor();
+}
+
+async function focusTask11Insight(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Next insight|下一条洞察/,
+  });
+  await focusTask11Control(args, control, "Insight pager control");
+}
+
+async function openTask11Alternatives({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /^(Alternatives|备选方案)$/,
+  });
+  await assertTask11Target(control, "Recommendation alternatives control");
+  await control.click();
+  if ((await control.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Recommendation alternatives remained collapsed");
+  }
+  await canvas.getByText(/Alternative Actions|备选方案/).first().waitFor();
+}
+
+async function selectTask11Review(args) {
+  await openTask11Alternatives(args);
+  const control = args.canvas.getByRole("button", {
+    name: /Switch to vanilla_madagascar|切换为马达加斯加香草配方/,
+  });
+  await assertTask11Target(control, "Recommendation alternative");
+  await control.click();
+  await args.canvas.getByRole("button", { name: /Configure|配置参数/ }).waitFor();
+}
+
+async function acceptTask11Recommendation({ canvas }) {
+  const control = canvas.getByRole("button", { name: /^(Accept|采纳建议)$/ });
+  await assertTask11Target(control, "Recommendation accept control");
+  await control.click();
+  const accepted = canvas.getByRole("button", { name: /Accepted|已采纳/ });
+  if (!(await accepted.isDisabled())) {
+    throw new Error("Accepted recommendation remained actionable");
+  }
+  if ((await accepted.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Accepted recommendation did not become pressed");
+  }
+  await canvas
+    .getByRole("status")
+    .getByText(/Recommendation accepted|建议已采纳/)
+    .waitFor();
+}
+
+async function focusTask11Recommendation(args) {
+  const control = args.canvas.getByRole("button", { name: /^(Accept|采纳建议)$/ });
+  await focusTask11Control(args, control, "Recommendation accept control");
+}
+
+const TASK11_CASES = [
+  [
+    "audio-orb",
+    [
+      { name: "initial", advanceMs: 0, action: showTask11AudioInitial },
+      { name: "settled", advanceMs: 0, action: showTask11AudioSettled },
+      { name: "recording", advanceMs: 0, action: restartTask11Recording },
+      { name: "muted", advanceMs: 0, action: muteTask11Audio },
+      { name: "ended", advanceMs: 0, action: endTask11Audio },
+      { name: "focused", advanceMs: 0, action: focusTask11Audio },
+    ],
+  ],
+  [
+    "model-arena",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "settled", advanceMs: 2600 },
+      { name: "voted-a", advanceMs: 0, action: voteTask11ModelA },
+      { name: "voted-tie", advanceMs: 0, action: voteTask11Tie },
+      { name: "voted-b", advanceMs: 0, action: voteTask11ModelB },
+      { name: "focused", advanceMs: 0, action: focusTask11Arena },
+    ],
+  ],
+  [
+    "insight-cards",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "settled", advanceMs: 2600 },
+      { name: "compare-tooltip", advanceMs: 0, action: showTask11CompareTooltip },
+      { name: "anomaly", advanceMs: 0, action: openTask11Anomaly },
+      { name: "usage", advanceMs: 0, action: selectTask11Usage },
+      { name: "usage-tooltip", advanceMs: 0, action: showTask11UsageTooltip },
+      { name: "allocation-selected", advanceMs: 0, action: selectTask11Allocation },
+      { name: "focused", advanceMs: 0, action: focusTask11Insight },
+    ],
+  ],
+  [
+    "recommendation-card",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "settled", advanceMs: 2600 },
+      { name: "alternatives-open", advanceMs: 0, action: openTask11Alternatives },
+      { name: "review-selected", advanceMs: 0, action: selectTask11Review },
+      { name: "accepted", advanceMs: 0, action: acceptTask11Recommendation },
+      { name: "focused", advanceMs: 0, action: focusTask11Recommendation },
+    ],
+  ],
+];
+/* TASK 11 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -1977,6 +2250,9 @@ export const CASES = new Map([
   /* TASK 10 VISUAL REGISTRATIONS START */
   ...TASK10_CASES,
   /* TASK 10 VISUAL REGISTRATIONS END */
+  /* TASK 11 VISUAL REGISTRATIONS START */
+  ...TASK11_CASES,
+  /* TASK 11 VISUAL REGISTRATIONS END */
   /* TASK 4 VISUAL REGISTRATIONS START */
   [
     "session-list",

@@ -7,11 +7,27 @@ import { useLang } from "@/lib/lang-context";
  * RECOMMENDATION CARD
  * ───────────────────────────────────────────────────────── */
 
+type OptionKey = "high" | "review" | "none";
+type Outcome = "accepted" | "configured" | "dismissed" | null;
+
+type RecommendationOption = {
+  body: React.ReactNode;
+  completed: string;
+  key: OptionKey;
+  label: string;
+  outcome: Exclude<Outcome, null>;
+  short: string;
+  signal: number;
+  status: string;
+  tone: string;
+  cta: string;
+};
+
 export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("recommendation-card", propLang);
   const zh = lang === "zh";
 
-  const OPTIONS = [
+  const options: RecommendationOption[] = [
     {
       key: "high",
       body: zh ? (
@@ -34,7 +50,9 @@ export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "
       tone: "var(--green)",
       label: zh ? "高置信度推荐" : "High confidence",
       cta: zh ? "采纳建议" : "Accept",
-      ctaStyle: "bg-accent text-white",
+      completed: zh ? "已采纳" : "Accepted",
+      outcome: "accepted",
+      status: zh ? "建议已采纳，将进入补货计划。" : "Recommendation accepted and added to the restock plan.",
     },
     {
       key: "review",
@@ -55,89 +73,138 @@ export default function RecommendationCard({ lang: propLang }: { lang?: "en" | "
       tone: "var(--orange)",
       label: zh ? "需要人工复核" : "Needs review",
       cta: zh ? "配置参数" : "Configure",
-      ctaStyle: "bg-ink text-canvas",
+      completed: zh ? "已配置" : "Configured",
+      outcome: "configured",
+      status: zh ? "配置草案已准备，可进入人工复核。" : "Configuration ready for review.",
     },
     {
       key: "none",
       body: zh ? (
-        <>
-          对所有库存 SKU 发起全量紧急补货流程。
-        </>
+        <>对所有库存 SKU 发起全量紧急补货流程。</>
       ) : (
-        <>
-          Trigger a full restock cycle across every catalog SKU.
-        </>
+        <>Trigger a full restock cycle across every catalog SKU.</>
       ),
       short: zh ? "全品类 SKU 紧急补货" : "Full restock across every SKU",
       signal: 0,
       tone: "var(--line-strong)",
       label: zh ? "无足够置信信号" : "No signal",
       cta: zh ? "忽略" : "Dismiss",
-      ctaStyle: "bg-field text-ink-3",
+      completed: zh ? "已忽略" : "Dismissed",
+      outcome: "dismissed",
+      status: zh ? "建议已忽略，不会执行补货操作。" : "Recommendation dismissed; no restock action will run.",
     },
   ];
 
-  const [activeKey, setActiveKey] = useState<string>("high");
+  const [activeKey, setActiveKey] = useState<OptionKey>("high");
   const [openDrawer, setOpenDrawer] = useState(false);
-  const current = OPTIONS.find((o) => o.key === activeKey) ?? OPTIONS[0];
+  const [outcome, setOutcome] = useState<Outcome>(null);
+  const current = options.find((option) => option.key === activeKey) ?? options[0];
+  const completed = outcome === current.outcome;
+  const focusClasses =
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
+
+  const selectOption = (key: OptionKey) => {
+    setActiveKey(key);
+    setOutcome(null);
+    setOpenDrawer(false);
+  };
 
   return (
     <div className="w-full max-w-95 overflow-hidden rounded-card border border-line bg-surface shadow-card">
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-[13px] leading-relaxed text-ink">{current.body}</p>
-        </div>
+        <p className="text-[13px] leading-relaxed text-ink">{current.body}</p>
 
-        {/* Drawer for alternatives */}
+        {outcome && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`mt-3 flex min-h-11 items-center gap-2 rounded-control border px-3 py-2 text-[11.5px] font-medium leading-relaxed ${
+              outcome === "accepted"
+                ? "border-green/25 bg-green-tint text-green"
+                : outcome === "configured"
+                  ? "border-orange/25 bg-orange-tint text-orange"
+                  : "border-line-strong bg-field text-ink-2"
+            }`}
+          >
+            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface/70 text-[11px] shadow-hairline">
+              {outcome === "accepted" ? "✓" : outcome === "configured" ? "↗" : "×"}
+            </span>
+            {current.status}
+          </div>
+        )}
+
         {openDrawer && (
-          <div className="mt-3.5 border-t border-line/60 pt-3 space-y-1">
-            <span className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider block mb-2">
+          <div className="mt-3.5 space-y-1 border-t border-line/70 pt-3">
+            <span className="mb-2 block text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-3">
               {zh ? "备选方案" : "Alternative Actions"}
             </span>
-            {OPTIONS.map((opt) => (
+            {options.map((option) => (
               <button
-                key={opt.key}
+                key={option.key}
                 type="button"
-                onClick={() => {
-                  setActiveKey(opt.key);
-                  setOpenDrawer(false);
-                }}
-                className={`flex w-full items-center justify-between rounded-control p-2 text-left text-[12px] transition-colors cursor-pointer ${
-                  opt.key === activeKey ? "bg-accent-tint text-accent-ink font-medium" : "hover:bg-hover text-ink-2"
+                aria-pressed={option.key === activeKey}
+                onClick={() => selectOption(option.key)}
+                className={`grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-control px-2.5 py-2 text-left transition-[background-color,color,transform] active:scale-[0.99] ${focusClasses} ${
+                  option.key === activeKey
+                    ? "bg-accent-tint font-medium text-accent-ink"
+                    : "text-ink-2 hover:bg-hover hover:text-ink"
                 }`}
               >
-                <span>{opt.short}</span>
-                <span className="font-mono text-[10px] text-ink-3">{opt.label}</span>
+                <span className="min-w-0 text-[12px] leading-snug">{option.short}</span>
+                <span className="max-w-24 text-right font-mono text-[9.5px] leading-snug text-ink-3">
+                  {option.label}
+                </span>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-line bg-inset px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <span className="flex items-end gap-0.5">
-            <span className="w-1 rounded-full" style={{ height: 10, background: current.signal >= 1 ? current.tone : "var(--line-strong)" }} />
-            <span className="w-1 rounded-full" style={{ height: 10, background: current.signal >= 2 ? current.tone : "var(--line-strong)" }} />
-            <span className="w-1 rounded-full" style={{ height: 10, background: current.signal >= 3 ? current.tone : "var(--line-strong)" }} />
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-inset px-4 py-2.5">
+        <div className="flex min-h-8 min-w-0 items-center gap-2">
+          <span aria-hidden="true" className="flex h-4 shrink-0 items-end gap-0.5">
+            {[6, 10, 14].map((height, index) => (
+              <span
+                key={height}
+                className="w-1 rounded-full"
+                style={{
+                  height,
+                  background:
+                    current.signal >= index + 1
+                      ? current.tone
+                      : "var(--line-strong)",
+                }}
+              />
+            ))}
           </span>
-          <span className="text-[12px] font-medium text-ink-2">{current.label}</span>
+          <span className="truncate text-[12px] font-medium text-ink-2">{current.label}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setOpenDrawer(!openDrawer)}
-            className="rounded-control border border-line bg-surface px-2.5 py-1 text-[11.5px] font-medium text-ink-2 hover:bg-hover hover:text-ink transition-colors cursor-pointer"
+            aria-expanded={openDrawer}
+            onClick={() => setOpenDrawer((open) => !open)}
+            className={`min-h-11 rounded-control border border-line bg-surface px-3 text-[11.5px] font-semibold text-ink-2 transition-[background-color,border-color,color,transform] hover:border-line-strong hover:bg-hover hover:text-ink active:scale-[0.98] ${focusClasses}`}
           >
             {zh ? "备选方案" : "Alternatives"}
           </button>
           <button
             type="button"
-            className={`rounded-control px-3 py-1 text-[11.5px] font-medium transition-transform active:scale-95 cursor-pointer ${current.ctaStyle}`}
+            aria-pressed={completed}
+            disabled={completed}
+            onClick={() => setOutcome(current.outcome)}
+            className={`min-h-11 rounded-control px-3.5 text-[11.5px] font-semibold transition-[background-color,color,opacity,transform] active:scale-[0.98] ${focusClasses} ${
+              completed
+                ? "cursor-not-allowed bg-green-tint text-green shadow-hairline"
+                : current.key === "high"
+                  ? "bg-accent text-white shadow-sm hover:opacity-90"
+                  : current.key === "review"
+                    ? "bg-ink text-canvas shadow-sm hover:opacity-90"
+                    : "bg-field text-ink-2 shadow-hairline hover:bg-hover hover:text-ink"
+            }`}
           >
-            {current.cta}
+            {completed ? current.completed : current.cta}
           </button>
         </div>
       </div>
