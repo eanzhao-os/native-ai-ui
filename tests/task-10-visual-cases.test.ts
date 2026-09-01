@@ -257,6 +257,46 @@ function memberRootName(expression: ts.Expression): string | null {
   return null;
 }
 
+function parseTask10VisualProgram(source: string) {
+  const fileName = "/task-10-visual-cases.mjs";
+  const parsed = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS,
+  );
+  const options: ts.CompilerOptions = {
+    allowJs: true,
+    checkJs: true,
+    module: ts.ModuleKind.ESNext,
+    noLib: true,
+    noResolve: true,
+    target: ts.ScriptTarget.Latest,
+  };
+  const host: ts.CompilerHost = {
+    fileExists: (path) => path === fileName,
+    getCanonicalFileName: (path) => path,
+    getCurrentDirectory: () => "/",
+    getDefaultLibFileName: () => "lib.d.ts",
+    getDirectories: () => [],
+    getNewLine: () => "\n",
+    getSourceFile: (path) => (path === fileName ? parsed : undefined),
+    readFile: (path) => (path === fileName ? source : undefined),
+    useCaseSensitiveFileNames: () => true,
+    writeFile: () => {},
+  };
+  const program = ts.createProgram({
+    host,
+    options,
+    rootNames: [fileName],
+  });
+  return {
+    checker: program.getTypeChecker(),
+    sourceFile: program.getSourceFile(fileName) ?? parsed,
+  };
+}
+
 function collectTask10Registrations(sourceFile: ts.SourceFile) {
   const registrations: Registration[] = [];
   const arrayBindings = new Map<string, ts.ArrayLiteralExpression>();
@@ -323,13 +363,7 @@ function collectTask10Registrations(sourceFile: ts.SourceFile) {
 }
 
 function analyzeTask10VisualSource(source: string) {
-  const sourceFile = ts.createSourceFile(
-    "cases.mjs",
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.JS,
-  );
+  const { checker, sourceFile } = parseTask10VisualProgram(source);
   const callables = collectCallables(sourceFile);
   const constExpressions = collectConstExpressions(sourceFile);
   const importedBindings = collectImportedBindings(sourceFile);
@@ -364,7 +398,8 @@ function analyzeTask10VisualSource(source: string) {
     seen: Set<ts.VariableDeclaration>,
   ): boolean {
     if (!ts.isIdentifier(declaration.name) || seen.has(declaration)) return false;
-    const declarationName = declaration.name.text;
+    const declarationSymbol = checker.getSymbolAtLocation(declaration.name);
+    if (!declarationSymbol) return false;
     const nextSeen = new Set(seen).add(declaration);
     const scope = enclosingVerificationScope(declaration);
     let verified = false;
@@ -374,7 +409,7 @@ function analyzeTask10VisualSource(source: string) {
       if (
         ts.isIdentifier(node) &&
         node !== declaration.name &&
-        node.text === declarationName &&
+        checker.getSymbolAtLocation(node) === declarationSymbol &&
         resultParticipatesInVerification(node, nextSeen)
       ) {
         verified = true;
@@ -424,6 +459,12 @@ function analyzeTask10VisualSource(source: string) {
         ts.isBinaryExpression(parent) &&
         (parent.left === current || parent.right === current)
       ) {
+        if (
+          parent.operatorToken.kind === ts.SyntaxKind.CommaToken &&
+          parent.left === current
+        ) {
+          return false;
+        }
         current = parent;
         continue;
       }
@@ -856,6 +897,75 @@ describe("Task 10 React visual cases", () => {
       });
     },
   );
+
+  test.each([
+    [
+      "block shadow",
+      `const value = await control.getAttribute("aria-pressed");
+       { const value = "true"; if (value === "true") return; }`,
+    ],
+    [
+      "nested callback shadow",
+      `const value = await control.getAttribute("aria-pressed");
+       const check = () => { const value = "true"; return value === "true"; };
+       if (check()) return;`,
+    ],
+    [
+      "nested function parameter shadow",
+      `const value = await control.getAttribute("aria-pressed");
+       function check(value) { return value === "true"; }
+       if (check("true")) return;`,
+    ],
+  ])("rejects an observation verified only by a %s", (_label, body) => {
+    const fixture = analyzeTask10VisualSource(`
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button", { name: "Tablet" });
+        ${body}
+      }
+      const CASES = new Map([
+        ["artifact-sandbox", [{ name: "tablet", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "artifact-sandbox",
+      kind: "missing named state postcondition",
+    });
+  });
+
+  test.each([
+    [
+      "comma condition",
+      'if ((await control.count(), true)) return;',
+    ],
+    [
+      "nested comma condition",
+      'if (((await control.count(), true), true)) return;',
+    ],
+    [
+      "comma assigned then checked",
+      'const value = (await control.count(), true); if (value) return;',
+    ],
+    [
+      "nested comma assigned then checked",
+      'const value = ((await control.count(), false), true); if (value) return;',
+    ],
+  ])("rejects a discarded observation in a %s", (_label, body) => {
+    const fixture = analyzeTask10VisualSource(`
+      async function action({ canvas }) {
+        const control = canvas.getByRole("button", { name: "Apply" });
+        ${body}
+      }
+      const CASES = new Map([
+        ["artifact-sandbox", [{ name: "focused", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "artifact-sandbox",
+      kind: "missing named state postcondition",
+    });
+  });
 
   test("rejects a no-op observation hidden behind a local helper", () => {
     const fixture = analyzeTask10VisualSource(`
