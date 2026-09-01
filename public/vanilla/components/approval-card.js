@@ -152,9 +152,16 @@ export class NaiApprovalCard extends NaiBaseElement {
 
   _syncCustomAnswer(input) {
     const question = this._questions()[this._qi];
+    this._cancelAutoAdvance();
     this._custom[this._qi] = input.value;
     if (question.type === "radio") this._answers[this._qi] = [];
     this._syncQuestionControls();
+  }
+
+  submitNext() {
+    const questions = this._questions();
+    if (this._qi === questions.length - 1) this._submit();
+    else this._goToQuestion(Math.min(questions.length - 1, this._qi + 1));
   }
 
   reset() {
@@ -215,6 +222,7 @@ export class NaiApprovalCard extends NaiBaseElement {
       customInput.addEventListener("input", () => this._syncCustomAnswer(customInput));
     }
     this.shadowRoot?.querySelector(".dismiss-btn")?.addEventListener("click", () => {
+      this._cancelAutoAdvance();
       this._open = false;
       this.render();
     });

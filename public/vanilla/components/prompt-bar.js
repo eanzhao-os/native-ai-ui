@@ -40,6 +40,105 @@ const MODELS = [
 const FILES = ["flavor-chart.png", "summer-menu.pdf", "pos-export.csv"];
 const DICTATION_EN = "Compare pistachio weekends to last summer";
 const DICTATION_ZH = "对比开心果口味周末销量与去年同期";
+const RAINBOW_HEX = [
+  "#FF3D7F",
+  "#FF7A1A",
+  "#FFD600",
+  "#C2FF3D",
+  "#1FC8FF",
+  "#2E70FF",
+  "#D33CFF",
+];
+const SWEEP_OPTIONS = {
+  direction: "ltr",
+  sweepMs: 950,
+  outroMs: 130,
+  peakAlpha: 1.3,
+  bandTight: 10,
+  brightness: 1.4,
+  swellAmount: 1,
+  waveSpeed: 1.3,
+  easing: "easeOutExpo",
+};
+
+let glimmModules = null;
+let glimmModulesPromise = null;
+
+function loadGlimmModules() {
+  if (!glimmModulesPromise) {
+    glimmModulesPromise = import("glimm").then((modules) => {
+      glimmModules = modules;
+      return modules;
+    });
+  }
+  return glimmModulesPromise;
+}
+
+function easeOutExpo(progress) {
+  return progress === 1 ? 1 : 1 - 2 ** (-10 * progress);
+}
+
+function easeInOutCubic(progress) {
+  return progress < 0.5
+    ? 4 * progress ** 3
+    : 1 - (-2 * progress + 2) ** 3 / 2;
+}
+
+function playFallbackSweep(controller, options = {}) {
+  const sweepMs = options.sweepMs ?? 950;
+  const outroMs = options.outroMs ?? 130;
+  const peakAlpha = options.peakAlpha ?? 1.3;
+  let cancelled = false;
+  let frame = 0;
+  let resolveDone;
+  const done = new Promise((resolve) => {
+    resolveDone = resolve;
+  });
+
+  const animate = (duration, update, easing) =>
+    new Promise((resolve) => {
+      const startedAt = performance.now();
+      const tick = () => {
+        if (cancelled) {
+          resolve();
+          return;
+        }
+        const raw = Math.min(1, (performance.now() - startedAt) / duration);
+        update(easing(raw));
+        if (raw < 1) frame = requestAnimationFrame(tick);
+        else resolve();
+      };
+      frame = requestAnimationFrame(tick);
+    });
+
+  (async () => {
+    controller.setAlpha(peakAlpha);
+    controller.setProgress(0);
+    await animate(sweepMs, (progress) => controller.setProgress(progress), easeOutExpo);
+    if (cancelled) return;
+    await animate(
+      outroMs,
+      (progress) => controller.setAlpha(peakAlpha * (1 - progress)),
+      easeInOutCubic,
+    );
+    if (cancelled) return;
+    controller.setAlpha(0);
+    controller.setProgress(0);
+    resolveDone();
+  })();
+
+  return {
+    done,
+    cancel() {
+      if (cancelled) return;
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      controller.setAlpha(0);
+      controller.setProgress(0);
+      resolveDone();
+    },
+  };
+}
 
 const AUTO_STEPS = [
   { draft: "", connect: false, model: "vanilla-1", hold: 1100 },
@@ -99,7 +198,11 @@ export class NaiPromptBar extends NaiBaseElement {
     this._glResizeObserver = null;
     this._glCanvas = null;
     this._glShader = null;
+    this._glRenderer = null;
+    this._glSweepHandle = null;
     this._glInitVersion = 0;
+    this._pendingSweep = false;
+    this._sweeping = false;
   }
 
   get variant() {
@@ -107,7 +210,7 @@ export class NaiPromptBar extends NaiBaseElement {
   }
 
   get isPill() {
-    return this.variant === "Pill";
+    return this.variant.toLowerCase() === "pill";
   }
 
   onMount() {
@@ -117,29 +220,41 @@ export class NaiPromptBar extends NaiBaseElement {
   onUnmount() {
     this._clearAutoTimer();
     this._clearDictationTimer();
+    this._pendingSweep = false;
     this._destroyCanvas();
   }
 
   _destroyCanvas() {
     this._glInitVersion += 1;
+    this._glSweepHandle?.cancel?.();
+    this._glSweepHandle = null;
     this._glShader?.destroy?.();
     this._glShader = null;
+    this._glRenderer = null;
+    this._sweeping = false;
     if (this._glRaf) cancelAnimationFrame(this._glRaf);
     this._glRaf = 0;
     this._glResizeObserver?.disconnect();
     this._glResizeObserver = null;
+    if (this._glCanvas) {
+      this._glCanvas.style.opacity = "0";
+      delete this._glCanvas.dataset.sweeping;
+    }
     this._glCanvas = null;
   }
 
   async _initCanvas() {
     const canvas = this.shadowRoot?.querySelector("canvas");
     if (!(canvas instanceof HTMLCanvasElement)) return;
-    if (this._glCanvas === canvas && (this._glShader || this._glRaf)) return;
+    if (this._glCanvas === canvas && this._glShader) return;
     this._destroyCanvas();
     this._glCanvas = canvas;
+    canvas.style.opacity = "0";
+    canvas.dataset.renderer = "loading";
     const version = this._glInitVersion;
     try {
-      const { ACCENTS, accentChain, createShader } = await import("glimm");
+      const { ACCENTS, accentChain, createShader, playSweep } =
+        glimmModules ?? (await loadGlimmModules());
       if (
         version !== this._glInitVersion ||
         canvas !== this.shadowRoot?.querySelector("canvas")
@@ -162,81 +277,150 @@ export class NaiPromptBar extends NaiBaseElement {
         bandTight: 10,
         swellAmount: 0.85,
       });
-      if (this._glShader) return;
+      if (this._glShader) {
+        this._glRenderer = { createShader, palette, playSweep, type: "glimm" };
+        canvas.dataset.renderer = "glimm";
+        if (this._pendingSweep) this._celebrate();
+        return;
+      }
     } catch {
-      // Direct browser installs have no bare-specifier resolver; retain the
-      // transparent framework-free fallback instead of failing the component.
+      // Native browser modules cannot resolve package bare specifiers without
+      // an import map. Continue with the framework-free canvas renderer.
     }
     if (version !== this._glInitVersion || canvas !== this._glCanvas) return;
     this._initFallbackCanvas(canvas);
+    if (this._pendingSweep) this._celebrate();
   }
 
   _initFallbackCanvas(canvas) {
-    if (typeof window.WebGLRenderingContext === "undefined") return;
-    const gl = canvas.getContext("webgl", {
-      alpha: true,
-      antialias: false,
-      premultipliedAlpha: true,
-    });
-    if (!gl) return;
-    const compile = (type, source) => {
-      const shader = gl.createShader(type);
-      if (!shader) return null;
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        gl.deleteShader(shader);
-        return null;
-      }
-      return shader;
-    };
-    const vertex = compile(
-      gl.VERTEX_SHADER,
-      "attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}",
-    );
-    const fragment = compile(
-      gl.FRAGMENT_SHADER,
-      "precision highp float;void main(){gl_FragColor=vec4(0.0);}",
-    );
-    const program = vertex && fragment ? gl.createProgram() : null;
-    if (program && vertex && fragment) {
-      gl.attachShader(program, vertex);
-      gl.attachShader(program, fragment);
-      gl.linkProgram(program);
-      gl.useProgram(program);
-      const buffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
-        gl.STATIC_DRAW,
-      );
-      const location = gl.getAttribLocation(program, "a");
-      gl.enableVertexAttribArray(location);
-      gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    const context = canvas.getContext("2d");
+    if (!context) {
+      canvas.dataset.renderer = "unavailable";
+      return;
     }
+    const state = { alpha: 0, progress: 0 };
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const rect = canvas.getBoundingClientRect();
       const width = Math.max(1, Math.round(rect.width * dpr));
       const height = Math.max(1, Math.round(rect.height * dpr));
-      if (canvas.width === width && canvas.height === height) return;
-      canvas.width = width;
-      canvas.height = height;
-      gl.viewport(0, 0, width, height);
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
     };
-    resize();
+    const draw = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = canvas.width / dpr;
+      const height = canvas.height / dpr;
+      context.clearRect(0, 0, width, height);
+      if (state.alpha <= 0 || width <= 0 || height <= 0) return;
+
+      const center = (-0.2 + state.progress * 1.4) * width;
+      const band = Math.max(72, width * 0.38);
+      const gradient = context.createLinearGradient(
+        center - band,
+        0,
+        center + band,
+        0,
+      );
+      gradient.addColorStop(0, "rgba(255,61,127,0)");
+      RAINBOW_HEX.forEach((color, index) => {
+        gradient.addColorStop(0.08 + (index / (RAINBOW_HEX.length - 1)) * 0.84, color);
+      });
+      gradient.addColorStop(1, "rgba(211,60,255,0)");
+      const entryFade = 0.2 + 0.8 * 4 * state.progress * (1 - state.progress);
+      context.save();
+      context.globalAlpha = Math.min(1, state.alpha * entryFade);
+      context.globalCompositeOperation = "screen";
+      context.fillStyle = gradient;
+      context.fillRect(center - band, 0, band * 2, height);
+      context.restore();
+    };
+
+    const controller = {
+      destroy: () => {
+        this._glResizeObserver?.disconnect();
+        this._glResizeObserver = null;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+      },
+      getAlpha: () => state.alpha,
+      getProgress: () => state.progress,
+      setAlpha: (alpha) => {
+        state.alpha = Math.max(0, Math.min(1.5, alpha));
+        draw();
+      },
+      setBandTight: () => {},
+      setBrightness: () => {},
+      setDirection: () => {},
+      setPalette: () => {},
+      setProgress: (progress) => {
+        state.progress = Math.max(0, Math.min(1, progress));
+        draw();
+      },
+      setRippleAmount: () => {},
+      setSwellAmount: () => {},
+      setWaveAmount: () => {},
+      setWaveSpeed: () => {},
+    };
+
     this._glResizeObserver = new ResizeObserver(resize);
     this._glResizeObserver.observe(canvas);
-    const tick = () => {
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      if (program) gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      this._glRaf = requestAnimationFrame(tick);
-    };
-    this._glRaf = requestAnimationFrame(tick);
+    resize();
+    this._glShader = controller;
+    this._glRenderer = { playSweep: playFallbackSweep, type: "fallback" };
+    canvas.dataset.renderer = "fallback";
+  }
+
+  _celebrate() {
+    if (this._sweeping) return;
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    if (!this._glCanvas || !this._glShader || !this._glRenderer) {
+      this._pendingSweep = true;
+      this._initCanvas();
+      return;
+    }
+
+    this._pendingSweep = false;
+    if (this._glRenderer.type === "glimm") {
+      this._glShader.destroy?.();
+      this._glShader = this._glRenderer.createShader({
+        canvas: this._glCanvas,
+        palette: this._glRenderer.palette,
+        direction: "ltr",
+        bandTight: 10,
+        swellAmount: 0.85,
+      });
+      if (!this._glShader) {
+        this._initFallbackCanvas(this._glCanvas);
+      }
+    }
+    if (!this._glShader || !this._glRenderer) return;
+
+    const canvas = this._glCanvas;
+    canvas.style.opacity = "1";
+    canvas.dataset.sweeping = "true";
+    this._sweeping = true;
+    const options =
+      this._glRenderer.type === "glimm"
+        ? { ...SWEEP_OPTIONS, palette: this._glRenderer.palette }
+        : SWEEP_OPTIONS;
+    const handle = this._glRenderer.playSweep(this._glShader, options);
+    this._glSweepHandle = handle;
+    handle.done.finally(() => {
+      if (this._glSweepHandle !== handle) return;
+      this._glSweepHandle = null;
+      this._sweeping = false;
+      canvas.style.opacity = "0";
+      delete canvas.dataset.sweeping;
+    });
   }
 
   _clearAutoTimer() {
@@ -261,15 +445,21 @@ export class NaiPromptBar extends NaiBaseElement {
   _runAutoStep() {
     if (!this._auto) return;
     const step = AUTO_STEPS[this._autoStep % AUTO_STEPS.length];
+    let celebrate = false;
     this._draft = step.draft;
     if (step.active !== undefined) this._active = step.active;
     if (step.connect !== undefined) this._connected = step.connect;
     if (step.modelOpen !== undefined) this._modelOpen = step.modelOpen;
     if (step.model) {
       const next = MODELS.find((model) => model.key === step.model);
-      if (next) this._model = next;
+      if (next) {
+        this._model = next;
+        this._modelOpen = false;
+        celebrate = next.key === "sprinkles-5";
+      }
     }
     if (this._mounted) this.render();
+    if (celebrate) this._celebrate();
     this._autoTimer = this.registerTimeout(() => {
       this._autoTimer = null;
       this._autoStep += 1;
@@ -362,6 +552,7 @@ export class NaiPromptBar extends NaiBaseElement {
       if (label) label.textContent = model.name;
     }
     this.shadowRoot?.querySelector("textarea")?.focus();
+    if (model.key === "sprinkles-5") this._celebrate();
   }
 
   _startDictation() {
@@ -489,7 +680,7 @@ export class NaiPromptBar extends NaiBaseElement {
     const equalizer = '<span class="flex h-3.5 items-center gap-[2.5px]"><span class="w-[2.5px] rounded-full bg-current" style="height:100%;animation:eq-bounce 900ms ease-in-out 0ms infinite"></span><span class="w-[2.5px] rounded-full bg-current" style="height:100%;animation:eq-bounce 900ms ease-in-out 150ms infinite"></span><span class="w-[2.5px] rounded-full bg-current" style="height:100%;animation:eq-bounce 900ms ease-in-out 300ms infinite"></span></span>';
 
     this.setHtml(
-      `<div class="flex min-h-[384px] w-full max-w-105 flex-col justify-end pb-8"><div class="relative">${sourceMenu}${modelMenu}<div class="relative isolate flex flex-col gap-1.5 overflow-hidden border border-line bg-surface p-1.5 shadow-card transition-[border-color,border-radius] duration-150 focus-within:border-line-strong ${pill ? (this._attachments.length > 0 || expanded ? "rounded-[24px]" : "rounded-full") : "rounded-[14px]"}"><canvas aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 h-full w-full" style="border-radius:inherit"></canvas><span data-measure aria-hidden="true" class="pointer-events-none absolute invisible whitespace-pre text-[13px] leading-[18px]"></span>${attachments}<div data-controls class="grid items-end gap-x-1 gap-y-1.5 ${expanded ? "grid-cols-[minmax(0,1fr)_auto_28px_28px]" : "grid-cols-[28px_minmax(0,1fr)_auto_28px_28px]"}"><button type="button" aria-label="${zh ? "添加附件与数据源" : "Add attachments and sources"}" aria-expanded="${this._plusOpen}" class="flex size-7 shrink-0 items-center justify-center justify-self-start text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-hover hover:text-ink active:scale-[0.94] ${pill ? "rounded-full" : "rounded-[8px]"} ${this._plusOpen ? "bg-hover text-ink" : ""} ${expanded ? "col-start-1 row-start-2" : "col-start-1 row-start-1"}">${icon('<path d="M12 5v14M5 12h14"></path>', 16, 2)}</button><textarea rows="1" placeholder="${this._listening ? (zh ? "正在聆听…" : "Listening…") : zh ? "输入消息…" : "Write a message…"}" aria-label="${zh ? "提示词输入框" : "Prompt"}" class="min-h-7 min-w-0 w-full resize-none bg-transparent px-1 py-[5px] text-[13px] leading-[18px] text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3 ${expanded ? "col-span-full col-start-1 row-start-1" : "col-start-2 row-start-1"}"></textarea><button type="button" aria-expanded="${this._modelOpen}" aria-label="${zh ? "选择模型" : "Choose model"}" class="flex h-7 shrink-0 items-center gap-1 px-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink ${pill ? "rounded-full" : "rounded-[8px]"} ${expanded ? "col-start-2 row-start-2" : "col-start-3 row-start-1"}">${this._model.name}<span class="text-ink-3">${icon('<path d="M6 9l6 6 6-6"></path>', 11, 2.4)}</span></button><button type="button" aria-label="${this._listening ? (zh ? "停止听写" : "Stop dictation") : zh ? "开始听写" : "Start dictation"}" aria-pressed="${this._listening}" class="flex size-7 shrink-0 items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.94] ${pill ? "rounded-full" : "rounded-[8px]"} ${this._listening ? "bg-accent-tint text-accent-ink" : "text-ink-3 hover:bg-hover hover:text-ink"} ${expanded ? "col-start-3 row-start-2" : "col-start-4 row-start-1"}">${this._listening ? equalizer : icon('<g><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></g>', 15, 2)}</button><button type="button" aria-label="${zh ? "发送" : "Send"}" ${canSend ? "" : "disabled"} class="flex size-7 shrink-0 items-center justify-center transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.94] ${pill ? "rounded-full" : "rounded-[8px]"} ${expanded ? "col-start-4 row-start-2" : "col-start-5 row-start-1"}" style="background:${canSend ? "var(--ink)" : "var(--line-strong)"};color:${canSend ? "var(--surface)" : "var(--ink-2)"}">${icon('<path d="M12 19V5M5 12l7-7 7 7"></path>', 16, 2.4)}</button></div></div></div></div>`,
+      `<div class="flex min-h-[384px] w-full max-w-105 flex-col justify-end pb-8"><div class="relative">${sourceMenu}${modelMenu}<div class="relative isolate flex flex-col gap-1.5 overflow-hidden border border-line bg-surface p-1.5 shadow-card transition-[border-color,border-radius] duration-150 focus-within:border-line-strong ${pill ? (this._attachments.length > 0 || expanded ? "rounded-[24px]" : "rounded-full") : "rounded-[14px]"}"><canvas aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 h-full w-full" style="border-radius:inherit;opacity:0"></canvas><span data-measure aria-hidden="true" class="pointer-events-none absolute invisible whitespace-pre text-[13px] leading-[18px]"></span>${attachments}<div data-controls class="grid items-end gap-x-1 gap-y-1.5 ${expanded ? "grid-cols-[minmax(0,1fr)_auto_28px_28px]" : "grid-cols-[28px_minmax(0,1fr)_auto_28px_28px]"}"><button type="button" aria-label="${zh ? "添加附件与数据源" : "Add attachments and sources"}" aria-expanded="${this._plusOpen}" class="flex size-7 shrink-0 items-center justify-center justify-self-start text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-hover hover:text-ink active:scale-[0.94] ${pill ? "rounded-full" : "rounded-[8px]"} ${this._plusOpen ? "bg-hover text-ink" : ""} ${expanded ? "col-start-1 row-start-2" : "col-start-1 row-start-1"}">${icon('<path d="M12 5v14M5 12h14"></path>', 16, 2)}</button><textarea rows="1" placeholder="${this._listening ? (zh ? "正在聆听…" : "Listening…") : zh ? "输入消息…" : "Write a message…"}" aria-label="${zh ? "提示词输入框" : "Prompt"}" class="min-h-7 min-w-0 w-full resize-none bg-transparent px-1 py-[5px] text-[13px] leading-[18px] text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3 ${expanded ? "col-span-full col-start-1 row-start-1" : "col-start-2 row-start-1"}"></textarea><button type="button" aria-expanded="${this._modelOpen}" aria-label="${zh ? "选择模型" : "Choose model"}" class="flex h-7 shrink-0 items-center gap-1 px-1.5 text-[12px] font-medium text-ink-2 transition-colors duration-150 hover:bg-hover hover:text-ink ${pill ? "rounded-full" : "rounded-[8px]"} ${expanded ? "col-start-2 row-start-2" : "col-start-3 row-start-1"}">${this._model.name}<span class="text-ink-3">${icon('<path d="M6 9l6 6 6-6"></path>', 11, 2.4)}</span></button><button type="button" aria-label="${this._listening ? (zh ? "停止听写" : "Stop dictation") : zh ? "开始听写" : "Start dictation"}" aria-pressed="${this._listening}" class="flex size-7 shrink-0 items-center justify-center transition-[background-color,color,transform] duration-150 active:scale-[0.94] ${pill ? "rounded-full" : "rounded-[8px]"} ${this._listening ? "bg-accent-tint text-accent-ink" : "text-ink-3 hover:bg-hover hover:text-ink"} ${expanded ? "col-start-3 row-start-2" : "col-start-4 row-start-1"}">${this._listening ? equalizer : icon('<g><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></g>', 15, 2)}</button><button type="button" aria-label="${zh ? "发送" : "Send"}" ${canSend ? "" : "disabled"} class="flex size-7 shrink-0 items-center justify-center transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.94] ${pill ? "rounded-full" : "rounded-[8px]"} ${expanded ? "col-start-4 row-start-2" : "col-start-5 row-start-1"}" style="background:${canSend ? "var(--ink)" : "var(--line-strong)"};color:${canSend ? "var(--surface)" : "var(--ink-2)"}">${icon('<path d="M12 19V5M5 12l7-7 7 7"></path>', 16, 2.4)}</button></div></div></div></div>`,
       ":host{display:flex;justify-content:center;width:100%}",
     );
 

@@ -104,6 +104,9 @@ export class NaiInsightCards extends NaiBaseElement {
     this._chartRoot = null;
     this._chartModules = null;
     this._chartVersion = 0;
+    this._fallbackChartFrame = 0;
+    this._fallbackChartObserver = null;
+    this._fallbackChartDraw = null;
     this._preserveChartOnRender = false;
     this._preserveHeaderOnRender = false;
   }
@@ -120,8 +123,17 @@ export class NaiInsightCards extends NaiBaseElement {
     return SERIES_COLORS[key][this._isDark() ? "dark" : "light"];
   }
 
+  _destroyFallbackChart() {
+    if (this._fallbackChartFrame) cancelAnimationFrame(this._fallbackChartFrame);
+    this._fallbackChartFrame = 0;
+    this._fallbackChartObserver?.disconnect();
+    this._fallbackChartObserver = null;
+    this._fallbackChartDraw = null;
+  }
+
   _unmountChart() {
     this._chartVersion += 1;
+    this._destroyFallbackChart();
     this._chartRoot?.unmount?.();
     this._chartRoot = null;
   }
@@ -366,7 +378,105 @@ export class NaiInsightCards extends NaiBaseElement {
   }
 
   _fallbackChart(container, cursor) {
-    container.innerHTML = `<div style="width:100%;height:100%;position:relative"><canvas style="display:block;cursor:${cursor}"></canvas></div>`;
+    this._destroyFallbackChart();
+    container.dataset.renderer = "fallback";
+    container.innerHTML = `<div style="width:100%;height:100%;position:relative"><canvas style="display:block;width:100%;height:100%;cursor:${cursor}"></canvas></div>`;
+    if (/jsdom/i.test(navigator.userAgent)) return;
+
+    const canvas = container.querySelector("canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const draw = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+      const pixelWidth = Math.round(width * dpr);
+      const pixelHeight = Math.round(height * dpr);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, width, height);
+
+      const { primary, secondary } = this._chartData();
+      const series = this._page === 0
+        ? [
+            { color: this._seriesColor("orange"), points: primary },
+            { color: this._seriesColor("accent"), points: secondary },
+          ]
+        : [{ color: this._seriesColor("red"), points: primary }];
+      const values = series.flatMap((item) => item.points.map((point) => point.value));
+      let minimum = Math.min(...values);
+      let maximum = Math.max(...values);
+      const range = maximum - minimum || 1;
+      minimum -= range * 0.12;
+      maximum += range * 0.12;
+      const padding = this._page === 0
+        ? { top: 24, right: 0, bottom: 22, left: 0 }
+        : { top: 18, right: 0, bottom: 22, left: 0 };
+      const chartWidth = Math.max(1, width - padding.left - padding.right);
+      const chartHeight = Math.max(1, height - padding.top - padding.bottom);
+      const x = (index, count) =>
+        padding.left + (index / Math.max(1, count - 1)) * chartWidth;
+      const y = (value) =>
+        padding.top + ((maximum - value) / (maximum - minimum)) * chartHeight;
+
+      if (this._page === 1) {
+        context.save();
+        context.strokeStyle = this._isDark()
+          ? "rgba(255,255,255,0.06)"
+          : "rgba(0,0,0,0.06)";
+        context.lineWidth = 1;
+        context.setLineDash([1, 3]);
+        for (let row = 1; row <= 3; row += 1) {
+          const gridY = padding.top + (row / 4) * chartHeight;
+          context.beginPath();
+          context.moveTo(padding.left, gridY);
+          context.lineTo(width - padding.right, gridY);
+          context.stroke();
+        }
+        context.restore();
+      }
+
+      series.forEach(({ color, points }) => {
+        context.save();
+        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.beginPath();
+        points.forEach((point, index) => {
+          const pointX = x(index, points.length);
+          const pointY = y(point.value);
+          if (index === 0) context.moveTo(pointX, pointY);
+          else context.lineTo(pointX, pointY);
+        });
+        context.stroke();
+        const latest = points.at(-1);
+        if (latest) {
+          context.fillStyle = color;
+          context.beginPath();
+          context.arc(x(points.length - 1, points.length), y(latest.value), 3, 0, Math.PI * 2);
+          context.fill();
+        }
+        context.restore();
+      });
+    };
+
+    this._fallbackChartDraw = draw;
+    this._fallbackChartObserver = new ResizeObserver(draw);
+    this._fallbackChartObserver.observe(container);
+    this._fallbackChartFrame = requestAnimationFrame(() => {
+      this._fallbackChartFrame = 0;
+      draw();
+    });
   }
 
   _livelineProps(
@@ -422,7 +532,10 @@ export class NaiInsightCards extends NaiBaseElement {
     offset = Math.floor(Date.now() / 1000) - SNAPSHOT_END,
     key = offset,
   ) {
-    if (!this._chartRoot || !this._chartModules) return;
+    if (!this._chartRoot || !this._chartModules) {
+      this._fallbackChartDraw?.();
+      return;
+    }
     const { createElement, flushSync, Liveline } = this._chartModules;
     flushSync(() =>
       this._chartRoot.render(
@@ -442,6 +555,8 @@ export class NaiInsightCards extends NaiBaseElement {
       const [{ createElement }, { createRoot }, { flushSync }, { Liveline }] =
         livelineModules ?? (await loadLivelineModules());
       if (version !== this._chartVersion || !container.isConnected) return;
+      this._destroyFallbackChart();
+      container.dataset.renderer = "liveline";
       this._chartModules = { createElement, flushSync, Liveline };
       this._chartRoot = createRoot(container);
       const offset = Math.floor(Date.now() / 1000) - SNAPSHOT_END;

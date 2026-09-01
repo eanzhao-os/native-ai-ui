@@ -2742,25 +2742,11 @@ async function composeTask13Prompt({ canvas, page }) {
     throw new Error("Prompt composer did not start on Vanilla 1");
   }
   await settleTask13PromptFrame(canvas, page);
-  const promptCanvas = canvas.locator("canvas").first();
-  await promptCanvas.evaluate((element) => {
-    const context = element.getContext("webgl");
-    if (!context) return;
-    context.clearColor(0, 0, 0, 0);
-    context.clear(context.COLOR_BUFFER_BIT);
-    context.finish();
-  });
   await page.waitForTimeout(100);
 }
 
 async function settleTask13PromptFrame(canvas, page) {
   await page.waitForTimeout(550);
-  const promptCanvas = canvas.locator("canvas").first();
-  if ((await promptCanvas.count()) > 0) {
-    await promptCanvas.evaluate((element) => {
-      element.getContext("webgl")?.finish();
-    });
-  }
   await freezeCaseMotion(canvas);
   await page.waitForTimeout(100);
 }

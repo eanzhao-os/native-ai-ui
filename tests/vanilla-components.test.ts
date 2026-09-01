@@ -251,6 +251,60 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(el.shadowRoot.textContent).not.toContain("Answers sent");
   });
 
+  test("<nai-approval-card> cancels radio auto-advance when a custom answer replaces the choice", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-approval-card") as any;
+    document.body.appendChild(el);
+
+    (el.shadowRoot.querySelector('input[type="radio"]') as HTMLInputElement).click();
+    const custom = el.shadowRoot.querySelector(
+      '[aria-label="Custom answer"]',
+    ) as HTMLInputElement;
+    custom.value = "Four seasonal flavors";
+    custom.dispatchEvent(new Event("input", { bubbles: true }));
+
+    vi.advanceTimersByTime(480);
+
+    expect(el.shadowRoot.textContent).toContain("How many flavors should we launch?");
+    expect(
+      (el.shadowRoot.querySelector('[aria-label="Custom answer"]') as HTMLInputElement)
+        .value,
+    ).toBe("Four seasonal flavors");
+  });
+
+  test("<nai-approval-card> cancels radio auto-advance while dismissed", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-approval-card") as any;
+    document.body.appendChild(el);
+
+    (el.shadowRoot.querySelector('input[type="radio"]') as HTMLInputElement).click();
+    (el.shadowRoot.querySelector('[aria-label="Dismiss"]') as HTMLButtonElement).click();
+
+    vi.advanceTimersByTime(480);
+    (
+      [...el.shadowRoot.querySelectorAll("button")].find(
+        (button: Element) => button.textContent?.trim() === "Open approval",
+      ) as HTMLButtonElement
+    ).click();
+
+    expect(el.shadowRoot.textContent).toContain("How many flavors should we launch?");
+    expect(el.shadowRoot.textContent).not.toContain("Which mix-ins should we stock?");
+  });
+
+  test("<nai-approval-card> keeps the public submitNext progression contract", () => {
+    const el = document.createElement("nai-approval-card") as any;
+    document.body.appendChild(el);
+
+    el.submitNext();
+    expect(el.shadowRoot.textContent).toContain("Which mix-ins should we stock?");
+    el.submitNext();
+    expect(el.shadowRoot.textContent).toContain("Which market do we enter first?");
+    el.submitNext();
+    expect(el.shadowRoot.querySelector('[role="status"]')?.textContent).toContain(
+      "Answers sent",
+    );
+  });
+
   test("<nai-approval-card> submits from the last custom answer and focuses the footer reset action", () => {
     const el = document.createElement("nai-approval-card") as any;
     document.body.appendChild(el);
@@ -361,6 +415,18 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(
       el.shadowRoot.querySelector('[aria-label="Choose model"]')?.textContent,
     ).toContain("Sprinkles 5");
+  });
+
+  test("<nai-prompt-bar> treats Pill variants case-insensitively", () => {
+    for (const variant of ["pill", "Pill"]) {
+      const el = document.createElement("nai-prompt-bar") as any;
+      el.setAttribute("variant", variant);
+      document.body.appendChild(el);
+
+      expect(el.shadowRoot.querySelector(".relative.isolate")?.className).toContain(
+        "rounded-full",
+      );
+    }
   });
 
   test("<nai-prompt-bar> delays dictation and exposes listening state", () => {
