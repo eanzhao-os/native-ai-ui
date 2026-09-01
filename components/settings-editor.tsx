@@ -181,8 +181,7 @@ export default function SettingsEditor({
           <div
             id={conflictId}
             role="alert"
-            className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-control border border-orange/40 bg-orange-tint px-3 py-2.5 motion-reduce:animate-none"
-            style={{ animation: "fade-up 300ms cubic-bezier(0.23,1,0.32,1) both" }}
+            className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-control border border-orange/40 bg-orange-tint px-3 py-2.5 motion-safe:animate-[fade-up_300ms_cubic-bezier(0.23,1,0.32,1)_both]"
           >
             <span className="text-[11.5px] font-medium leading-relaxed text-ink">
               {phase === "refetching"

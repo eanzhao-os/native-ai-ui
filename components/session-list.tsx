@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -29,6 +29,26 @@ const SESSIONS: Session[] = [
 ];
 
 const TICK_MS = 2600;
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function reducedMotionSnapshot() {
+  return typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+function subscribeToReducedMotion(onChange: () => void) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return () => {};
+  }
+  const preference = window.matchMedia(REDUCED_MOTION_QUERY);
+  if (typeof preference.addEventListener === "function") {
+    preference.addEventListener("change", onChange);
+    return () => preference.removeEventListener("change", onChange);
+  }
+  preference.addListener(onChange);
+  return () => preference.removeListener(onChange);
+}
 
 export default function SessionList({
   lang: propLang,
@@ -42,10 +62,10 @@ export default function SessionList({
   const selectedCase = visualCase === "selected";
   const headingId = `${useId()}-heading`;
   const countId = `${headingId}-count`;
-  const [reducedMotion, setReducedMotion] = useState(
-    () => typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  const reducedMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    reducedMotionSnapshot,
+    () => false,
   );
 
   const [active, setActive] = useState(selectedCase ? "s2" : "s1");
@@ -57,15 +77,6 @@ export default function SessionList({
   const [tick, setTick] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(preference.matches);
-    update();
-    preference.addEventListener?.("change", update);
-    return () => preference.removeEventListener?.("change", update);
-  }, []);
 
   /* Demo loop: activity lands on live sessions. Reduced-motion users keep
    * the roster stable instead of receiving timer-driven badge changes. */

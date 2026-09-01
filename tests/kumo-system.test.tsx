@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import AuthorizationSurface from "@/components/authorization-surface";
 import FineTuneCard from "@/components/fine-tune-card";
@@ -49,6 +51,11 @@ async function advance(milliseconds: number) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(milliseconds);
   });
+}
+
+function expectMotionSafeAnimation(element: HTMLElement) {
+  expect(element.style.animation).toBe("");
+  expect(element.className).toContain("motion-safe:animate-[");
 }
 
 afterEach(() => {
@@ -256,6 +263,21 @@ describe("SidebarNav", () => {
     fireEvent.keyDown(inbox, { key: "Home" });
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Home" }));
   });
+
+  test("gates highlight movement and badge entry behind motion-safe styles", () => {
+    setMotionPreference(true);
+    const { container } = render(<SidebarNav />);
+
+    const glide = container.querySelector<HTMLElement>(
+      'span[aria-hidden][style*="top"]',
+    );
+    const badge = screen.getByText("4", { selector: "span" });
+
+    expect(glide).not.toBeNull();
+    expect(glide?.style.transition).toBe("");
+    expect(glide?.className).toContain("motion-safe:transition-[");
+    expectMotionSafeAnimation(badge);
+  });
 });
 
 describe("SearchList", () => {
@@ -275,6 +297,66 @@ describe("SearchList", () => {
     const combobox = screen.getByRole("combobox", { name: "Search flavors" });
     expect(combobox.parentElement?.className).toContain(
       "focus-within:shadow-[inset_0_0_0_2px_var(--accent)]",
+    );
+  });
+
+  test("keeps every result-state entry animation motion-safe", () => {
+    setMotionPreference(true);
+    render(<SearchList />);
+
+    const combobox = screen.getByRole("combobox", { name: "Search flavors" });
+    fireEvent.change(combobox, { target: { value: "seasonal" } });
+
+    expectMotionSafeAnimation(
+      screen.getByRole("button", { name: "Clear search" }),
+    );
+    expectMotionSafeAnimation(
+      screen.getByRole("option", { name: "Compare seasonal flavors" }),
+    );
+
+    fireEvent.change(combobox, { target: { value: "q" } });
+    expectMotionSafeAnimation(screen.getByText("No results found").parentElement!);
+  });
+
+  test("keeps pointer focus on the combobox after clearing", () => {
+    render(<SearchList />);
+
+    const combobox = screen.getByRole("combobox", { name: "Search flavors" });
+    fireEvent.change(combobox, { target: { value: "seasonal" } });
+    combobox.focus();
+    const clear = screen.getByRole("button", { name: "Clear search" });
+
+    const pointerDefaultAllowed = fireEvent.pointerDown(clear, {
+      pointerType: "mouse",
+    });
+    if (pointerDefaultAllowed) clear.focus();
+    fireEvent.click(clear);
+
+    expect(pointerDefaultAllowed).toBe(false);
+    expect(document.activeElement).toBe(combobox);
+    expect((combobox as HTMLInputElement).value).toBe("");
+  });
+
+  test("keeps pointer focus on the combobox after choosing an option", () => {
+    render(<SearchList />);
+
+    const combobox = screen.getByRole("combobox", { name: "Search flavors" });
+    fireEvent.change(combobox, { target: { value: "seasonal" } });
+    combobox.focus();
+    const option = screen.getByRole("option", {
+      name: "Compare seasonal flavors",
+    });
+
+    const pointerDefaultAllowed = fireEvent.pointerDown(option, {
+      pointerType: "mouse",
+    });
+    if (pointerDefaultAllowed) option.focus();
+    fireEvent.click(option);
+
+    expect(pointerDefaultAllowed).toBe(false);
+    expect(document.activeElement).toBe(combobox);
+    expect((combobox as HTMLInputElement).value).toBe(
+      "Compare seasonal flavors",
     );
   });
 
@@ -355,6 +437,43 @@ describe("SessionList", () => {
     expect(within(second).getByLabelText("1 unread event")).not.toBeNull();
     expect(within(second).queryByLabelText("2 unread events")).toBeNull();
   });
+
+  test("hydrates a reduced-motion client without mismatching the server shell", async () => {
+    setMotionPreference(false);
+    const serverHtml = renderToString(<SessionList />);
+    const container = document.createElement("div");
+    container.innerHTML = serverHtml;
+    document.body.append(container);
+
+    setMotionPreference(true);
+    const hydrationMessages: string[] = [];
+    const errorSpy = vi.spyOn(console, "error").mockImplementation((...args) => {
+      hydrationMessages.push(args.map(String).join(" "));
+    });
+    let root: Root | undefined;
+
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, <SessionList />, {
+          onRecoverableError: (error) => {
+            hydrationMessages.push(String(error));
+          },
+        });
+      });
+
+      expect(
+        hydrationMessages.filter((message) => /hydrat/i.test(message)),
+      ).toEqual([]);
+      const glide = container.querySelector<HTMLElement>(
+        'span[aria-hidden][style*="top"]',
+      );
+      expect(glide?.style.transition).toBe("none");
+    } finally {
+      await act(async () => root?.unmount());
+      errorSpy.mockRestore();
+      container.remove();
+    }
+  });
 });
 
 describe("AuthorizationSurface", () => {
@@ -368,6 +487,76 @@ describe("AuthorizationSurface", () => {
     expect(screen.getByRole("status", { name: "Authorization status" }).textContent).toContain(
       "Revoked openai",
     );
+  });
+
+  test("focuses the credential input after keyboard sign-in", () => {
+    render(<AuthorizationSurface />);
+
+    const signIn = screen.getByRole("button", { name: "Sign in to deepseek" });
+    signIn.focus();
+    fireEvent.click(signIn, { detail: 0 });
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Access token"));
+  });
+
+  test("restores the originating provider control after keyboard withdrawal", () => {
+    render(<AuthorizationSurface />);
+
+    const signIn = screen.getByRole("button", { name: "Sign in to deepseek" });
+    signIn.focus();
+    fireEvent.click(signIn, { detail: 0 });
+    const withdraw = screen.getByRole("button", { name: "Withdraw" });
+    withdraw.focus();
+    fireEvent.click(withdraw, { detail: 0 });
+
+    const restored = screen.getByRole("button", { name: "Sign in to deepseek" });
+    expect(document.activeElement).toBe(restored);
+  });
+
+  test("restores the originating provider control after authorization completes", async () => {
+    vi.useFakeTimers();
+    render(<AuthorizationSurface />);
+
+    const signIn = screen.getByRole("button", { name: "Sign in to deepseek" });
+    signIn.focus();
+    fireEvent.click(signIn, { detail: 0 });
+    fireEvent.change(screen.getByLabelText("Access token"), {
+      target: { value: "dsk-live-test" },
+    });
+    const authorize = screen.getByRole("button", { name: "Authorize" });
+    authorize.focus();
+    fireEvent.click(authorize, { detail: 0 });
+
+    await advance(900);
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Sign out of deepseek" }),
+    );
+  });
+
+  test("gates configured and completion entry animations behind motion-safe styles", async () => {
+    vi.useFakeTimers();
+    setMotionPreference(true);
+    render(<AuthorizationSurface />);
+
+    expectMotionSafeAnimation(screen.getByText("Configured", { selector: "span" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to deepseek" }));
+    fireEvent.change(screen.getByLabelText("Access token"), {
+      target: { value: "dsk-live-test" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Authorize" }));
+    await advance(900);
+
+    const completion = screen.getByText(
+      "Authorized — credential written to the vault",
+    ).previousElementSibling as HTMLElement;
+    expectMotionSafeAnimation(completion);
+    for (const configured of screen.getAllByText("Configured", {
+      selector: "span",
+    })) {
+      expectMotionSafeAnimation(configured);
+    }
   });
 
   test("exposes pressed reveal and busy authorization semantics", () => {
@@ -396,6 +585,13 @@ describe("AuthorizationSurface", () => {
 });
 
 describe("SettingsEditor", () => {
+  test("gates the conflict entry animation behind motion-safe styles", () => {
+    setMotionPreference(true);
+    render(<SettingsEditor visualCase="conflict" />);
+
+    expectMotionSafeAnimation(screen.getByRole("alert"));
+  });
+
   test("keeps one live status node and marks save work busy", async () => {
     vi.useFakeTimers();
     render(<SettingsEditor />);

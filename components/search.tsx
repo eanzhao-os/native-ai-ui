@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -25,6 +25,7 @@ export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
   const zh = lang === "zh";
   const instanceId = useId();
   const listboxId = `${instanceId}-results`;
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -47,12 +48,18 @@ export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
     setQuery(label);
     setSelectedKey(item.en);
     setActiveIndex(0);
+    inputRef.current?.focus();
   };
 
   const clear = () => {
     setQuery("");
     setSelectedKey(null);
     setActiveIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  const preserveInputFocus = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
   };
 
   const handleChange = (value: string) => {
@@ -111,6 +118,7 @@ export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
             <path d="M21 21l-4.3-4.3" />
           </svg>
           <input
+            ref={inputRef}
             type="text"
             role="combobox"
             value={query}
@@ -128,9 +136,9 @@ export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
             <button
               aria-label={zh ? "清除搜索" : "Clear search"}
               type="button"
+              onPointerDown={preserveInputFocus}
               onClick={clear}
-              className="flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none"
-              style={{ animation: "fade-in 150ms ease-out both" }}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none motion-safe:animate-[fade-in_150ms_ease-out_both]"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 <path d="M18 6L6 18M6 6l12 12" />
@@ -141,7 +149,7 @@ export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
 
         {/* results / empty state */}
         {empty ? (
-          <div className="flex min-h-44 flex-col items-center justify-center gap-1 px-4 py-8 motion-reduce:animate-none" style={{ animation: "fade-in 250ms ease-out both" }}>
+          <div className="flex min-h-44 flex-col items-center justify-center gap-1 px-4 py-8 motion-safe:animate-[fade-in_250ms_ease-out_both]">
             <span className="mb-1.5 flex size-9 items-center justify-center rounded-control bg-inset text-ink-2 shadow-hairline">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <circle cx="11" cy="11" r="7" />
@@ -165,11 +173,11 @@ export default function SearchList({ lang: propLang }: { lang?: "en" | "zh" }) {
                   aria-selected={selected}
                   tabIndex={-1}
                   onMouseEnter={() => setActiveIndex(index)}
+                  onPointerDown={preserveInputFocus}
                   onClick={() => choose(item)}
-                  className={`flex min-h-11 w-full items-center rounded-[7px] px-2.5 text-left text-[13px] text-ink focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none ${
+                  className={`flex min-h-11 w-full items-center rounded-[7px] px-2.5 text-left text-[13px] text-ink focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none motion-safe:animate-[fade-in_200ms_ease-out_both] ${
                     selected ? "bg-accent-tint font-medium text-accent-ink" : active ? "bg-hover" : "hover:bg-hover"
                   }`}
-                  style={{ animation: "fade-in 200ms ease-out both" }}
                 >
                   <span className="min-w-0 flex-1 truncate">{labelOf(item)}</span>
                   {selected ? (

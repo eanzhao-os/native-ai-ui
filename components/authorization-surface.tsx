@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -44,6 +44,11 @@ export default function AuthorizationSurface({
   const providerSwitchedCase = visualCase === "provider-switched";
   const instanceId = useId();
   const promptId = `${instanceId}-prompt`;
+  const promptInputRef = useRef<HTMLInputElement>(null);
+  const providerControlRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const originatingProviderRef = useRef<string | null>(null);
+  const promptFocusRequestedRef = useRef(false);
+  const providerFocusRequestedRef = useRef<string | null>(null);
 
   const [configured, setConfigured] = useState<Record<string, boolean>>({ deepseek: false, openai: true, e2b: false });
   const [flowKey, setFlowKey] = useState<string | null>(providerSwitchedCase ? "e2b" : null);
@@ -54,7 +59,9 @@ export default function AuthorizationSurface({
 
   const fullSecret = "dsk-live-9824f1a8c901";
 
-  const beginFlow = (key: string) => {
+  const beginFlow = (key: string, moveFocus = false) => {
+    originatingProviderRef.current = moveFocus ? key : null;
+    promptFocusRequestedRef.current = moveFocus;
     setFlowKey(key);
     setPhase("prompt");
     setSecret("");
@@ -63,6 +70,8 @@ export default function AuthorizationSurface({
   };
 
   const withdrawFlow = () => {
+    providerFocusRequestedRef.current = originatingProviderRef.current;
+    originatingProviderRef.current = null;
     setFlowKey(null);
     setPhase("idle");
     setSecret("");
@@ -73,6 +82,20 @@ export default function AuthorizationSurface({
     setConfigured((current) => ({ ...current, [provider]: false }));
     setOutcome({ kind: "revoked", provider });
   };
+
+  useEffect(() => {
+    if (phase === "prompt" && promptFocusRequestedRef.current) {
+      promptFocusRequestedRef.current = false;
+      promptInputRef.current?.focus();
+    }
+
+    const provider = providerFocusRequestedRef.current;
+    const control = provider ? providerControlRefs.current[provider] : null;
+    if (provider && control) {
+      providerFocusRequestedRef.current = null;
+      control.focus();
+    }
+  }, [configured, flowKey, phase]);
 
   /* demo loop: begin the deepseek flow, type the secret, accept, settle, reset. */
   useEffect(() => {
@@ -90,7 +113,12 @@ export default function AuthorizationSurface({
     }
     if (phase === "settling") {
       const timer = setTimeout(() => {
-        setConfigured((current) => ({ ...current, [flowKey ?? "deepseek"]: true }));
+        const provider = flowKey ?? "deepseek";
+        if (originatingProviderRef.current === provider) {
+          providerFocusRequestedRef.current = provider;
+          originatingProviderRef.current = null;
+        }
+        setConfigured((current) => ({ ...current, [provider]: true }));
         setPhase("done");
       }, SETTLE_MS);
       return () => clearTimeout(timer);
@@ -192,7 +220,7 @@ export default function AuthorizationSurface({
                 <p className="mt-0.5 whitespace-normal break-words font-mono text-[10px] leading-relaxed text-ink-2">{entry.scope}</p>
               </div>
               {isConfigured ? (
-                <span className="flex min-h-7 items-center gap-1 rounded-chip bg-green-tint px-2 py-1 text-[10.5px] font-medium text-green motion-reduce:animate-none" style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}>
+                <span className="flex min-h-7 items-center gap-1 rounded-chip bg-green-tint px-2 py-1 text-[10.5px] font-medium text-green motion-safe:animate-[pop-in_250ms_cubic-bezier(0.23,1,0.32,1)_both]">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
@@ -205,9 +233,12 @@ export default function AuthorizationSurface({
                 </span>
               ) : (
                 <button
+                  ref={(control) => {
+                    providerControlRefs.current[entry.key] = control;
+                  }}
                   type="button"
                   aria-label={zh ? `登录 ${entry.key}` : `Sign in to ${entry.key}`}
-                  onClick={() => beginFlow(entry.key)}
+                  onClick={() => beginFlow(entry.key, true)}
                   className="min-h-11 rounded-control border border-line-strong bg-surface px-3 text-[11px] font-medium text-ink shadow-btn hover:bg-hover focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none cursor-pointer"
                 >
                   {zh ? "登录" : "Sign in"}
@@ -215,6 +246,9 @@ export default function AuthorizationSurface({
               )}
               {isConfigured && (
                 <button
+                  ref={(control) => {
+                    providerControlRefs.current[entry.key] = control;
+                  }}
                   type="button"
                   aria-label={zh ? `退出 ${entry.key}` : `Sign out of ${entry.key}`}
                   onClick={() => revokeProvider(entry.key)}
@@ -242,7 +276,7 @@ export default function AuthorizationSurface({
             <div id={promptId} aria-busy={busy} className="mt-3 rounded-control border border-line bg-inset/70 p-3">
               {phase === "done" ? (
                 <div className="flex items-center gap-2 py-1">
-                  <span className="flex size-6 items-center justify-center rounded-full bg-green text-white motion-reduce:animate-none" style={{ animation: "pop-in 300ms cubic-bezier(0.23,1,0.32,1) both" }}>
+                  <span className="flex size-6 items-center justify-center rounded-full bg-green text-white motion-safe:animate-[pop-in_300ms_cubic-bezier(0.23,1,0.32,1)_both]">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
@@ -263,6 +297,7 @@ export default function AuthorizationSurface({
                   </div>
                   <div className="mt-2 flex items-center gap-2 rounded-control border border-line bg-field px-2 focus-within:border-accent focus-within:bg-surface focus-within:ring-2 focus-within:ring-accent/20 transition-colors motion-reduce:transition-none">
                     <input
+                      ref={promptInputRef}
                       type={revealed ? "text" : "password"}
                       value={secret}
                       onChange={(event) => setSecret(event.target.value)}

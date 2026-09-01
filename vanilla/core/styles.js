@@ -3297,8 +3297,39 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   @media (prefers-reduced-motion: no-preference) {
+    .motion-safe\\:animate-\\[fade-in_150ms_ease-out_both\\] {
+      animation: fade-in 150ms ease-out both;
+    }
+    .motion-safe\\:animate-\\[fade-in_200ms_ease-out_both\\] {
+      animation: fade-in 200ms ease-out both;
+    }
+    .motion-safe\\:animate-\\[fade-in_250ms_ease-out_both\\] {
+      animation: fade-in 250ms ease-out both;
+    }
+    .motion-safe\\:animate-\\[fade-up_300ms_cubic-bezier\\(0\\.23\\,1\\,0\\.32\\,1\\)_both\\] {
+      animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;
+    }
+    .motion-safe\\:animate-\\[pop-in_250ms_cubic-bezier\\(0\\.23\\,1\\,0\\.32\\,1\\)_both\\] {
+      animation: pop-in 250ms cubic-bezier(0.23,1,0.32,1) both;
+    }
+    .motion-safe\\:animate-\\[pop-in_300ms_cubic-bezier\\(0\\.23\\,1\\,0\\.32\\,1\\)_both\\] {
+      animation: pop-in 300ms cubic-bezier(0.23,1,0.32,1) both;
+    }
     .motion-safe\\:animate-spin {
       animation: var(--animate-spin);
+    }
+    .motion-safe\\:transition-\\[top\\,height\\,opacity\\] {
+      transition-property: top,height,opacity;
+      transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+      transition-duration: var(--tw-duration, var(--default-transition-duration));
+    }
+    .motion-safe\\:duration-200 {
+      --tw-duration: 200ms;
+      transition-duration: 200ms;
+    }
+    .motion-safe\\:ease-\\[cubic-bezier\\(0\\.23\\,1\\,0\\.32\\,1\\)\\] {
+      --tw-ease: cubic-bezier(0.23,1,0.32,1);
+      transition-timing-function: cubic-bezier(0.23,1,0.32,1);
     }
   }
   @media (prefers-reduced-motion: reduce) {

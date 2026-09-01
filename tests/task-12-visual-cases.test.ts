@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import { buildCaseInventory } from "../scripts/visual-parity.mjs";
 import {
   classifyVisualOperation,
+  normalizeVisualCall,
   unwrapVisualExpression,
   type VisualOperationResolver,
 } from "./visual-action-operation-guard";
@@ -84,6 +85,25 @@ const INTERACTIVE_CASES = new Set([
   "fine-tune-card/focused",
 ]);
 
+const APPROVED_INTERACTION_METHODS = new Set([
+  "clearPermissions",
+  "click",
+  "emulateMedia",
+  "fill",
+  "focus",
+  "grantPermissions",
+  "press",
+]);
+
+const OBSERVATION_METHODS = new Set([
+  "boundingBox",
+  "count",
+  "getAttribute",
+  "inputValue",
+  "isChecked",
+  "textContent",
+]);
+
 type CallableNode =
   | ts.ArrowFunction
   | ts.FunctionDeclaration
@@ -98,6 +118,11 @@ type Registration = {
 type VisualViolation = {
   component: string;
   kind: string;
+};
+
+type ActionEvidence = {
+  approvedInteractions: number;
+  postconditions: number;
 };
 
 function propertyNameText(name: ts.PropertyName | undefined) {
@@ -156,14 +181,48 @@ const operationResolver: VisualOperationResolver = {
   staticText,
 };
 
-function analyzeTask12VisualSource(source: string) {
-  const sourceFile = ts.createSourceFile(
-    "task-12-cases.mjs",
+function parseTask12VisualProgram(source: string) {
+  const fileName = "/task-12-cases.mjs";
+  const parsed = ts.createSourceFile(
+    fileName,
     source,
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.JS,
   );
+  const options: ts.CompilerOptions = {
+    allowJs: true,
+    checkJs: true,
+    module: ts.ModuleKind.ESNext,
+    noLib: true,
+    noResolve: true,
+    target: ts.ScriptTarget.Latest,
+  };
+  const host: ts.CompilerHost = {
+    fileExists: (path) => path === fileName,
+    getCanonicalFileName: (path) => path,
+    getCurrentDirectory: () => "/",
+    getDefaultLibFileName: () => "lib.d.ts",
+    getDirectories: () => [],
+    getNewLine: () => "\n",
+    getSourceFile: (path) => (path === fileName ? parsed : undefined),
+    readFile: (path) => (path === fileName ? source : undefined),
+    useCaseSensitiveFileNames: () => true,
+    writeFile: () => {},
+  };
+  const program = ts.createProgram({
+    host,
+    options,
+    rootNames: [fileName],
+  });
+  return {
+    checker: program.getTypeChecker(),
+    sourceFile: program.getSourceFile(fileName) ?? parsed,
+  };
+}
+
+function analyzeTask12VisualSource(source: string) {
+  const { checker, sourceFile } = parseTask12VisualProgram(source);
   const callables = new Map<string, CallableNode>();
   const expressions = new Map<string, ts.Expression>();
   const arrayBindings = new Map<string, ts.ArrayLiteralExpression>();
@@ -355,9 +414,160 @@ function analyzeTask12VisualSource(source: string) {
     violations.push({ component, kind });
   };
 
+  const enclosingVerificationScope = (node: ts.Node): ts.Node => {
+    let current: ts.Node | undefined = node.parent;
+    while (current && current !== sourceFile) {
+      if (ts.isFunctionLike(current)) return current;
+      current = current.parent;
+    }
+    return sourceFile;
+  };
+
+  function variableParticipatesInVerification(
+    declaration: ts.VariableDeclaration,
+    seen: Set<ts.VariableDeclaration>,
+  ): boolean {
+    if (!ts.isIdentifier(declaration.name) || seen.has(declaration)) return false;
+    const declarationSymbol = checker.getSymbolAtLocation(declaration.name);
+    if (!declarationSymbol) return false;
+    const nextSeen = new Set(seen).add(declaration);
+    const scope = enclosingVerificationScope(declaration);
+    let verified = false;
+    const visit = (node: ts.Node) => {
+      if (verified) return;
+      if (node !== scope && ts.isFunctionLike(node)) return;
+      if (
+        ts.isIdentifier(node) &&
+        node !== declaration.name &&
+        checker.getSymbolAtLocation(node) === declarationSymbol &&
+        resultParticipatesInVerification(node, nextSeen)
+      ) {
+        verified = true;
+        return;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(scope);
+    return verified;
+  }
+
+  function resultParticipatesInVerification(
+    node: ts.Node,
+    seen = new Set<ts.VariableDeclaration>(),
+  ): boolean {
+    let current = node;
+    while (current.parent) {
+      const parent = current.parent;
+      if (
+        ts.isAwaitExpression(parent) ||
+        ts.isParenthesizedExpression(parent) ||
+        ts.isAsExpression(parent) ||
+        ts.isTypeAssertionExpression(parent) ||
+        ts.isNonNullExpression(parent) ||
+        ts.isSatisfiesExpression(parent)
+      ) {
+        current = parent;
+        continue;
+      }
+      if (
+        (ts.isPropertyAccessExpression(parent) ||
+          ts.isElementAccessExpression(parent)) &&
+        parent.expression === current
+      ) {
+        current = parent;
+        continue;
+      }
+      if (ts.isCallExpression(parent) && parent.expression === current) {
+        current = parent;
+        continue;
+      }
+      if (ts.isPrefixUnaryExpression(parent) && parent.operand === current) {
+        current = parent;
+        continue;
+      }
+      if (
+        ts.isBinaryExpression(parent) &&
+        (parent.left === current || parent.right === current)
+      ) {
+        if (
+          parent.operatorToken.kind === ts.SyntaxKind.CommaToken &&
+          parent.left === current
+        ) {
+          return false;
+        }
+        current = parent;
+        continue;
+      }
+      if (
+        (ts.isIfStatement(parent) ||
+          ts.isWhileStatement(parent) ||
+          ts.isDoStatement(parent)) &&
+        parent.expression === current
+      ) {
+        return true;
+      }
+      if (ts.isForStatement(parent) && parent.condition === current) return true;
+      if (
+        ts.isConditionalExpression(parent) &&
+        parent.condition === current
+      ) {
+        return true;
+      }
+      if (ts.isThrowStatement(parent) && parent.expression === current) return true;
+      if (
+        ts.isVariableDeclaration(parent) &&
+        parent.initializer === current
+      ) {
+        return variableParticipatesInVerification(parent, seen);
+      }
+      return false;
+    }
+    return false;
+  }
+
+  const isAwaitedOrReturned = (node: ts.CallExpression) => {
+    let current: ts.Node = node;
+    while (
+      current.parent &&
+      (ts.isParenthesizedExpression(current.parent) ||
+        ts.isAsExpression(current.parent) ||
+        ts.isTypeAssertionExpression(current.parent) ||
+        ts.isNonNullExpression(current.parent) ||
+        ts.isSatisfiesExpression(current.parent))
+    ) {
+      current = current.parent;
+    }
+    return ts.isAwaitExpression(current.parent) ||
+      ts.isReturnStatement(current.parent);
+  };
+
+  const collectActionEvidence = (
+    node: ts.CallExpression,
+    evidence: ActionEvidence,
+  ) => {
+    const normalized = normalizeVisualCall(node, operationResolver);
+    const path = expressionPath(normalized.expression);
+    const method = path.at(-1);
+    if (
+      method === "advance" ||
+      (method && APPROVED_INTERACTION_METHODS.has(method))
+    ) {
+      evidence.approvedInteractions += 1;
+    }
+    if (
+      (method === "waitFor" && isAwaitedOrReturned(node)) ||
+      (method !== undefined &&
+        OBSERVATION_METHODS.has(method) &&
+        resultParticipatesInVerification(node))
+    ) {
+      evidence.postconditions += 1;
+    }
+  };
+
   const inspectReachable = (
     component: string,
     node: ts.Node,
+    evidence: ActionEvidence,
     visited = new Set<ts.Node>(),
   ) => {
     if (visited.has(node)) return;
@@ -376,16 +586,17 @@ function analyzeTask12VisualSource(source: string) {
         recordViolation(component, "stabilization helper", node);
       }
       const target = callables.get(node.text);
-      if (target) inspectReachable(component, target, visited);
+      if (target) inspectReachable(component, target, evidence, visited);
     }
 
     if (ts.isCallExpression(node)) {
+      collectActionEvidence(node, evidence);
       const target = resolveCallable(node.expression);
-      if (target) inspectReachable(component, target, visited);
+      if (target) inspectReachable(component, target, evidence, visited);
     }
 
     ts.forEachChild(node, (child) =>
-      inspectReachable(component, child, visited),
+      inspectReachable(component, child, evidence, visited),
     );
   };
 
@@ -436,6 +647,34 @@ function analyzeTask12VisualSource(source: string) {
     return action;
   };
 
+  const resolveCaseName = (
+    visualCase: ts.ObjectLiteralExpression,
+    activeObjects = new Set<ts.ObjectLiteralExpression>(),
+  ): string | null => {
+    if (activeObjects.has(visualCase)) return null;
+    activeObjects.add(visualCase);
+    let name: string | null = null;
+    for (const property of visualCase.properties) {
+      if (ts.isSpreadAssignment(property)) {
+        const spread = resolveObjectLiteral(property.expression, new Set());
+        if (spread) {
+          const spreadName = resolveCaseName(spread, activeObjects);
+          if (spreadName) name = spreadName;
+        }
+        continue;
+      }
+      if (
+        propertyNameText(property.name) === "name" &&
+        ts.isPropertyAssignment(property)
+      ) {
+        const value = resolveExpression(property.initializer);
+        if (value && ts.isStringLiteralLike(value)) name = value.text;
+      }
+    }
+    activeObjects.delete(visualCase);
+    return name;
+  };
+
   for (const registration of registrations) {
     for (const visualCase of registration.cases.elements) {
       if (ts.isSpreadElement(visualCase) || ts.isOmittedExpression(visualCase)) {
@@ -455,8 +694,45 @@ function analyzeTask12VisualSource(source: string) {
         );
         continue;
       }
+      const caseName = resolveCaseName(object);
       const action = resolveCaseAction(registration.component, object);
-      if (action) inspectReachable(registration.component, action);
+      const evidence: ActionEvidence = {
+        approvedInteractions: 0,
+        postconditions: 0,
+      };
+      if (action) {
+        const target = ts.isExpression(action)
+          ? resolveCallable(action)
+          : ts.isFunctionDeclaration(action) || ts.isMethodDeclaration(action)
+            ? action
+            : undefined;
+        if (target) {
+          inspectReachable(registration.component, target, evidence);
+        } else {
+          recordViolation(
+            registration.component,
+            "unsupported action syntax",
+            action,
+          );
+        }
+      }
+
+      if (caseName && INTERACTIVE_CASES.has(`${registration.component}/${caseName}`)) {
+        if (evidence.approvedInteractions === 0) {
+          recordViolation(
+            registration.component,
+            "missing approved interaction",
+            action ?? object,
+          );
+        }
+        if (evidence.postconditions === 0) {
+          recordViolation(
+            registration.component,
+            "missing postcondition",
+            action ?? object,
+          );
+        }
+      }
     }
   }
 
@@ -522,7 +798,28 @@ describe("Task 12 React visual cases", () => {
     );
   });
 
-  test("accepts actions that drive live controls without rewriting capture DOM", () => {
+  test("follows action aliases and member expressions to reachable fabrication", () => {
+    const fixture = analyzeTask12VisualSource(`
+      async function fabricate({ canvas }) {
+        await canvas.evaluate((root) => { root.innerHTML = "fabricated"; });
+      }
+      const actions = { fabricated: fabricate };
+      const memberExpression = actions.fabricated;
+      const actionAlias = memberExpression;
+      const CASES = new Map([
+        ["search", [{ name: "results", action: actionAlias }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "search", kind: "DOM evaluation" },
+        { component: "search", kind: "DOM rewrite" },
+      ]),
+    );
+  });
+
+  test("accepts actions that drive live controls and verify a postcondition", () => {
     const fixture = analyzeTask12VisualSource(`
       async function action({ canvas, page }) {
         const control = canvas.getByRole("combobox", { name: "Search flavors" });
@@ -539,6 +836,53 @@ describe("Task 12 React visual cases", () => {
 
     expect(fixture.duplicateComponents).toEqual([]);
     expect(fixture.violations).toEqual([]);
+  });
+
+  test("rejects an interactive state backed by an empty action", () => {
+    const fixture = analyzeTask12VisualSource(`
+      const CASES = new Map([
+        ["search", [{ name: "results", action: async () => {} }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "search", kind: "missing approved interaction" },
+        { component: "search", kind: "missing postcondition" },
+      ]),
+    );
+  });
+
+  test("rejects a read-only action with no approved interaction", () => {
+    const fixture = analyzeTask12VisualSource(`
+      async function action({ canvas }) {
+        await canvas.getByText("Compare seasonal flavors").waitFor();
+      }
+      const CASES = new Map([
+        ["search", [{ name: "results", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "search",
+      kind: "missing approved interaction",
+    });
+  });
+
+  test("rejects an interaction that never verifies its postcondition", () => {
+    const fixture = analyzeTask12VisualSource(`
+      async function action({ canvas }) {
+        await canvas.getByRole("combobox", { name: "Search flavors" }).fill("seasonal");
+      }
+      const CASES = new Map([
+        ["search", [{ name: "results", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "search",
+      kind: "missing postcondition",
+    });
   });
 
   test("keeps one honest reachable registration for every Task 12 component", () => {

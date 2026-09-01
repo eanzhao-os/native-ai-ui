@@ -229,13 +229,11 @@ export default function SidebarNav({ lang: propLang }: { lang?: "en" | "zh" }) {
       >
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 rounded-[7px] bg-hover motion-reduce:transition-none"
+          className="pointer-events-none absolute inset-x-0 rounded-[7px] bg-hover motion-safe:transition-[top,height,opacity] motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
           style={{
             top: box?.top ?? 0,
             height: box?.height ?? 0,
             opacity: box ? 1 : 0,
-            transition:
-              "top 220ms cubic-bezier(0.23,1,0.32,1), height 220ms cubic-bezier(0.23,1,0.32,1), opacity 150ms ease",
           }}
         />
         {visibleItems.length === 0 ? (
@@ -279,10 +277,9 @@ export default function SidebarNav({ lang: propLang }: { lang?: "en" | "zh" }) {
                         {item.count && (
                           <span
                             key={badge}
-                            className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums motion-reduce:animate-none ${
+                            className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums motion-safe:animate-[pop-in_250ms_cubic-bezier(0.23,1,0.32,1)_both] ${
                               isActive ? "bg-surface text-ink-2 shadow-hairline" : "bg-accent-tint text-accent-ink"
                             }`}
-                            style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}
                           >
                             {badge}
                           </span>
