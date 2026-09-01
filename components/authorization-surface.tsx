@@ -45,6 +45,7 @@ export default function AuthorizationSurface({
   const instanceId = useId();
   const promptId = `${instanceId}-prompt`;
   const promptInputRef = useRef<HTMLInputElement>(null);
+  const promptSurfaceRef = useRef<HTMLDivElement>(null);
   const providerControlRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const originatingProviderRef = useRef<string | null>(null);
   const promptFocusRequestedRef = useRef(false);
@@ -72,9 +73,20 @@ export default function AuthorizationSurface({
     setOutcome(null);
   };
 
-  const withdrawFlow = () => {
-    providerFocusRequestedRef.current = originatingProviderRef.current;
+  const restoreOriginatingProviderFocus = () => {
+    const provider = originatingProviderRef.current;
+    if (!provider) return;
+    const activeElement = document.activeElement;
+    const focusStillOwned =
+      activeElement === null ||
+      activeElement === document.body ||
+      (promptSurfaceRef.current?.contains(activeElement) ?? false);
     originatingProviderRef.current = null;
+    if (focusStillOwned) providerFocusRequestedRef.current = provider;
+  };
+
+  const withdrawFlow = () => {
+    restoreOriginatingProviderFocus();
     setFlowKey(null);
     setPhase("idle");
     setSecret("");
@@ -117,10 +129,7 @@ export default function AuthorizationSurface({
     if (phase === "settling") {
       const timer = setTimeout(() => {
         const provider = flowKey ?? "deepseek";
-        if (originatingProviderRef.current) {
-          providerFocusRequestedRef.current = originatingProviderRef.current;
-          originatingProviderRef.current = null;
-        }
+        restoreOriginatingProviderFocus();
         setConfigured((current) => ({ ...current, [provider]: true }));
         setPhase("done");
       }, SETTLE_MS);
@@ -276,7 +285,7 @@ export default function AuthorizationSurface({
       >
         <div className="overflow-hidden">
           {flowOpen ? (
-            <div id={promptId} aria-busy={busy} className="mt-3 rounded-control border border-line bg-inset/70 p-3">
+            <div ref={promptSurfaceRef} id={promptId} aria-busy={busy} className="mt-3 rounded-control border border-line bg-inset/70 p-3">
               {phase === "done" ? (
                 <div className="flex items-center gap-2 py-1">
                   <span className="flex size-6 items-center justify-center rounded-full bg-green text-white motion-safe:animate-[pop-in_300ms_cubic-bezier(0.23,1,0.32,1)_both]">

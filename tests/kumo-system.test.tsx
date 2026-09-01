@@ -592,6 +592,37 @@ describe("AuthorizationSurface", () => {
     expect(document.activeElement).toBe(outside);
   });
 
+  test("does not restore provider focus after the automatic prompt loses focus externally", async () => {
+    vi.useFakeTimers();
+    render(
+      <>
+        <button type="button">Outside control</button>
+        <AuthorizationSurface />
+      </>,
+    );
+
+    const provider = screen.getByRole("button", {
+      name: "Sign in to deepseek",
+    });
+    provider.focus();
+    await advance(1_400);
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Access token"));
+    const outside = screen.getByRole("button", { name: "Outside control" });
+    outside.focus();
+
+    for (let index = 0; index < 21; index += 1) {
+      await advance(110);
+    }
+    await advance(500);
+    await advance(900);
+
+    expect(
+      screen.getByText("Authorized — credential written to the vault"),
+    ).not.toBeNull();
+    expect(document.activeElement).toBe(outside);
+  });
+
   test("gates configured and completion entry animations behind motion-safe styles", async () => {
     vi.useFakeTimers();
     setMotionPreference(true);

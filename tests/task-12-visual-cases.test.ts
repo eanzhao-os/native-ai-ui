@@ -852,6 +852,78 @@ function analyzeTask12VisualSource(source: string) {
     );
   }
 
+  const invalidateAssignmentTarget = (
+    target: ts.Node,
+    environment: ActionEnvironment,
+  ) => {
+    const current = ts.isExpression(target)
+      ? unwrapVisualExpression(target)
+      : target;
+    if (ts.isIdentifier(current)) {
+      const symbol = checker.getSymbolAtLocation(current);
+      if (symbol) environment.set(symbol, UNKNOWN_PROVENANCE);
+      return;
+    }
+    if (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      const receiver = expressionProvenance(current.expression, environment);
+      if (receiver.kind !== "object") return;
+      const property = memberName(current);
+      if (property) {
+        receiver.properties.set(property, UNKNOWN_PROVENANCE);
+      } else {
+        for (const name of receiver.properties.keys()) {
+          receiver.properties.set(name, UNKNOWN_PROVENANCE);
+        }
+      }
+      return;
+    }
+    if (ts.isObjectLiteralExpression(current)) {
+      for (const property of current.properties) {
+        if (ts.isShorthandPropertyAssignment(property)) {
+          const symbol = checker.getShorthandAssignmentValueSymbol(property);
+          if (symbol) environment.set(symbol, UNKNOWN_PROVENANCE);
+        } else if (ts.isPropertyAssignment(property)) {
+          invalidateAssignmentTarget(property.initializer, environment);
+        } else if (ts.isSpreadAssignment(property)) {
+          invalidateAssignmentTarget(property.expression, environment);
+        }
+      }
+      return;
+    }
+    if (ts.isArrayLiteralExpression(current)) {
+      for (const element of current.elements) {
+        if (ts.isOmittedExpression(element)) continue;
+        invalidateAssignmentTarget(
+          ts.isSpreadElement(element) ? element.expression : element,
+          environment,
+        );
+      }
+      return;
+    }
+    if (ts.isObjectBindingPattern(current)) {
+      for (const element of current.elements) {
+        invalidateAssignmentTarget(element.name, environment);
+      }
+      return;
+    }
+    if (ts.isArrayBindingPattern(current)) {
+      for (const element of current.elements) {
+        if (ts.isOmittedExpression(element)) continue;
+        invalidateAssignmentTarget(element.name, environment);
+      }
+      return;
+    }
+    if (
+      ts.isBinaryExpression(current) &&
+      current.operatorToken.kind === ts.SyntaxKind.EqualsToken
+    ) {
+      invalidateAssignmentTarget(current.left, environment);
+    }
+  };
+
   function inspectActionEvidence(
     component: string,
     node: ts.Node,
@@ -883,8 +955,8 @@ function analyzeTask12VisualSource(source: string) {
 
     if (
       ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isIdentifier(node.left)
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
     ) {
       inspectActionEvidence(
         component,
@@ -893,11 +965,18 @@ function analyzeTask12VisualSource(source: string) {
         environment,
         callStack,
       );
-      bindActionProvenance(
-        node.left,
-        expressionProvenance(node.right, environment),
-        environment,
-      );
+      if (
+        node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isIdentifier(node.left)
+      ) {
+        bindActionProvenance(
+          node.left,
+          expressionProvenance(node.right, environment),
+          environment,
+        );
+      } else {
+        invalidateAssignmentTarget(node.left, environment);
+      }
       return;
     }
 
@@ -1275,6 +1354,85 @@ describe("Task 12 React visual cases", () => {
         const receiver = fake;
         await receiver.click();
         await receiver.waitFor();
+      }
+      const CASES = new Map([
+        ["search", [{ name: "results", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        { component: "search", kind: "unapproved interaction receiver" },
+        { component: "search", kind: "unapproved postcondition receiver" },
+        { component: "search", kind: "missing approved interaction" },
+        { component: "search", kind: "missing postcondition" },
+      ]),
+    );
+  });
+
+  test.each([
+    [
+      "member replacement",
+      `
+        const holder = {
+          control: canvas.getByRole("button", { name: "Search" }),
+        };
+        holder.control = fake;
+        await holder.control.click();
+        await holder.control.waitFor();
+      `,
+    ],
+    [
+      "nested member replacement",
+      `
+        const holder = {
+          nested: {
+            control: canvas.getByRole("button", { name: "Search" }),
+          },
+        };
+        holder.nested.control = fake;
+        await holder.nested.control.click();
+        await holder.nested.control.waitFor();
+      `,
+    ],
+    [
+      "object destructuring reassignment",
+      `
+        let control = canvas.getByRole("button", { name: "Search" });
+        ({ control } = { control: fake });
+        await control.click();
+        await control.waitFor();
+      `,
+    ],
+    [
+      "array destructuring reassignment",
+      `
+        let control = canvas.getByRole("button", { name: "Search" });
+        [control] = [fake];
+        await control.click();
+        await control.waitFor();
+      `,
+    ],
+    [
+      "member replacement through an object alias",
+      `
+        const holder = {
+          control: canvas.getByRole("button", { name: "Search" }),
+        };
+        const alias = holder;
+        alias.control = fake;
+        await holder.control.click();
+        await holder.control.waitFor();
+      `,
+    ],
+  ])("invalidates trusted receiver provenance after %s", (_name, body) => {
+    const fixture = analyzeTask12VisualSource(`
+      const fake = {
+        async click() {},
+        async waitFor() {},
+      };
+      async function action({ canvas }) {
+        ${body}
       }
       const CASES = new Map([
         ["search", [{ name: "results", action }]],
