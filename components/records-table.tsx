@@ -41,53 +41,38 @@ type Row = {
   tags: string[];
   lastEn: string;
   lastZh: string;
+  lastAgeDays: number;
   strength: Strength;
   website?: string;
 };
 
-const INTERACTION_AGE_DAYS: Record<string, number> = {
-  "9 days ago": 9,
-  "15 days ago": 15,
-  "about 1 month ago": 30,
-  "2 months ago": 60,
-  "3 months ago": 90,
-  "5 months ago": 150,
-  "8 months ago": 240,
-  "12 months ago": 365,
-  "over 1 year ago": 420,
-  "almost 2 years ago": 680,
-  "about 2 years ago": 730,
-  "over 2 years ago": 800,
-  "No contact": Number.POSITIVE_INFINITY,
-};
-
 const INITIAL_ROWS: Row[] = [
-  { id: "aurora", name: "Aurora Scoops — Reykjavík", tags: ["Gelato", "Seasonal"], lastEn: "9 days ago", lastZh: "9 天前", strength: "strong", website: "aurora-scoops.example.com" },
-  { id: "kumo", name: "Kumo Creamery — Tokyo", tags: ["B2C", "Cafe", "Vegan"], lastEn: "3 weeks ago", lastZh: "3 周前", strength: "strong", website: "kumo-creamery.example.com" },
-  { id: "sol-nieve", name: "Sol y Nieve — Buenos Aires", tags: ["Gelato", "Local"], lastEn: "2 months ago", lastZh: "2 个月前", strength: "weak", website: "sol-y-nieve.example.com" },
-  { id: "maple-orbit", name: "Maple Orbit — Montréal", tags: ["B2B", "Wholesale", "Seasonal"], lastEn: "15 days ago", lastZh: "15 天前", strength: "weak", website: "maple-orbit.example.com" },
-  { id: "blue-fig", name: "Blue Fig Gelato — Florence", tags: ["Gelato", "Cafe"], lastEn: "over 1 year ago", lastZh: "1 年多前", strength: "veryweak", website: "blue-fig.example.com" },
-  { id: "sahara-swirl", name: "Sahara Swirl — Marrakech", tags: ["Sorbet", "Local"], lastEn: "5 months ago", lastZh: "5 个月前", strength: "veryweak" },
-  { id: "cloudberry", name: "Cloudberry Cone — Helsinki", tags: ["Dairy-free", "Seasonal"], lastEn: "No contact", lastZh: "未联系", strength: "none", website: "cloudberry-cone.example.com" },
-  { id: "palm-sugar", name: "Palm Sugar Creamery — Bangkok", tags: ["B2C", "Vegan"], lastEn: "3 months ago", lastZh: "3 个月前", strength: "veryweak", website: "palm-sugar.example.com" },
-  { id: "cape-vanilla", name: "Cape Vanilla Co. — Cape Town", tags: ["Wholesale", "Imports"], lastEn: "over 1 year ago", lastZh: "1 年多前", strength: "veryweak", website: "cape-vanilla.example.com" },
-  { id: "andes-snow", name: "Andes Snow Creamery — Quito", tags: ["Gelato", "Catering"], lastEn: "almost 2 years ago", lastZh: "近 2 年前", strength: "veryweak" },
-  { id: "tasman-sea", name: "Tasman Sea Gelato — Hobart", tags: ["Gelato", "Local"], lastEn: "2 months ago", lastZh: "2 个月前", strength: "weak", website: "tasman-sea.example.com" },
-  { id: "silk-road", name: "Silk Road Sorbet — Tbilisi", tags: ["Sorbet", "Imports"], lastEn: "about 1 month ago", lastZh: "约 1 个月前", strength: "weak", website: "silk-road.example.com" },
-  { id: "rosewater", name: "Rosewater Kulfi — Jaipur", tags: ["B2C", "Seasonal"], lastEn: "2 months ago", lastZh: "2 个月前", strength: "veryweak" },
-  { id: "lumen", name: "Lumen Soft Serve — Copenhagen", tags: ["Dairy-free", "Cafe"], lastEn: "8 months ago", lastZh: "8 个月前", strength: "weak", website: "lumen-soft-serve.example.com" },
-  { id: "cacao-norte", name: "Cacao Norte — Oaxaca", tags: ["B2B", "Local", "Wholesale"], lastEn: "about 2 years ago", lastZh: "约 2 年前", strength: "none", website: "cacao-norte.example.com" },
-  { id: "pine-pistachio", name: "Pine & Pistachio — Istanbul", tags: ["Gelato", "Catering"], lastEn: "about 1 month ago", lastZh: "约 1 个月前", strength: "veryweak" },
-  { id: "ember-cone", name: "Ember Cone Company — Seoul", tags: ["B2C", "Vegan"], lastEn: "15 days ago", lastZh: "15 天前", strength: "weak", website: "ember-cone.example.com" },
-  { id: "coral-coast", name: "Coral Coast Sorbet — Honolulu", tags: ["Sorbet", "Local"], lastEn: "9 days ago", lastZh: "9 天前", strength: "strong", website: "coral-coast.example.com" },
-  { id: "sunbird", name: "Sunbird Gelateria — Lisbon", tags: ["Gelato", "Cafe"], lastEn: "over 2 years ago", lastZh: "2 年多前", strength: "none", website: "sunbird.example.com" },
-  { id: "mooncake", name: "Mooncake Ice Cream — Singapore", tags: ["B2B", "Wholesale"], lastEn: "about 1 month ago", lastZh: "约 1 个月前", strength: "veryweak", website: "mooncake-ice-cream.example.com" },
-  { id: "juniper", name: "Juniper & Cream — Vancouver", tags: ["Dairy-free", "Catering"], lastEn: "No contact", lastZh: "未联系", strength: "none" },
-  { id: "mango-moon", name: "Mango Moon Gelato — Nairobi", tags: ["Sorbet", "Vegan"], lastEn: "almost 2 years ago", lastZh: "近 2 年前", strength: "veryweak", website: "mango-moon.example.com" },
-  { id: "fjord-fizz", name: "Fjord Fizz Ice — Oslo", tags: ["Dairy-free", "Seasonal"], lastEn: "No contact", lastZh: "未联系", strength: "none" },
-  { id: "pampa", name: "Pampa Creamery — Córdoba", tags: ["B2C", "Local"], lastEn: "12 months ago", lastZh: "12 个月前", strength: "veryweak", website: "pampa-creamery.example.com" },
-  { id: "lotus-leaf", name: "Lotus Leaf Scoops — Hanoi", tags: ["Vegan", "Cafe"], lastEn: "15 days ago", lastZh: "15 天前", strength: "weak" },
-  { id: "saffron-sky", name: "Saffron Sky Kulfi — Dubai", tags: ["Imports", "Catering"], lastEn: "almost 2 years ago", lastZh: "近 2 年前", strength: "veryweak", website: "saffron-sky.example.com" },
+  { id: "aurora", name: "Aurora Scoops — Reykjavík", tags: ["Gelato", "Seasonal"], lastEn: "9 days ago", lastZh: "9 天前", lastAgeDays: 9, strength: "strong", website: "aurora-scoops.example.com" },
+  { id: "kumo", name: "Kumo Creamery — Tokyo", tags: ["B2C", "Cafe", "Vegan"], lastEn: "3 weeks ago", lastZh: "3 周前", lastAgeDays: 21, strength: "strong", website: "kumo-creamery.example.com" },
+  { id: "sol-nieve", name: "Sol y Nieve — Buenos Aires", tags: ["Gelato", "Local"], lastEn: "2 months ago", lastZh: "2 个月前", lastAgeDays: 60, strength: "weak", website: "sol-y-nieve.example.com" },
+  { id: "maple-orbit", name: "Maple Orbit — Montréal", tags: ["B2B", "Wholesale", "Seasonal"], lastEn: "15 days ago", lastZh: "15 天前", lastAgeDays: 15, strength: "weak", website: "maple-orbit.example.com" },
+  { id: "blue-fig", name: "Blue Fig Gelato — Florence", tags: ["Gelato", "Cafe"], lastEn: "over 1 year ago", lastZh: "1 年多前", lastAgeDays: 420, strength: "veryweak", website: "blue-fig.example.com" },
+  { id: "sahara-swirl", name: "Sahara Swirl — Marrakech", tags: ["Sorbet", "Local"], lastEn: "5 months ago", lastZh: "5 个月前", lastAgeDays: 150, strength: "veryweak" },
+  { id: "cloudberry", name: "Cloudberry Cone — Helsinki", tags: ["Dairy-free", "Seasonal"], lastEn: "No contact", lastZh: "未联系", lastAgeDays: Number.POSITIVE_INFINITY, strength: "none", website: "cloudberry-cone.example.com" },
+  { id: "palm-sugar", name: "Palm Sugar Creamery — Bangkok", tags: ["B2C", "Vegan"], lastEn: "3 months ago", lastZh: "3 个月前", lastAgeDays: 90, strength: "veryweak", website: "palm-sugar.example.com" },
+  { id: "cape-vanilla", name: "Cape Vanilla Co. — Cape Town", tags: ["Wholesale", "Imports"], lastEn: "over 1 year ago", lastZh: "1 年多前", lastAgeDays: 420, strength: "veryweak", website: "cape-vanilla.example.com" },
+  { id: "andes-snow", name: "Andes Snow Creamery — Quito", tags: ["Gelato", "Catering"], lastEn: "almost 2 years ago", lastZh: "近 2 年前", lastAgeDays: 680, strength: "veryweak" },
+  { id: "tasman-sea", name: "Tasman Sea Gelato — Hobart", tags: ["Gelato", "Local"], lastEn: "2 months ago", lastZh: "2 个月前", lastAgeDays: 60, strength: "weak", website: "tasman-sea.example.com" },
+  { id: "silk-road", name: "Silk Road Sorbet — Tbilisi", tags: ["Sorbet", "Imports"], lastEn: "about 1 month ago", lastZh: "约 1 个月前", lastAgeDays: 30, strength: "weak", website: "silk-road.example.com" },
+  { id: "rosewater", name: "Rosewater Kulfi — Jaipur", tags: ["B2C", "Seasonal"], lastEn: "2 months ago", lastZh: "2 个月前", lastAgeDays: 60, strength: "veryweak" },
+  { id: "lumen", name: "Lumen Soft Serve — Copenhagen", tags: ["Dairy-free", "Cafe"], lastEn: "8 months ago", lastZh: "8 个月前", lastAgeDays: 240, strength: "weak", website: "lumen-soft-serve.example.com" },
+  { id: "cacao-norte", name: "Cacao Norte — Oaxaca", tags: ["B2B", "Local", "Wholesale"], lastEn: "about 2 years ago", lastZh: "约 2 年前", lastAgeDays: 730, strength: "none", website: "cacao-norte.example.com" },
+  { id: "pine-pistachio", name: "Pine & Pistachio — Istanbul", tags: ["Gelato", "Catering"], lastEn: "about 1 month ago", lastZh: "约 1 个月前", lastAgeDays: 30, strength: "veryweak" },
+  { id: "ember-cone", name: "Ember Cone Company — Seoul", tags: ["B2C", "Vegan"], lastEn: "15 days ago", lastZh: "15 天前", lastAgeDays: 15, strength: "weak", website: "ember-cone.example.com" },
+  { id: "coral-coast", name: "Coral Coast Sorbet — Honolulu", tags: ["Sorbet", "Local"], lastEn: "9 days ago", lastZh: "9 天前", lastAgeDays: 9, strength: "strong", website: "coral-coast.example.com" },
+  { id: "sunbird", name: "Sunbird Gelateria — Lisbon", tags: ["Gelato", "Cafe"], lastEn: "over 2 years ago", lastZh: "2 年多前", lastAgeDays: 800, strength: "none", website: "sunbird.example.com" },
+  { id: "mooncake", name: "Mooncake Ice Cream — Singapore", tags: ["B2B", "Wholesale"], lastEn: "about 1 month ago", lastZh: "约 1 个月前", lastAgeDays: 30, strength: "veryweak", website: "mooncake-ice-cream.example.com" },
+  { id: "juniper", name: "Juniper & Cream — Vancouver", tags: ["Dairy-free", "Catering"], lastEn: "No contact", lastZh: "未联系", lastAgeDays: Number.POSITIVE_INFINITY, strength: "none" },
+  { id: "mango-moon", name: "Mango Moon Gelato — Nairobi", tags: ["Sorbet", "Vegan"], lastEn: "almost 2 years ago", lastZh: "近 2 年前", lastAgeDays: 680, strength: "veryweak", website: "mango-moon.example.com" },
+  { id: "fjord-fizz", name: "Fjord Fizz Ice — Oslo", tags: ["Dairy-free", "Seasonal"], lastEn: "No contact", lastZh: "未联系", lastAgeDays: Number.POSITIVE_INFINITY, strength: "none" },
+  { id: "pampa", name: "Pampa Creamery — Córdoba", tags: ["B2C", "Local"], lastEn: "12 months ago", lastZh: "12 个月前", lastAgeDays: 365, strength: "veryweak", website: "pampa-creamery.example.com" },
+  { id: "lotus-leaf", name: "Lotus Leaf Scoops — Hanoi", tags: ["Vegan", "Cafe"], lastEn: "15 days ago", lastZh: "15 天前", lastAgeDays: 15, strength: "weak" },
+  { id: "saffron-sky", name: "Saffron Sky Kulfi — Dubai", tags: ["Imports", "Catering"], lastEn: "almost 2 years ago", lastZh: "近 2 年前", lastAgeDays: 680, strength: "veryweak", website: "saffron-sky.example.com" },
 ];
 
 function Icon({ children, size = 14, strokeWidth = 1.8 }: { children: React.ReactNode; size?: number; strokeWidth?: number }) {
@@ -163,7 +148,7 @@ export default function RecordsTable({ lang: propLang }: { lang?: "en" | "zh" })
       const value = sort.key === "name"
         ? a.name.localeCompare(b.name)
         : sort.key === "last"
-          ? INTERACTION_AGE_DAYS[a.lastEn] - INTERACTION_AGE_DAYS[b.lastEn]
+          ? a.lastAgeDays - b.lastAgeDays
           : STRENGTH[a.strength].rank - STRENGTH[b.strength].rank;
       return value * sort.dir;
     });

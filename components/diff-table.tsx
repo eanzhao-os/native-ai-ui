@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -25,17 +25,43 @@ type DiffRow = {
 const STAGE_STEPS = [800, 1_000, 1_000];
 const CHANGE_IDS = ["rocky-road", "bubblegum", "pistachio"];
 
-function useStage(steps: number[]) {
-  const [stage, setStage] = useState(0);
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false,
+  );
+
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+
+  return reduced;
+}
+
+function useStage(steps: number[], reducedMotion: boolean) {
+  const stableStage = steps.length;
+  const [stage, setStage] = useState(() => reducedMotion ? stableStage : 0);
+  useEffect(() => {
+    if (reducedMotion) {
+      setStage(stableStage);
+      return;
+    }
+
+    setStage(0);
     let elapsed = 0;
     const timers = steps.map((delay, index) => {
       elapsed += delay;
       return window.setTimeout(() => setStage(index + 1), elapsed);
     });
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [steps]);
-  return stage;
+  }, [reducedMotion, stableStage, steps]);
+  return reducedMotion ? stableStage : stage;
 }
 
 const HEADERS = [
@@ -81,9 +107,16 @@ function ChangeCheckbox({
   mixed?: boolean;
   onChange: () => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = mixed;
+  }, [mixed]);
+
   return (
     <label className="inline-flex size-9 cursor-pointer items-center justify-center rounded-control focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-accent">
       <input
+        ref={inputRef}
         type="checkbox"
         checked={checked}
         aria-checked={mixed ? "mixed" : checked}
@@ -92,7 +125,14 @@ function ChangeCheckbox({
         onChange={onChange}
         className="peer sr-only"
       />
-      <span className="flex size-4.5 items-center justify-center rounded-[5px] border border-line-strong bg-surface text-transparent transition-[background-color,border-color,color] motion-reduce:transition-none peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+      <span
+        data-state={mixed ? "mixed" : checked ? "checked" : "unchecked"}
+        className={`flex size-4.5 items-center justify-center rounded-[5px] border transition-[background-color,border-color,color] motion-reduce:transition-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 ${
+          mixed
+            ? "border-accent bg-accent text-white"
+            : "border-line-strong bg-surface text-transparent peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white"
+        }`}
+      >
         {mixed ? (
           <span className="h-0.5 w-2 rounded-full bg-current" />
         ) : (
@@ -108,7 +148,8 @@ function ChangeCheckbox({
 export default function DiffTable({ lang: propLang }: { lang?: "en" | "zh" }) {
   const lang = useLang("diff-table", propLang);
   const zh = lang === "zh";
-  const stage = useStage(STAGE_STEPS);
+  const reducedMotion = usePrefersReducedMotion();
+  const stage = useStage(STAGE_STEPS, reducedMotion);
   const removalsVisible = stage >= 2;
   const completed = stage >= 3;
 

@@ -65,6 +65,28 @@ export function extractComponentExtras(css) {
   return match[0].trim();
 }
 
+export function extractReducedMotionOverrides(css) {
+  const stylesheet = postcss.parse(css);
+  const matches = [];
+  stylesheet.walkAtRules("media", (rule) => {
+    if (rule.params.trim() !== "(prefers-reduced-motion: reduce)") return;
+    const shadowRule = rule.clone();
+    shadowRule.walkRules((child) => {
+      child.selectors = child.selectors.filter(
+        (selector) => selector.trim() !== "html:focus-within",
+      );
+      if (child.selectors.length === 0) child.remove();
+    });
+    matches.push(shadowRule.toString());
+  });
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected one prefers-reduced-motion block in globals.css, found ${matches.length}`,
+    );
+  }
+  return matches[0];
+}
+
 function removeSelfReferentialShadowTokens(css) {
   const stylesheet = postcss.parse(css);
   stylesheet.walkDecls(/^--shadow-/, (declaration) => {
@@ -158,19 +180,10 @@ ${insightMatch[0].replace(/^\/\* ── Insight cards chart ─+\s*\n/, "").trim
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-/* ── Reduced motion: freeze decorative loops (mirrors globals.css) ────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: .01ms !important;
-  }
-  .pixel-grid > span { animation: none !important; }
-}
 `;
 
-  const completeCss = `${utilityCss}\n${extractSharedKeyframes(globalsCss)}${componentExtras}\n${extractComponentExtras(globalsCss)}\n${sharedBlocks}`;
+  const reducedMotionCss = extractReducedMotionOverrides(globalsCss);
+  const completeCss = `${utilityCss}\n${extractSharedKeyframes(globalsCss)}\n${reducedMotionCss}${componentExtras}\n${extractComponentExtras(globalsCss)}\n${sharedBlocks}`;
   const escapeForTemplate = (value) => value
     .replace(/\\/g, "\\\\")
     .replace(/`/g, "\\`")

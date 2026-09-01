@@ -151,6 +151,16 @@ describe("Vanilla Shadow CSS generation", () => {
     }
   }, 30_000);
 
+  test("derives the Shimmer reduced-motion override into generated styles", async () => {
+    const moduleSource = await buildStyleModule();
+    const generatorSource = readFileSync(styleScript, "utf8");
+
+    expect(moduleSource).toContain(
+      ".shimmer-label{animation:none !important;background-image:none !important;color:var(--ink-2) !important}",
+    );
+    expect(generatorSource).not.toContain(".shimmer-label");
+  }, 30_000);
+
   test("keeps inherited shadow tokens valid while retaining their utilities", async () => {
     const moduleSource = await buildStyleModule();
     for (const name of [

@@ -17,6 +17,25 @@ function streamUnits(text: string) {
   return text.match(STREAM_UNIT) ?? Array.from(text);
 }
 
+export function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false,
+  );
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+
+  return reduced;
+}
+
 export function StreamText({
   text,
   onProgress,
@@ -27,14 +46,16 @@ export function StreamText({
   onDone?: () => void;
 }) {
   const units = useMemo(() => streamUnits(text), [text]);
+  const reducedMotion = usePrefersReducedMotion();
   const [stream, setStream] = useState({ text, count: 0 });
   const doneTextRef = useRef<string | null>(null);
   const current = stream.text === text;
-  const count = current ? stream.count : 0;
-  const done = current && count >= units.length;
+  const count = reducedMotion ? units.length : current ? stream.count : 0;
+  const done = (reducedMotion || current) && count >= units.length;
 
   useEffect(() => {
     doneTextRef.current = null;
+    if (reducedMotion) return;
     setStream({ text, count: 0 });
     if (units.length === 0) return;
 
@@ -47,7 +68,7 @@ export function StreamText({
       });
     }, WORD_MS);
     return () => window.clearInterval(timer);
-  }, [text, units.length]);
+  }, [reducedMotion, text, units.length]);
 
   useEffect(() => {
     if (done && doneTextRef.current !== text) {
@@ -62,6 +83,8 @@ export function StreamText({
     if (current) onProgress?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, current]);
+
+  if (reducedMotion) return <>{text}</>;
 
   return (
     <>

@@ -1012,16 +1012,8 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
     --tw-translate-x: 0px;
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
-  .translate-y-0 {
-    --tw-translate-y: 0px;
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-  }
   .translate-y-0\\.5 {
     --tw-translate-y: calc(var(--spacing) * 0.5);
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-  }
-  .translate-y-1 {
-    --tw-translate-y: var(--spacing);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
   .translate-y-\\[-1px\\] {
@@ -3684,6 +3676,17 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
 @keyframes pop-in{0%{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 @keyframes spin{to{transform:rotate(1turn)}}
 @keyframes pixel-on{0%,to{opacity:.15}18%,42%{opacity:1}62%{opacity:.15}}
+@media (prefers-reduced-motion: reduce) {
+  {scroll-behavior:auto}
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    scroll-behavior:auto !important;
+    transition-duration:.01ms !important;
+  }
+  .pixel-grid > span{animation:none !important}
+  .shimmer-label{animation:none !important;background-image:none !important;color:var(--ink-2) !important}
+}
 /* ── Shadow-host defaults (body-level inheritance the React side gets for
  * free from globals.css) ─────────────────────────────────────────────── */
 :host {
@@ -3691,16 +3694,6 @@ export const UTILITY_CSS = `/*! tailwindcss v4.3.3 | MIT License | https://tailw
   color: var(--ink, #1f2124);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-}
-/* ── Reduced motion: freeze decorative loops (mirrors globals.css) ────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: .01ms !important;
-  }
-  .pixel-grid > span { animation: none !important; }
 }
 
 /* ── Primitive card chrome ───────────────────────────────

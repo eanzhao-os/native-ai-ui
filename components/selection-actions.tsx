@@ -14,7 +14,7 @@ import {
   Xmark,
 } from "iconoir-react";
 import { Shimmer } from "@/components/atoms/Shimmer";
-import { StreamText } from "@/components/atoms/StreamText";
+import { StreamText, usePrefersReducedMotion } from "@/components/atoms/StreamText";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -37,6 +37,13 @@ const SHORTEN_EN = "Churn pistachio Saturday morning so it firms before the rush
 const SHORTEN_ZH = "周六早上先搅拌开心果，让它在高峰前凝冻成型。";
 const TONE_EN = "Please churn pistachio first on Saturday so it is fully set before the afternoon rush.";
 const TONE_ZH = "请在周六优先搅拌开心果，确保它在下午高峰前充分凝冻。";
+const GRAMMAR_EN =
+  "Churn the pistachio batch first thing Saturday so it has time to firm up before the afternoon rush.";
+const GRAMMAR_ZH =
+  "周六一开工，先搅拌开心果这一批，让它在下午高峰前有足够时间凝冻成型。";
+const CUSTOM_EN =
+  "Churn pistachio early Saturday; let it firm before the afternoon rush.";
+const CUSTOM_ZH = "周六先搅拌开心果，下午高峰前完成凝冻。";
 const EXPLANATION_EN =
   "This sentence prioritizes the Saturday churn so the batch has enough setting time before peak service.";
 const EXPLANATION_ZH =
@@ -44,6 +51,36 @@ const EXPLANATION_ZH =
 
 type Mode = "idle" | "thinking" | "streaming" | "result";
 type Action = "explain" | "improve" | "shorten" | "tone" | "grammar" | "custom";
+type FocusTarget = "toolbar" | "result" | "idle";
+
+function rewriteFor(action: Exclude<Action, "explain">, zh: boolean) {
+  if (action === "shorten") return zh ? SHORTEN_ZH : SHORTEN_EN;
+  if (action === "tone") return zh ? TONE_ZH : TONE_EN;
+  if (action === "grammar") return zh ? GRAMMAR_ZH : GRAMMAR_EN;
+  if (action === "custom") return zh ? CUSTOM_ZH : CUSTOM_EN;
+  return zh ? REWRITE_ZH : REWRITE_EN;
+}
+
+function progressStatus(action: Action, zh: boolean, customPrompt: string) {
+  if (action === "explain") return zh ? "解释处理中" : "Explanation in progress";
+  if (action === "improve") return zh ? "优化处理中" : "Improvement in progress";
+  if (action === "shorten") return zh ? "精简处理中" : "Shortening in progress";
+  if (action === "tone") return zh ? "语气调整处理中" : "Tone change in progress";
+  if (action === "grammar") return zh ? "语法修正处理中" : "Grammar fix in progress";
+  return zh
+    ? `自定义编辑处理中：“${customPrompt}”`
+    : `Custom edit in progress: “${customPrompt}”`;
+}
+
+function readyStatus(action: Exclude<Action, "explain">, zh: boolean, customPrompt: string) {
+  if (action === "improve") return zh ? "优化文本已就绪" : "Improved text ready";
+  if (action === "shorten") return zh ? "精简文本已就绪" : "Shortened text ready";
+  if (action === "tone") return zh ? "语气调整已就绪" : "Tone change ready";
+  if (action === "grammar") return zh ? "语法修正已就绪" : "Grammar fix ready";
+  return zh
+    ? `自定义编辑已就绪：“${customPrompt}”`
+    : `Custom edit ready: “${customPrompt}”`;
+}
 
 const iconProps = {
   width: 14,
@@ -75,49 +112,83 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
   const zh = lang === "zh";
   const lead = zh ? LEAD_ZH : LEAD_EN;
   const initial = zh ? PICKED_ZH : PICKED_EN;
+  const reducedMotion = usePrefersReducedMotion();
 
-  const [shown, setShown] = useState(false);
+  const [shown, setShown] = useState(reducedMotion);
   const [mode, setMode] = useState<Mode>("idle");
   const [action, setAction] = useState<Action>("improve");
   const [committedText, setCommittedText] = useState(initial);
   const [draftText, setDraftText] = useState(initial);
   const [prompt, setPrompt] = useState("");
+  const [submittedPrompt, setSubmittedPrompt] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [explanation, setExplanation] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const improveRef = useRef<HTMLButtonElement>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
+  const doneRef = useRef<HTMLButtonElement>(null);
+  const pendingFocusRef = useRef<FocusTarget | null>(null);
+  const previousLangRef = useRef(lang);
 
   useEffect(() => {
+    if (reducedMotion) {
+      setShown(true);
+      return;
+    }
+
+    setShown(false);
     const timer = window.setTimeout(() => setShown(true), 280);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (previousLangRef.current === lang) return;
+    previousLangRef.current = lang;
+    pendingFocusRef.current = null;
+    setMode("idle");
+    setAction("improve");
+    setCommittedText(initial);
+    setDraftText(initial);
+    setSubmittedPrompt("");
+    setExpanded(false);
+    setExplanation("");
+    setAnnouncement("");
+  }, [initial, lang]);
 
   useEffect(() => {
     if (mode !== "thinking") return;
     const timer = window.setTimeout(() => {
       if (action === "explain") {
         const next = zh ? EXPLANATION_ZH : EXPLANATION_EN;
+        pendingFocusRef.current = "result";
         setExplanation(next);
         setAnnouncement(next);
         setMode("result");
         return;
       }
 
-      const next =
-        action === "shorten"
-          ? zh ? SHORTEN_ZH : SHORTEN_EN
-          : action === "tone"
-            ? zh ? TONE_ZH : TONE_EN
-            : zh ? REWRITE_ZH : REWRITE_EN;
-      setDraftText(next);
+      setDraftText(rewriteFor(action, zh));
       setMode("streaming");
     }, 700);
     return () => window.clearTimeout(timer);
   }, [action, mode, zh]);
 
   useEffect(() => {
-    if (mode === "result" && action !== "explain") keepRef.current?.focus();
-  }, [action, mode]);
+    const pending = pendingFocusRef.current;
+    if (!pending || !shown) return;
+
+    if (pending === "toolbar" && (mode === "thinking" || mode === "streaming")) {
+      toolbarRef.current?.focus();
+      pendingFocusRef.current = null;
+    } else if (pending === "result" && mode === "result") {
+      (action === "explain" ? doneRef : keepRef).current?.focus();
+      pendingFocusRef.current = null;
+    } else if (pending === "idle" && mode === "idle") {
+      improveRef.current?.focus();
+      pendingFocusRef.current = null;
+    }
+  }, [action, mode, shown]);
 
   const actionLabel =
     action === "explain"
@@ -130,32 +201,52 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
             ? zh ? "调整语气" : "Changing tone"
             : action === "grammar"
               ? zh ? "修正文法" : "Fixing grammar"
-              : zh ? "编辑" : "Editing";
+              : zh ? "自定义编辑" : "Applying custom edit";
 
   const run = (nextAction: Action) => {
+    const activePrompt = nextAction === "custom" ? prompt.trim() : "";
     setAction(nextAction);
+    setSubmittedPrompt(activePrompt);
     setExpanded(false);
     setExplanation("");
-    setAnnouncement(zh ? `${nextAction === "explain" ? "解释" : "编辑"}处理中` : `${nextAction === "explain" ? "Explanation" : "Edit"} in progress`);
+    setAnnouncement(progressStatus(nextAction, zh, activePrompt));
+
+    if (reducedMotion) {
+      pendingFocusRef.current = "result";
+      if (nextAction === "explain") {
+        const next = zh ? EXPLANATION_ZH : EXPLANATION_EN;
+        setExplanation(next);
+        setAnnouncement(next);
+      } else {
+        setDraftText(rewriteFor(nextAction, zh));
+        setAnnouncement(readyStatus(nextAction, zh, activePrompt));
+      }
+      setMode("result");
+      return;
+    }
+
+    pendingFocusRef.current = "toolbar";
     setMode("thinking");
   };
 
-  const resetToolbar = (message: string) => {
+  const resetToolbar = (message: string, restoreFocus = false) => {
+    if (restoreFocus) pendingFocusRef.current = "idle";
     setMode("idle");
     setExpanded(false);
     setPrompt("");
+    setSubmittedPrompt("");
     setExplanation("");
     setAnnouncement(message);
   };
 
   const keep = () => {
     setCommittedText(draftText);
-    resetToolbar(zh ? "已保留修改" : "Changes kept");
+    resetToolbar(zh ? "已保留修改" : "Changes kept", true);
   };
 
   const discard = () => {
     setDraftText(committedText);
-    resetToolbar(zh ? "已放弃修改" : "Changes discarded");
+    resetToolbar(zh ? "已放弃修改" : "Changes discarded", true);
   };
 
   const retry = () => run(action);
@@ -167,13 +258,18 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
       <div className="relative rounded-card border border-transparent px-3 py-4 sm:px-4">
         <p className="text-[13px] leading-[1.75] text-ink">
           {lead}
-          <span className="box-decoration-clone rounded-[4px] bg-[color-mix(in_srgb,var(--accent)_14%,var(--surface))] px-0.5 text-ink dark:bg-accent-tint">
+          <span
+            data-selection-text=""
+            className="box-decoration-clone rounded-[4px] bg-[color-mix(in_srgb,var(--accent)_14%,var(--surface))] px-0.5 text-ink dark:bg-accent-tint"
+          >
             {mode === "streaming" ? (
               <StreamText
                 text={draftText}
                 onDone={() => {
+                  if (action === "explain") return;
+                  pendingFocusRef.current = "result";
                   setMode("result");
-                  setAnnouncement(zh ? "改写已就绪" : "Rewrite ready");
+                  setAnnouncement(readyStatus(action, zh, submittedPrompt));
                 }}
               />
             ) : rewriteVisible ? (
@@ -194,14 +290,15 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
         ) : null}
 
         <div className="mt-3 flex justify-center">
-          <div
-            role="toolbar"
-            aria-label={zh ? "选中文本操作" : "Selection actions"}
-            aria-busy={busy}
-            className={`flex min-h-11 max-w-full flex-wrap items-center justify-center gap-1 rounded-[22px] border border-line bg-surface p-1 font-sans text-ink shadow-overlay transition-[opacity,transform] duration-200 motion-reduce:transition-none ${
-              shown ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0 pointer-events-none"
-            }`}
-          >
+          {shown ? (
+            <div
+              ref={toolbarRef}
+              role="toolbar"
+              tabIndex={-1}
+              aria-label={zh ? "选中文本操作" : "Selection actions"}
+              aria-busy={busy}
+              className="flex min-h-11 max-w-full flex-wrap items-center justify-center gap-1 rounded-[22px] border border-line bg-surface p-1 font-sans text-ink shadow-overlay focus:outline-none"
+            >
             {busy ? (
               <span className="inline-flex min-h-9 items-center gap-2 whitespace-nowrap px-3 text-[12.5px] font-medium text-ink-2">
                 <span className="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 motion-safe:animate-spin" aria-hidden="true" />
@@ -213,7 +310,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
               </span>
             ) : mode === "result" && action === "explain" ? (
               <>
-                <button type="button" onClick={() => resetToolbar(zh ? "说明已关闭" : "Explanation closed")} className={primary}>
+                <button ref={doneRef} type="button" onClick={() => resetToolbar(zh ? "说明已关闭" : "Explanation closed", true)} className={primary}>
                   {icons.check}
                   {zh ? "完成" : "Done"}
                 </button>
@@ -265,7 +362,7 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
                   {icons.explain}
                   {zh ? "解释" : "Explain"}
                 </button>
-                <button type="button" onClick={() => run("improve")} className={control}>
+                <button ref={improveRef} type="button" onClick={() => run("improve")} className={control}>
                   {icons.improve}
                   {zh ? "优化" : "Improve"}
                 </button>
@@ -298,9 +395,10 @@ export default function SelectionActions({ lang: propLang }: { lang?: "en" | "zh
                     {icons.chevron}
                   </span>
                 </button>
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div role="status" aria-live="polite" aria-atomic="true" className="mt-2 min-h-4 text-center text-[10.5px] font-medium text-ink-3">

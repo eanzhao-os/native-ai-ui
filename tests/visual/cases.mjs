@@ -1641,7 +1641,28 @@ async function focusArtifactCode(args) {
   await focusTask10Control(args, control, "Artifact Code tab");
 }
 
-async function selectPartialDiff({ canvas }) {
+async function enableDiffMotion({ advance, page }, milliseconds) {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await advance(1);
+  if (milliseconds > 0) await advance(milliseconds);
+}
+
+async function showDiffInitial(args) {
+  await enableDiffMotion(args, 0);
+  await args.canvas.getByText(/Analyzing 3 changes|正在分析 3 项变更/).waitFor();
+}
+
+async function showDiffRemovals(args) {
+  await enableDiffMotion(args, 1800);
+  await args.canvas.getByText(/2 removals found|发现 2 项移除变更/).waitFor();
+}
+
+async function showDiffCompleted(args) {
+  await enableDiffMotion(args, 2800);
+  await args.canvas.getByText(/3 of 3 changes selected|已选择 3\/3 项变更/).waitFor();
+}
+
+async function selectPartialDiffControl({ canvas }) {
   const control = canvas.getByRole("checkbox", {
     name: /Select removal Rocky Road|选择移除 石板街/,
   });
@@ -1652,8 +1673,14 @@ async function selectPartialDiff({ canvas }) {
   await canvas.getByText(/2 of 3 changes selected|已选择 2\/3 项变更/).waitFor();
 }
 
+async function selectPartialDiff(args) {
+  await showDiffCompleted(args);
+  await selectPartialDiffControl(args);
+}
+
 async function applyPartialDiff(args) {
-  await selectPartialDiff(args);
+  await showDiffCompleted(args);
+  await selectPartialDiffControl(args);
   const control = args.canvas.getByRole("button", {
     name: /Apply 2 changes|应用 2 项变更/,
   });
@@ -1662,6 +1689,10 @@ async function applyPartialDiff(args) {
 }
 
 async function focusDiffApply(args) {
+  await args.page.emulateMedia({ reducedMotion: "reduce" });
+  await args.canvas.getByRole("button", {
+    name: /Apply 3 changes|应用 3 项变更/,
+  }).waitFor();
   await focusTask10Control(
     args,
     args.canvas.getByRole("button", {
@@ -1710,8 +1741,21 @@ async function scrollRecordsTable({ canvas, page }) {
   const region = canvas.getByRole("region", {
     name: /Companies table|公司表格/,
   });
+  const farColumn = canvas.getByRole("columnheader", { name: /Links|链接/ });
+  const before = await farColumn.boundingBox();
+  if (!before) throw new Error("Records scroll target was not visible");
   await region.hover();
   await page.mouse.wheel(900, 900);
+  await region.focus();
+  for (let step = 0; step < 12; step += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
+  await page.keyboard.press("PageDown");
+  const after = await farColumn.boundingBox();
+  if (!after || after.x >= before.x) {
+    throw new Error("Records table did not scroll horizontally");
+  }
+  await page.mouse.click(8, 8);
 }
 
 async function focusRecordsTable(args) {
@@ -1736,8 +1780,20 @@ async function scrollFilterTable({ canvas, page }) {
   const region = canvas.getByRole("region", {
     name: /Scrollable task table|可横向滚动的任务表格/,
   });
+  const farColumn = canvas.getByRole("columnheader", { name: /Advisor|顾问/ });
+  const before = await farColumn.boundingBox();
+  if (!before) throw new Error("Task scroll target was not visible");
   await region.hover();
   await page.mouse.wheel(800, 0);
+  await region.focus();
+  for (let step = 0; step < 12; step += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
+  const after = await farColumn.boundingBox();
+  if (!after || after.x >= before.x) {
+    throw new Error("Task table did not scroll horizontally");
+  }
+  await page.mouse.click(8, 8);
 }
 
 async function focusTaskFilter(args) {
@@ -1774,21 +1830,35 @@ async function promptSelectionToolbar({ canvas }) {
   }
 }
 
-async function startSelectionRewrite({ canvas }) {
-  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
-  await canvas.getByText(/Improving|优化/).waitFor();
+async function enableSelectionMotion({ advance, canvas, page }) {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await advance(1);
+  await advance(300);
+  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).waitFor();
 }
 
-async function streamSelectionRewrite({ advance, canvas }) {
-  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
-  await advance(760);
-  await canvas.getByText(/Improving|优化/).waitFor();
+async function startSelectionRewrite(args) {
+  await enableSelectionMotion(args);
+  await args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  await args.canvas.getByText(/^(Improving|优化)…$/).waitFor();
 }
 
-async function finishSelectionRewrite({ advance, canvas }) {
+async function streamSelectionRewrite(args) {
+  await enableSelectionMotion(args);
+  const { advance, canvas } = args;
   await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
-  await advance(3200);
-  await canvas.getByRole("button", { name: /^(Keep|保留)$/ }).waitFor();
+  await advance(700);
+  await advance(60);
+  await canvas.getByText(/^(Improving|优化)…$/).waitFor();
+  const visible = (await canvas.locator("[data-selection-text]").textContent())?.trim();
+  if (!visible) throw new Error("Selection rewrite did not stream visible text");
+}
+
+async function finishSelectionRewrite(args) {
+  await enableSelectionMotion(args);
+  await args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  await args.advance(3200);
+  await args.canvas.getByRole("button", { name: /^(Keep|保留)$/ }).waitFor();
 }
 
 async function keepSelectionRewrite(args) {
@@ -1798,6 +1868,7 @@ async function keepSelectionRewrite(args) {
 }
 
 async function focusSelectionImprove(args) {
+  await args.page.emulateMedia({ reducedMotion: "reduce" });
   await focusTask10Control(
     args,
     args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }),
@@ -1820,12 +1891,12 @@ const TASK10_CASES = [
   [
     "diff-table",
     [
-      { name: "initial", advanceMs: 0 },
-      { name: "removals", advanceMs: 1800 },
-      { name: "completed", advanceMs: 2800 },
-      { name: "partial-selected", advanceMs: 2800, action: selectPartialDiff },
-      { name: "applied", advanceMs: 2800, action: applyPartialDiff },
-      { name: "focused", advanceMs: 2800, action: focusDiffApply },
+      { name: "initial", advanceMs: 0, action: showDiffInitial },
+      { name: "removals", advanceMs: 0, action: showDiffRemovals },
+      { name: "completed", advanceMs: 0, action: showDiffCompleted },
+      { name: "partial-selected", advanceMs: 0, action: selectPartialDiff },
+      { name: "applied", advanceMs: 0, action: applyPartialDiff },
+      { name: "focused", advanceMs: 0, action: focusDiffApply },
     ],
   ],
   [

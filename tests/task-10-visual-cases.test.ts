@@ -28,6 +28,72 @@ const EXPECTED_CASES = {
   "selection-actions": ["idle", "expanded", "prompted", "thinking", "streaming", "result", "kept", "focused"],
 } as const;
 
+const INTERACTIVE_CASES = new Set([
+  "artifact-sandbox/tablet",
+  "artifact-sandbox/mobile",
+  "artifact-sandbox/code",
+  "artifact-sandbox/copied",
+  "artifact-sandbox/focused",
+  "diff-table/initial",
+  "diff-table/removals",
+  "diff-table/completed",
+  "diff-table/partial-selected",
+  "diff-table/applied",
+  "diff-table/focused",
+  "records-table/selected",
+  "records-table/all-selected",
+  "records-table/sorted",
+  "records-table/scrolled",
+  "records-table/focused",
+  "filter-table/todo",
+  "filter-table/progress",
+  "filter-table/completed",
+  "filter-table/scrolled",
+  "filter-table/focused",
+  "selection-actions/expanded",
+  "selection-actions/prompted",
+  "selection-actions/thinking",
+  "selection-actions/streaming",
+  "selection-actions/result",
+  "selection-actions/kept",
+  "selection-actions/focused",
+]);
+
+const SCROLLED_CASES = new Set([
+  "records-table/scrolled",
+  "filter-table/scrolled",
+]);
+
+const STREAMING_CASE = "selection-actions/streaming";
+
+const NAMED_POSTCONDITION_CALLS: Record<string, readonly string[]> = {
+  "artifact-sandbox/tablet": ["getAttribute"],
+  "artifact-sandbox/mobile": ["getAttribute"],
+  "artifact-sandbox/code": ["getAttribute", "waitFor"],
+  "artifact-sandbox/copied": ["waitFor"],
+  "artifact-sandbox/focused": ["count"],
+  "diff-table/initial": ["waitFor"],
+  "diff-table/removals": ["waitFor"],
+  "diff-table/completed": ["waitFor"],
+  "diff-table/partial-selected": ["isChecked", "waitFor"],
+  "diff-table/applied": ["waitFor"],
+  "diff-table/focused": ["count"],
+  "records-table/selected": ["isChecked", "waitFor"],
+  "records-table/all-selected": ["isChecked", "waitFor"],
+  "records-table/sorted": ["getAttribute"],
+  "records-table/focused": ["count"],
+  "filter-table/todo": ["getAttribute"],
+  "filter-table/progress": ["getAttribute"],
+  "filter-table/completed": ["getAttribute"],
+  "filter-table/focused": ["count"],
+  "selection-actions/expanded": ["getAttribute"],
+  "selection-actions/prompted": ["inputValue"],
+  "selection-actions/thinking": ["waitFor"],
+  "selection-actions/result": ["waitFor"],
+  "selection-actions/kept": ["waitFor"],
+  "selection-actions/focused": ["count"],
+};
+
 type CallableNode =
   | ts.ArrowFunction
   | ts.FunctionDeclaration
@@ -41,6 +107,13 @@ type Registration = {
 type VisualSourceViolation = {
   component: string;
   kind: string;
+};
+
+type ActionEvidence = {
+  calls: Map<string, number>;
+  comparisons: number;
+  guards: number;
+  throws: number;
 };
 
 function propertyNameText(name: ts.PropertyName | undefined) {
@@ -137,6 +210,55 @@ function collectConstExpressions(sourceFile: ts.SourceFile) {
   return expressions;
 }
 
+function collectImportedBindings(sourceFile: ts.SourceFile) {
+  const bindings = new Set<string>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !statement.importClause) continue;
+    if (statement.importClause.name) bindings.add(statement.importClause.name.text);
+    const named = statement.importClause.namedBindings;
+    if (named && ts.isNamespaceImport(named)) bindings.add(named.name.text);
+    if (named && ts.isNamedImports(named)) {
+      for (const element of named.elements) bindings.add(element.name.text);
+    }
+  }
+  return bindings;
+}
+
+function collectLocalBindings(sourceFile: ts.SourceFile) {
+  const bindings = new Set<string>();
+  const addBindingName = (name: ts.BindingName) => {
+    if (ts.isIdentifier(name)) {
+      bindings.add(name.text);
+      return;
+    }
+    for (const element of name.elements) {
+      if (!ts.isOmittedExpression(element)) addBindingName(element.name);
+    }
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isFunctionDeclaration(node) && node.name) bindings.add(node.name.text);
+    if (ts.isVariableDeclaration(node)) addBindingName(node.name);
+    if (ts.isParameter(node)) addBindingName(node.name);
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return bindings;
+}
+
+function memberRootName(expression: ts.Expression): string | null {
+  const current = unwrapVisualExpression(expression);
+  if (ts.isIdentifier(current)) return current.text;
+  if (
+    ts.isPropertyAccessExpression(current) ||
+    ts.isElementAccessExpression(current)
+  ) {
+    return memberRootName(current.expression);
+  }
+  if (ts.isCallExpression(current)) return memberRootName(current.expression);
+  if (ts.isAwaitExpression(current)) return memberRootName(current.expression);
+  return null;
+}
+
 function collectTask10Registrations(sourceFile: ts.SourceFile) {
   const registrations: Registration[] = [];
   const arrayBindings = new Map<string, ts.ArrayLiteralExpression>();
@@ -212,6 +334,8 @@ function analyzeTask10VisualSource(source: string) {
   );
   const callables = collectCallables(sourceFile);
   const constExpressions = collectConstExpressions(sourceFile);
+  const importedBindings = collectImportedBindings(sourceFile);
+  const localBindings = collectLocalBindings(sourceFile);
   const registrations = collectTask10Registrations(sourceFile);
   const registrationCounts = new Map<string, number>();
   const violations: VisualSourceViolation[] = [];
@@ -232,10 +356,49 @@ function analyzeTask10VisualSource(source: string) {
     component: string,
     node: ts.Node,
     visitedCallables: Set<string>,
+    evidence: ActionEvidence,
   ) => {
     for (const kind of classifyVisualOperation(node, operationResolver)) {
       recordViolation(component, kind, node);
     }
+
+    if (ts.isCallExpression(node)) {
+      const callee = unwrapVisualExpression(node.expression);
+      const name = ts.isPropertyAccessExpression(callee)
+        ? callee.name.text
+        : ts.isElementAccessExpression(callee)
+          ? staticText(callee.argumentExpression)
+          : ts.isIdentifier(callee)
+            ? callee.text
+            : null;
+      if (name) evidence.calls.set(name, (evidence.calls.get(name) ?? 0) + 1);
+
+      if (ts.isIdentifier(callee) && callee.text !== "advance") {
+        const target = callables.get(callee.text) ?? constExpressions.get(callee.text);
+        if (!target) {
+          recordViolation(
+            component,
+            importedBindings.has(callee.text)
+              ? "imported action helper"
+              : "unresolved action helper",
+            callee,
+          );
+        }
+      } else if (
+        ts.isPropertyAccessExpression(callee) ||
+        ts.isElementAccessExpression(callee)
+      ) {
+        const root = memberRootName(callee.expression);
+        if (root && importedBindings.has(root)) {
+          recordViolation(component, "imported action helper", callee);
+        } else if (root && !localBindings.has(root)) {
+          recordViolation(component, "unresolved action helper", callee);
+        }
+      }
+    }
+    if (ts.isBinaryExpression(node)) evidence.comparisons += 1;
+    if (ts.isIfStatement(node)) evidence.guards += 1;
+    if (ts.isThrowStatement(node)) evidence.throws += 1;
 
     if (ts.isIdentifier(node)) {
       if (/^(?:canonicalize|freezeCaseMotion|hideMatching|replaceWithCanonical|stabilize)/.test(node.text)) {
@@ -244,12 +407,12 @@ function analyzeTask10VisualSource(source: string) {
       const target = callables.get(node.text) ?? constExpressions.get(node.text);
       if (target && !visitedCallables.has(node.text)) {
         visitedCallables.add(node.text);
-        inspectReachable(component, target, visitedCallables);
+        inspectReachable(component, target, visitedCallables, evidence);
       }
     }
 
     ts.forEachChild(node, (child) =>
-      inspectReachable(component, child, visitedCallables),
+      inspectReachable(component, child, visitedCallables, evidence),
     );
   };
 
@@ -266,6 +429,19 @@ function analyzeTask10VisualSource(source: string) {
     const resolved = resolveObjectLiteral(initializer, visiting);
     visiting.delete(current.text);
     return resolved;
+  };
+
+  const resolveCaseName = (visualCase: ts.ObjectLiteralExpression) => {
+    for (const property of visualCase.properties) {
+      if (
+        propertyNameText(property.name) === "name" &&
+        ts.isPropertyAssignment(property)
+      ) {
+        const value = unwrapVisualExpression(property.initializer);
+        if (ts.isStringLiteralLike(value)) return value.text;
+      }
+    }
+    return null;
   };
 
   const resolveCaseAction = (
@@ -320,6 +496,61 @@ function analyzeTask10VisualSource(source: string) {
     return action;
   };
 
+  const hasCall = (evidence: ActionEvidence, name: string, minimum = 1) =>
+    (evidence.calls.get(name) ?? 0) >= minimum;
+
+  const validatePostcondition = (
+    component: string,
+    caseName: string | null,
+    evidence: ActionEvidence,
+    node: ts.Node,
+  ) => {
+    if (!caseName) return;
+    const key = `${component}/${caseName}`;
+    if (!INTERACTIVE_CASES.has(key)) return;
+
+    if (SCROLLED_CASES.has(key)) {
+      if (
+        !hasCall(evidence, "wheel") ||
+        !hasCall(evidence, "boundingBox", 2) ||
+        evidence.comparisons === 0 ||
+        evidence.guards === 0 ||
+        evidence.throws === 0
+      ) {
+        recordViolation(
+          component,
+          "missing scroll displacement postcondition",
+          node,
+        );
+      }
+      return;
+    }
+
+    if (key === STREAMING_CASE) {
+      if (
+        !hasCall(evidence, "textContent") ||
+        !hasCall(evidence, "trim") ||
+        evidence.guards === 0 ||
+        evidence.throws === 0
+      ) {
+        recordViolation(
+          component,
+          "missing visible streaming postcondition",
+          node,
+        );
+      }
+      return;
+    }
+
+    const requiredCalls = NAMED_POSTCONDITION_CALLS[key];
+    if (
+      !requiredCalls ||
+      requiredCalls.some((name) => !hasCall(evidence, name))
+    ) {
+      recordViolation(component, "missing named state postcondition", node);
+    }
+  };
+
   for (const registration of registrations) {
     for (const visualCase of registration.cases.elements) {
       if (ts.isSpreadElement(visualCase) || ts.isOmittedExpression(visualCase)) {
@@ -339,14 +570,47 @@ function analyzeTask10VisualSource(source: string) {
         );
         continue;
       }
+      const caseName = resolveCaseName(resolvedCase);
       const action = resolveCaseAction(
         registration.component,
         resolvedCase,
         new Set<string>(),
       );
+      const evidence: ActionEvidence = {
+        calls: new Map(),
+        comparisons: 0,
+        guards: 0,
+        throws: 0,
+      };
       if (action) {
-        inspectReachable(registration.component, action, new Set<string>());
+        const current = ts.isExpression(action)
+          ? unwrapVisualExpression(action)
+          : action;
+        if (ts.isIdentifier(current)) {
+          const target = callables.get(current.text) ?? constExpressions.get(current.text);
+          if (!target) {
+            recordViolation(
+              registration.component,
+              importedBindings.has(current.text)
+                ? "imported action helper"
+                : "unresolved action helper",
+              current,
+            );
+          }
+        }
+        inspectReachable(
+          registration.component,
+          action,
+          new Set<string>(),
+          evidence,
+        );
       }
+      validatePostcondition(
+        registration.component,
+        caseName,
+        evidence,
+        action ?? resolvedCase,
+      );
     }
   }
 
@@ -381,38 +645,10 @@ describe("Task 10 React visual cases", () => {
   });
 
   test("backs every interactive Task 10 frame with a real action", () => {
-    const interactiveCases = new Set([
-      "artifact-sandbox/tablet",
-      "artifact-sandbox/mobile",
-      "artifact-sandbox/code",
-      "artifact-sandbox/copied",
-      "artifact-sandbox/focused",
-      "diff-table/partial-selected",
-      "diff-table/applied",
-      "diff-table/focused",
-      "records-table/selected",
-      "records-table/all-selected",
-      "records-table/sorted",
-      "records-table/scrolled",
-      "records-table/focused",
-      "filter-table/todo",
-      "filter-table/progress",
-      "filter-table/completed",
-      "filter-table/scrolled",
-      "filter-table/focused",
-      "selection-actions/expanded",
-      "selection-actions/prompted",
-      "selection-actions/thinking",
-      "selection-actions/streaming",
-      "selection-actions/result",
-      "selection-actions/kept",
-      "selection-actions/focused",
-    ]);
-
     for (const component of TASK10_COMPONENTS) {
       for (const visualCase of CASES.get(component) ?? []) {
         expect(typeof visualCase.action === "function").toBe(
-          interactiveCases.has(`${component}/${visualCase.name}`),
+          INTERACTIVE_CASES.has(`${component}/${visualCase.name}`),
         );
       }
     }
@@ -444,7 +680,7 @@ describe("Task 10 React visual cases", () => {
     );
   });
 
-  test("accepts Task 10 actions that drive real controls and browser input", () => {
+  test("accepts Task 10 actions that drive controls and prove their named state", () => {
     const fixture = analyzeTask10VisualSource(`
       async function action({ canvas, page }) {
         const control = canvas.getByRole("button", { name: "Apply" });
@@ -452,6 +688,7 @@ describe("Task 10 React visual cases", () => {
         await control.focus();
         await page.keyboard.press("Enter");
         await page.mouse.wheel(800, 400);
+        await canvas.getByText("Applied 2 changes").waitFor();
       }
       const CASES = new Map([
         ["diff-table", [{ name: "applied", action }]],
@@ -459,6 +696,84 @@ describe("Task 10 React visual cases", () => {
     `);
 
     expect(fixture.violations).toEqual([]);
+  });
+
+  test("rejects an interactive named state backed by a no-op action", () => {
+    const fixture = analyzeTask10VisualSource(`
+      const CASES = new Map([
+        ["artifact-sandbox", [{ name: "tablet", action: async () => {} }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "artifact-sandbox",
+      kind: "missing named state postcondition",
+    });
+  });
+
+  test("rejects a scrolled state that never proves scroll displacement", () => {
+    const fixture = analyzeTask10VisualSource(`
+      async function action({ canvas, page }) {
+        const region = canvas.getByRole("region", { name: "Companies table" });
+        await region.hover();
+        await page.mouse.wheel(900, 900);
+      }
+      const CASES = new Map([
+        ["records-table", [{ name: "scrolled", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "records-table",
+      kind: "missing scroll displacement postcondition",
+    });
+  });
+
+  test("rejects a streaming state that can settle on blank selected text", () => {
+    const fixture = analyzeTask10VisualSource(`
+      async function action({ advance, canvas }) {
+        await canvas.getByRole("button", { name: "Improve" }).click();
+        await advance(760);
+        await canvas.getByText("Improving").waitFor();
+      }
+      const CASES = new Map([
+        ["selection-actions", [{ name: "streaming", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toContainEqual({
+      component: "selection-actions",
+      kind: "missing visible streaming postcondition",
+    });
+  });
+
+  test.each([
+    ["unresolved", "async function action() { await missingHelper(); }"],
+    ["unresolved member", "async function action() { await missingHelper.run(); }"],
+    [
+      "imported",
+      'import { importedHelper } from "./visual-helper.mjs"; async function action() { await importedHelper(); }',
+    ],
+    [
+      "imported member",
+      'import * as importedHelper from "./visual-helper.mjs"; async function action() { await importedHelper.run(); }',
+    ],
+  ])("rejects an %s action helper", (_label, declaration) => {
+    const fixture = analyzeTask10VisualSource(`
+      ${declaration}
+      const CASES = new Map([
+        ["artifact-sandbox", [{ name: "tablet", action }]],
+      ]);
+    `);
+
+    expect(fixture.violations).toEqual(
+      expect.arrayContaining([
+        {
+          component: "artifact-sandbox",
+          kind: expect.stringMatching(/^(?:imported|unresolved) action helper$/),
+        },
+      ]),
+    );
   });
 
   test("rejects reachable fabrication and duplicate registrations in the live manifest", () => {
