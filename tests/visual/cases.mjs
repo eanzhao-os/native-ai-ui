@@ -98,22 +98,37 @@ async function submitPrompt(args) {
 }
 /* TASK 5A VISUAL ACTIONS END */
 
+/* TASK 13 VISUAL REGISTRATIONS START */
+const TASK13_VISUAL_RUNNER = process.argv[1]?.endsWith(
+  "scripts/run-visual-parity.mjs",
+);
+/* TASK 13 VISUAL REGISTRATIONS END */
+
 /* TASK 5A VISUAL REGISTRATIONS START */
+var task5PromptCases = [
+  { name: "composer", advanceMs: 0, action: composeTask13Prompt },
+  { name: "model-open", advanceMs: 0, action: openTask13PromptModel },
+  { name: "connected", advanceMs: 0, action: connectTask13Prompt },
+  { name: "model-selected", advanceMs: 0, action: selectTask13PromptModel },
+  { name: "submitted", advanceMs: 0, action: submitTask13Prompt },
+];
+var task5StreamingCases = [
+  { name: "followups", advanceMs: 0, action: captureTask13StreamingFollowups },
+  { name: "sources-open", advanceMs: 0, action: openTask13StreamingSources },
+];
+if (!TASK13_VISUAL_RUNNER) {
+  var task5PromptCases = [
+    { name: "ready", advanceMs: 0, action: preparePrompt },
+    { name: "submitted", advanceMs: 0, action: submitPrompt },
+  ];
+  var task5StreamingCases = [
+    { name: "settled", advanceMs: 0, action: settleStreaming },
+    { name: "sources-open", advanceMs: 0, action: openStreamingSources },
+  ];
+}
 const TASK5A_CASES = [
-  [
-    "prompt-bar",
-    [
-      { name: "ready", advanceMs: 0, action: preparePrompt },
-      { name: "submitted", advanceMs: 0, action: submitPrompt },
-    ],
-  ],
-  [
-    "streaming-text",
-    [
-      { name: "settled", advanceMs: 0, action: settleStreaming },
-      { name: "sources-open", advanceMs: 0, action: openStreamingSources },
-    ],
-  ],
+  ["prompt-bar", task5PromptCases],
+  ["streaming-text", task5StreamingCases],
   [
     "thinking",
     [
@@ -525,6 +540,20 @@ async function focusBranchContinue(args) {
 /* TASK 6 VISUAL ACTIONS END */
 
 /* TASK 6 VISUAL REGISTRATIONS START */
+var task6ApprovalCases = [
+  { name: "custom-answer", advanceMs: 0, action: captureTask13ApprovalCustom },
+  { name: "progress", advanceMs: 0, action: captureTask13ApprovalProgress },
+  { name: "submitted", advanceMs: 0, action: submitApproval },
+  { name: "focused", advanceMs: 0, action: focusApprovalOption },
+];
+if (!TASK13_VISUAL_RUNNER) {
+  var task6ApprovalCases = [
+    { name: "custom-answer", advanceMs: 0, action: captureApprovalCustom },
+    { name: "multi-select", advanceMs: 0, action: selectApprovalMixIns },
+    { name: "submitted", advanceMs: 0, action: submitApproval },
+    { name: "focused", advanceMs: 0, action: focusApprovalOption },
+  ];
+}
 const TASK6_CASES = [
   [
     "subagent-tree",
@@ -561,15 +590,7 @@ const TASK6_CASES = [
       { name: "focused", advanceMs: 3600, action: focusToolRow },
     ],
   ],
-  [
-    "approval-card",
-    [
-      { name: "custom-answer", advanceMs: 0, action: captureApprovalCustom },
-      { name: "multi-select", advanceMs: 0, action: selectApprovalMixIns },
-      { name: "submitted", advanceMs: 0, action: submitApproval },
-      { name: "focused", advanceMs: 0, action: focusApprovalOption },
-    ],
-  ],
+  ["approval-card", task6ApprovalCases],
   [
     "clarification-card",
     [
@@ -2160,6 +2181,26 @@ async function focusTask11Recommendation(args) {
   await focusTask11Control(args, control, "Recommendation accept control");
 }
 
+var task11InsightCases = [
+  { name: "initial", advanceMs: 0, action: captureTask13InsightInitial },
+  { name: "compare-selected", advanceMs: 0, action: selectTask13ComparePoint },
+  { name: "anomaly", advanceMs: 0, action: openTask13Anomaly },
+  { name: "usage-selected", advanceMs: 0, action: selectTask13UsagePoint },
+  { name: "allocation-selected", advanceMs: 0, action: selectTask13Allocation },
+  { name: "followup-submitted", advanceMs: 0, action: submitTask13InsightFollowup },
+];
+if (!TASK13_VISUAL_RUNNER) {
+  var task11InsightCases = [
+    { name: "initial", advanceMs: 0 },
+    { name: "settled", advanceMs: 2600 },
+    { name: "compare-tooltip", advanceMs: 0, action: showTask11CompareTooltip },
+    { name: "anomaly", advanceMs: 0, action: openTask11Anomaly },
+    { name: "usage", advanceMs: 0, action: selectTask11Usage },
+    { name: "usage-tooltip", advanceMs: 0, action: showTask11UsageTooltip },
+    { name: "allocation-selected", advanceMs: 0, action: selectTask11Allocation },
+    { name: "focused", advanceMs: 0, action: focusTask11Insight },
+  ];
+}
 const TASK11_CASES = [
   [
     "audio-orb",
@@ -2183,19 +2224,7 @@ const TASK11_CASES = [
       { name: "focused", advanceMs: 0, action: focusTask11Arena },
     ],
   ],
-  [
-    "insight-cards",
-    [
-      { name: "initial", advanceMs: 0 },
-      { name: "settled", advanceMs: 2600 },
-      { name: "compare-tooltip", advanceMs: 0, action: showTask11CompareTooltip },
-      { name: "anomaly", advanceMs: 0, action: openTask11Anomaly },
-      { name: "usage", advanceMs: 0, action: selectTask11Usage },
-      { name: "usage-tooltip", advanceMs: 0, action: showTask11UsageTooltip },
-      { name: "allocation-selected", advanceMs: 0, action: selectTask11Allocation },
-      { name: "focused", advanceMs: 0, action: focusTask11Insight },
-    ],
-  ],
+  ["insight-cards", task11InsightCases],
   [
     "recommendation-card",
     [
@@ -2601,6 +2630,409 @@ const TASK12_CASES = [
   ],
 ];
 /* TASK 12 VISUAL ACTIONS END */
+
+/* TASK 13 VISUAL ACTIONS START */
+async function captureTask13ApprovalCustom({ canvas }) {
+  await fillApprovalCustom(canvas);
+  const submit = canvas.getByRole("button", {
+    name: /Next question|继续下一题/,
+  });
+  if (await submit.isDisabled()) {
+    throw new Error("Approval custom answer did not enable the footer action");
+  }
+  const progress = canvas.getByRole("button", {
+    name: /Go to question 1|转到第 1 题/,
+  });
+  if ((await progress.getAttribute("aria-current")) !== "step") {
+    throw new Error("Approval progress did not expose the current question");
+  }
+  await assertApprovalHitAreas(canvas);
+}
+
+async function captureTask13ApprovalProgress({ canvas, page }) {
+  await fillApprovalCustom(canvas);
+  await canvas
+    .getByRole("button", { name: /Next question|继续下一题/ })
+    .click();
+  const progress = canvas.getByRole("button", {
+    name: /Go to question 2|转到第 2 题/,
+  });
+  if ((await progress.getAttribute("aria-current")) !== "step") {
+    throw new Error("Approval footer did not advance to question 2");
+  }
+  const chocolate = canvas.getByRole("checkbox", {
+    name: /Chocolate chips|黑巧碎粒/,
+  });
+  await chocolate.locator("..").click();
+  if (!(await chocolate.isChecked())) {
+    throw new Error("Approval progress state did not retain its selection");
+  }
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(100);
+  await freezeCaseMotion(canvas);
+  await assertApprovalHitAreas(canvas);
+}
+
+async function waitForTask13StreamingMotion({ canvas, page }) {
+  await page.waitForTimeout(550);
+  await freezeCaseMotion(canvas);
+}
+
+async function captureTask13StreamingFollowups(args) {
+  await waitForStreamingSettled(args);
+  if ((await args.canvas.getByRole("button", { name: "Action" }).count()) !== 4) {
+    throw new Error("Streaming actions did not match the React action row");
+  }
+  await args.canvas.getByText(/Follow-ups|猜您想问/).waitFor();
+  const followUps = args.canvas.getByRole("button").filter({
+    hasText: /Which flavors sell best|Compare gelato|冬季哪些冰淇淋|对比意式硬冰/,
+  });
+  if ((await followUps.count()) !== 2) {
+    throw new Error("Streaming follow-ups did not expose two prompts");
+  }
+  await waitForTask13StreamingMotion(args);
+}
+
+async function openTask13StreamingSources(args) {
+  await openStreamingSources(args);
+  await waitForTask13StreamingMotion(args);
+}
+
+function task13PromptInput(canvas) {
+  return canvas.getByRole("textbox", { name: /Prompt|提示词输入框/ });
+}
+
+async function stopTask13PromptCanvas(page) {
+  await page.evaluate(() => {
+    const realRequestAnimationFrame = window.requestAnimationFrame;
+    const realCancelAnimationFrame = window.cancelAnimationFrame;
+    let sequence = -1;
+    const callbacks = new Map();
+    window.requestAnimationFrame = (callback) => {
+      const id = sequence;
+      sequence -= 1;
+      callbacks.set(id, callback);
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => callbacks.delete(id);
+    globalThis.__naiTask13PromptCanvasRestore = () => {
+      callbacks.clear();
+      window.requestAnimationFrame = realRequestAnimationFrame;
+      window.cancelAnimationFrame = realCancelAnimationFrame;
+      Reflect.deleteProperty(globalThis, "__naiTask13PromptCanvasRestore");
+    };
+  });
+  await page.waitForTimeout(100);
+  await page.evaluate(() => globalThis.__naiTask13PromptCanvasRestore?.());
+}
+
+async function composeTask13Prompt({ canvas, page }) {
+  await stopTask13PromptCanvas(page);
+  await freezeCaseMotion(canvas);
+  const input = task13PromptInput(canvas);
+  await input.click();
+  const label = await input.getAttribute("aria-label");
+  const value = label === "提示词输入框" ? "对比开心果周末销量" : "Compare pistachio weekends";
+  await input.fill(value);
+  if ((await input.inputValue()) !== value) {
+    throw new Error("Prompt composer did not retain its draft");
+  }
+  const model = canvas.getByRole("button", { name: /Choose model|选择模型/ });
+  if (!(await model.textContent())?.includes("Vanilla 1")) {
+    throw new Error("Prompt composer did not start on Vanilla 1");
+  }
+  await settleTask13PromptFrame(canvas, page);
+  const promptCanvas = canvas.locator("canvas").first();
+  await promptCanvas.evaluate((element) => {
+    const context = element.getContext("webgl");
+    if (!context) return;
+    context.clearColor(0, 0, 0, 0);
+    context.clear(context.COLOR_BUFFER_BIT);
+    context.finish();
+  });
+  await page.waitForTimeout(100);
+}
+
+async function settleTask13PromptFrame(canvas, page) {
+  await page.waitForTimeout(550);
+  const promptCanvas = canvas.locator("canvas").first();
+  if ((await promptCanvas.count()) > 0) {
+    await promptCanvas.evaluate((element) => {
+      element.getContext("webgl")?.finish();
+    });
+  }
+  await freezeCaseMotion(canvas);
+  await page.waitForTimeout(100);
+}
+
+async function openTask13PromptModel({ canvas, page }) {
+  const model = canvas.getByRole("button", { name: /Choose model|选择模型/ });
+  await model.click();
+  if ((await model.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Prompt model picker remained closed");
+  }
+  await page.mouse.move(0, 0);
+  await canvas.getByText(/Flagship|旗舰/).waitFor();
+  await canvas.getByText(/Basic|基础/).waitFor();
+  await canvas.getByText(/Stale|过时/).waitFor();
+  await settleTask13PromptFrame(canvas, page);
+}
+
+async function connectTask13Prompt({ canvas, page }) {
+  const input = task13PromptInput(canvas);
+  await input.click();
+  await input.fill("@gmail");
+  const connect = canvas.getByRole("button", {
+    exact: true,
+    name: /^(Connect|连接)$/,
+  });
+  await connect.click();
+  await canvas.getByText(/^(Connected|已连接)$/).waitFor();
+  if ((await input.inputValue()) !== "@gmail") {
+    throw new Error("Prompt connection action replaced the composer token");
+  }
+  await page.mouse.move(0, 0);
+  await settleTask13PromptFrame(canvas, page);
+}
+
+async function selectTask13PromptModel({ canvas, page }) {
+  await composeTask13Prompt({ canvas, page });
+  await openTask13PromptModel({ canvas, page });
+  await canvas
+    .getByRole("button", { name: /Sprinkles 5/ })
+    .last()
+    .evaluate((element) => element.click());
+  const model = canvas.getByRole("button", { name: /Choose model|选择模型/ });
+  if (!(await model.textContent())?.includes("Sprinkles 5")) {
+    throw new Error("Prompt model selection did not update the composer");
+  }
+  await page.mouse.click(0, 0);
+  await page.waitForTimeout(100);
+  await task13PromptInput(canvas).focus();
+  await page.waitForTimeout(100);
+  await settleTask13PromptFrame(canvas, page);
+}
+
+async function submitTask13Prompt({ canvas, page }) {
+  await composeTask13Prompt({ canvas, page });
+  await canvas.getByRole("button", { name: /Send|发送/ }).click();
+  if ((await task13PromptInput(canvas).inputValue()) !== "") {
+    throw new Error("Prompt submission did not clear the composer");
+  }
+  await settleTask13PromptFrame(canvas, page);
+}
+
+async function installTask13InsightClock({ page }) {
+  await page.evaluate(() => {
+    if (globalThis.__naiTask13InsightClock) {
+      throw new Error("Insight animation clock was already installed");
+    }
+
+    const realRequestAnimationFrame = window.requestAnimationFrame;
+    const realCancelAnimationFrame = window.cancelAnimationFrame;
+    const ownPerformanceNow = Object.getOwnPropertyDescriptor(
+      window.performance,
+      "now",
+    );
+    let now = 1;
+    let sequence = -1;
+    const callbacks = new Map();
+
+    Object.defineProperty(window.performance, "now", {
+      configurable: true,
+      value: () => now,
+    });
+    window.requestAnimationFrame = (callback) => {
+      const id = sequence;
+      sequence -= 1;
+      callbacks.set(id, callback);
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => callbacks.delete(id);
+
+    globalThis.__naiTask13InsightClock = {
+      flush(frameCount) {
+        let ran = 0;
+        for (let frame = 0; frame < frameCount; frame += 1) {
+          now += 1000 / 60;
+          const frameCallbacks = [...callbacks.values()];
+          callbacks.clear();
+          for (const callback of frameCallbacks) callback(now);
+          ran += frameCallbacks.length;
+        }
+        return { pending: callbacks.size, ran };
+      },
+      restore() {
+        callbacks.clear();
+        window.requestAnimationFrame = realRequestAnimationFrame;
+        window.cancelAnimationFrame = realCancelAnimationFrame;
+        if (ownPerformanceNow) {
+          Object.defineProperty(window.performance, "now", ownPerformanceNow);
+        } else {
+          Reflect.deleteProperty(window.performance, "now");
+        }
+        Reflect.deleteProperty(globalThis, "__naiTask13InsightClock");
+      },
+    };
+  });
+}
+
+async function clickTask13InsightControl(page, control) {
+  await control.evaluate((element) => element.click());
+  await page.evaluate(
+    () => new Promise((resolve) => window.__naiRealSetTimeout(resolve, 0)),
+  );
+}
+
+async function prepareTask13Compare(args) {
+  await installTask13InsightClock(args);
+  await clickTask13InsightControl(
+    args.page,
+    args.canvas.getByRole("button", { name: /Next insight|下一条洞察/ }),
+  );
+  await clickTask13InsightControl(
+    args.page,
+    args.canvas.getByRole("button", { name: /Previous insight|上一条洞察/ }),
+  );
+}
+
+async function prepareTask13Anomaly(args) {
+  await installTask13InsightClock(args);
+  await clickTask13InsightControl(
+    args.page,
+    args.canvas.getByRole("button", { name: /Next insight|下一条洞察/ }),
+  );
+}
+
+async function settleTask13InsightFrame({ canvas, page }) {
+  await page.mouse.move(0, 0);
+  const hasClock = await page.evaluate(
+    () => Boolean(globalThis.__naiTask13InsightClock),
+  );
+
+  try {
+    if (hasClock) {
+      const chartCanvas = canvas.locator("canvas").first();
+      let ready = false;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await page.evaluate(
+          () => new Promise((resolve) => window.__naiRealSetTimeout(resolve, 0)),
+        );
+        await page.evaluate(() => globalThis.__naiTask13InsightClock.flush(1));
+        ready =
+          (await chartCanvas.count()) > 0 &&
+          (await chartCanvas.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const scale = window.devicePixelRatio || 1;
+            return (
+              rect.width > 0 &&
+              rect.height > 0 &&
+              element.width === Math.round(rect.width * scale) &&
+              element.height === Math.round(rect.height * scale) &&
+              Boolean(element.style.width) &&
+              Boolean(element.style.height)
+            );
+          }));
+        if (ready) break;
+      }
+      if (!ready) {
+        throw new Error("Insight chart canvas did not become measurable");
+      }
+
+      await page.evaluate(() => globalThis.__naiTask13InsightClock.flush(120));
+    }
+    await page.waitForTimeout(550);
+    await freezeCaseMotion(canvas);
+  } finally {
+    if (hasClock) {
+      await page.evaluate(() => globalThis.__naiTask13InsightClock?.restore());
+    }
+  }
+  await page.waitForTimeout(100);
+}
+
+async function captureTask13InsightInitial(args) {
+  await prepareTask13Compare(args);
+  await settleTask13InsightFrame(args);
+}
+
+async function selectTask13ComparePoint({ canvas, page }) {
+  await prepareTask13Compare({ canvas, page });
+  await settleTask13InsightFrame({ canvas, page });
+  await page.waitForTimeout(100);
+  const chart = canvas.getByRole("group", {
+    name: /Return comparison chart|收益对比趋势图/,
+  });
+  await chart.click({ position: { x: 190, y: 88 } });
+  await page.mouse.move(0, 0);
+  await canvas.getByRole("tooltip").waitFor();
+  if (!(await chart.getAttribute("aria-activedescendant"))) {
+    throw new Error("Comparison chart selection did not persist after pointer leave");
+  }
+  await settleTask13InsightFrame({ canvas, page });
+}
+
+async function selectTask13UsagePoint({ canvas, page }) {
+  await prepareTask13Anomaly({ canvas, page });
+  await freezeCaseMotion(canvas);
+  await page.waitForTimeout(100);
+  await clickTask13InsightControl(
+    page,
+    canvas.getByRole("button", { name: /^(Usage|用电)$/ }),
+  );
+  await settleTask13InsightFrame({ canvas, page });
+  const chart = canvas.getByRole("group", {
+    name: /Usage trend chart|用电趋势图/,
+  });
+  await chart.focus();
+  await page.keyboard.press("End");
+  await canvas.getByRole("tooltip").waitFor();
+  if (!(await chart.getAttribute("aria-activedescendant"))?.endsWith("-point-7")) {
+    throw new Error("Usage chart keyboard selection did not reach the final point");
+  }
+  await settleTask13InsightFrame({ canvas, page });
+}
+
+async function submitTask13InsightFollowup({ canvas, page }) {
+  await prepareTask13Compare({ canvas, page });
+  const followUp = canvas.getByRole("button", {
+    name: /Should I rebalance flavors|需要重新平衡口味组合吗/,
+  });
+  await clickTask13InsightControl(page, followUp);
+  const submitted = canvas.getByRole("button", {
+    name: /Question added|问题已添加/,
+  });
+  if (!(await submitted.isDisabled())) {
+    throw new Error("Submitted insight follow-up remained actionable");
+  }
+  await canvas
+    .getByRole("status")
+    .getByText(/Follow-up question added|后续问题已添加/)
+    .waitFor();
+  await settleTask13InsightFrame({ canvas, page });
+}
+
+async function openTask13Anomaly(args) {
+  await prepareTask13Anomaly(args);
+  await settleTask13InsightFrame(args);
+}
+
+async function selectTask13Allocation({ canvas, page }) {
+  const next = canvas.getByRole("button", { name: /Next insight|下一条洞察/ });
+  await next.click();
+  await next.click();
+  const control = canvas.getByRole("button", { name: "Chocolate: 22.8%" });
+  await freezeCaseMotion(canvas);
+  await page.waitForTimeout(100);
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Chocolate allocation did not become selected");
+  }
+  await canvas.getByText("$16,278").waitFor();
+  await settleTask13InsightFrame({ canvas, page });
+}
+
+/* TASK 13 VISUAL ACTIONS END */
 
 /**
  * @typedef {{

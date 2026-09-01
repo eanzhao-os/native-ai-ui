@@ -37,6 +37,20 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
+function showSettledStreaming(el: any) {
+  el._count = 28;
+  el.render();
+}
+
+function dispatchPointerAt(element: Element, type: string, clientX: number) {
+  element.dispatchEvent(
+    new MouseEvent(type, {
+      bubbles: true,
+      clientX,
+    }),
+  );
+}
+
 afterEach(() => {
   document.body.innerHTML = "";
   setGlobalLang("en");
@@ -97,53 +111,320 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(trace).toBeTruthy();
   });
 
-  test("<nai-streaming-text> renders content and action buttons", () => {
+  test("<nai-streaming-text> exposes the settled React actions, sources drawer, and follow-ups", () => {
+    vi.useFakeTimers();
     const el = document.createElement("nai-streaming-text") as any;
-    el.setAttribute("auto", "false");
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    const content = el.shadowRoot.querySelector(".content");
-    expect(content).toBeTruthy();
-    const copyBtn = el.shadowRoot.querySelector(".copy-btn");
-    expect(copyBtn).toBeTruthy();
+    showSettledStreaming(el);
+
+    const root = el.shadowRoot;
+    expect(root).toBeTruthy();
+    expect(root.querySelectorAll('button[aria-label="Action"]')).toHaveLength(4);
+    expect(root.querySelectorAll('button[aria-label="Action"].size-6')).toHaveLength(4);
+
+    const sources = [...root.querySelectorAll("button")].find((button: Element) =>
+      button.textContent?.includes("10 sources"),
+    ) as HTMLButtonElement;
+    expect(sources).toBeTruthy();
+    expect(sources.getAttribute("aria-expanded")).toBe("false");
+    expect(sources.querySelectorAll("img.source-avatar")).toHaveLength(3);
+
+    expect(root.textContent).toContain("Follow-ups");
+    const stableAction = root.querySelector('button[aria-label="Action"]');
+    const stableToken = root.querySelector("p")?.firstElementChild;
+    const followUps = [...root.querySelectorAll("button")].filter((button: Element) =>
+      /Which flavors sell best|Compare gelato/.test(button.textContent ?? ""),
+    );
+    expect(followUps).toHaveLength(2);
+    expect(followUps.every((button: Element) => button.classList.contains("border-b"))).toBe(true);
+
+    sources.click();
+    const expandedSources = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button: Element) => button.textContent?.includes("10 sources"),
+    ) as HTMLButtonElement;
+    expect(el.shadowRoot.querySelector('button[aria-label="Action"]')).toBe(
+      stableAction,
+    );
+    expect(el.shadowRoot.querySelector("p")?.firstElementChild).toBe(stableToken);
+    expect(expandedSources.getAttribute("aria-expanded")).toBe("true");
+    expect(el.shadowRoot.textContent).toContain("Scoop Data");
+    expect(el.shadowRoot.textContent).toContain("Trends Index");
+    expect(el.shadowRoot.textContent).toContain("Market Basket");
+    expect(el.shadowRoot.querySelectorAll('a[target="_blank"]')).toHaveLength(4);
   });
 
-  test("<nai-approval-card> handles option selection and navigation", () => {
+  test("<nai-streaming-text> preserves settled controls while tokens stream", async () => {
+    const el = document.createElement("nai-streaming-text") as any;
+    document.body.appendChild(el);
+    const action = el.shadowRoot.querySelector('button[aria-label="Action"]');
+
+    await new Promise((resolve) => window.setTimeout(resolve, 70));
+
+    expect(el.shadowRoot.querySelector('button[aria-label="Action"]')).toBe(action);
+    expect(el.shadowRoot.querySelector("p")?.textContent).toContain("Pistachio");
+  });
+
+  test("<nai-streaming-text> restarts the stream when its language changes", async () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-streaming-text") as any;
+    document.body.appendChild(el);
+    showSettledStreaming(el);
+    expect(el.shadowRoot.textContent).toContain("Follow-ups");
+
+    el.setAttribute("lang", "zh");
+
+    const followUpHeading = [...el.shadowRoot.querySelectorAll("p")].find(
+      (paragraph: Element) => paragraph.textContent?.trim() === "猜您想问",
+    ) as HTMLParagraphElement;
+    expect(followUpHeading.parentElement?.style.opacity).toBe("0");
+    expect(el.shadowRoot.querySelector("p").textContent.trim()).toBe("");
+    expect(el.shadowRoot.querySelector(".bg-ink")).toBeTruthy();
+    vi.advanceTimersByTime(55);
+    await Promise.resolve();
+    expect(el.shadowRoot.querySelector("p").textContent).toContain("开");
+  });
+
+  test("<nai-approval-card> uses native choices and keeps custom answers through footer navigation", () => {
     const el = document.createElement("nai-approval-card") as any;
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    const options = el.shadowRoot.querySelectorAll(".option-item");
-    expect(options.length).toBeGreaterThan(0);
+    const root = el.shadowRoot;
+    expect(root).toBeTruthy();
+    expect(root.querySelector("fieldset legend")?.textContent).toBe(
+      "How many flavors should we launch?",
+    );
+    expect(root.querySelectorAll('input[type="radio"]')).toHaveLength(3);
+    expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
 
-    // Click first option
-    options[0].click();
-    const selectedOption = el.shadowRoot.querySelector(".option-item.selected");
-    expect(selectedOption).toBeTruthy();
+    const custom = root.querySelector('[aria-label="Custom answer"]') as HTMLInputElement;
+    custom.value = "Four seasonal flavors";
+    custom.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const nextQuestion = root.querySelector(
+      '[aria-label="Next question"]',
+    ) as HTMLButtonElement;
+    expect(nextQuestion.disabled).toBe(false);
+    nextQuestion.click();
+
+    expect(el.shadowRoot.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
+    expect(el.shadowRoot.querySelector('[aria-label="Previous"]')?.className).toContain(
+      "size-11",
+    );
+    const checkbox = el.shadowRoot.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    checkbox.focus();
+    checkbox.click();
+    expect(el.shadowRoot.querySelector('input[type="checkbox"]')).toBe(checkbox);
+    expect(el.shadowRoot.activeElement).toBe(checkbox);
+    expect(checkbox.checked).toBe(true);
+    const firstProgress = el.shadowRoot.querySelector(
+      '[aria-label="Go to question 1"]',
+    ) as HTMLButtonElement;
+    expect(firstProgress.className).toContain("size-11");
+    firstProgress.click();
+    expect(
+      (el.shadowRoot.querySelector('[aria-label="Custom answer"]') as HTMLInputElement)
+        .value,
+    ).toBe("Four seasonal flavors");
   });
 
-  test("<nai-prompt-bar> mounts, updates input, and handles send event", () => {
+  test("<nai-approval-card> cancels radio auto-advance when footer navigation changes the question", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-approval-card") as any;
+    document.body.appendChild(el);
+
+    const firstChoice = el.shadowRoot.querySelector(
+      'input[type="radio"]',
+    ) as HTMLInputElement;
+    firstChoice.click();
+    (
+      el.shadowRoot.querySelector(
+        '[aria-label="Go to question 3"]',
+      ) as HTMLButtonElement
+    ).click();
+
+    vi.advanceTimersByTime(480);
+
+    expect(el.shadowRoot.textContent).toContain("Which market do we enter first?");
+    expect(el.shadowRoot.textContent).not.toContain("Answers sent");
+  });
+
+  test("<nai-approval-card> submits from the last custom answer and focuses the footer reset action", () => {
+    const el = document.createElement("nai-approval-card") as any;
+    document.body.appendChild(el);
+
+    for (let question = 0; question < 3; question += 1) {
+      const custom = el.shadowRoot.querySelector(
+        '[aria-label="Custom answer"]',
+      ) as HTMLInputElement;
+      custom.value = `Answer ${question + 1}`;
+      custom.dispatchEvent(new Event("input", { bubbles: true }));
+      const submit = el.shadowRoot.querySelector(
+        question === 2
+          ? '[aria-label="Send answers"]'
+          : '[aria-label="Next question"]',
+      ) as HTMLButtonElement;
+      submit.click();
+    }
+
+    const status = el.shadowRoot.querySelector('[role="status"]');
+    const startOver = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button: Element) => button.textContent?.trim() === "Start over",
+    ) as HTMLButtonElement;
+    expect(status?.textContent).toContain("Answers sent");
+    expect(startOver.className).toContain("min-h-11");
+    expect(el.shadowRoot.activeElement).toBe(startOver);
+    expect(el.shadowRoot.querySelector(".primitive-card-footer")).toBeTruthy();
+  });
+
+  test("<nai-prompt-bar> opens the complete source menu and keeps connection state in place", () => {
     const el = document.createElement("nai-prompt-bar") as any;
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    const textarea = el.shadowRoot.querySelector("textarea");
-    expect(textarea).toBeTruthy();
+    const textarea = el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement;
+    textarea.value = "@";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(el.shadowRoot.textContent).toContain("Add photos & files");
+    expect(el.shadowRoot.textContent).toContain("Figma");
+    expect(el.shadowRoot.textContent).toContain("Slack");
+    expect(el.shadowRoot.textContent).toContain("Gmail");
+    const brandViewBoxes = [...el.shadowRoot.querySelectorAll("svg")].map((svg) =>
+      svg.getAttribute("viewBox"),
+    );
+    expect(brandViewBoxes).toContain("0 0 38 57");
+    expect(brandViewBoxes).toContain("0 0 127 127");
+    expect(brandViewBoxes).toContain("0 0 256 193");
+
+    const connect = [...el.shadowRoot.querySelectorAll('[role="button"]')].find(
+      (button: Element) => button.textContent?.trim() === "Connect",
+    ) as HTMLElement;
+    expect(connect).toBeTruthy();
+    const gmailRow = connect.closest("button") as HTMLButtonElement;
+    gmailRow.dispatchEvent(new MouseEvent("mouseenter"));
+    const stableHighlight = el.shadowRoot.querySelector("[data-menu-highlight]");
+    const stableInput = el.shadowRoot.querySelector("textarea");
+    connect.click();
+
+    expect(el.shadowRoot.querySelector("textarea")).toBe(stableInput);
+    expect(el.shadowRoot.querySelector('[data-row-key="gmail"]')).toBe(gmailRow);
+    expect(el.shadowRoot.querySelector("[data-menu-highlight]")).toBe(
+      stableHighlight,
+    );
+    expect((stableHighlight as HTMLElement).style.opacity).toBe("1");
+    expect(el.shadowRoot.textContent).toContain("Connected");
+    expect(el.shadowRoot.textContent).toContain("Gmail");
+    expect(
+      (el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement).value,
+    ).toBe("@");
+  });
+
+  test("<nai-prompt-bar> starts on Vanilla 1 and exposes the exact model picker state", () => {
+    const el = document.createElement("nai-prompt-bar") as any;
+    document.body.appendChild(el);
+
+    const picker = el.shadowRoot.querySelector(
+      '[aria-label="Choose model"]',
+    ) as HTMLButtonElement;
+    const stableCanvas = el.shadowRoot.querySelector("canvas");
+    const stableSend = el.shadowRoot.querySelector('[aria-label="Send"]');
+    expect(picker.textContent).toContain("Vanilla 1");
+    expect(picker.getAttribute("aria-expanded")).toBe("false");
+
+    picker.click();
+    const openPicker = el.shadowRoot.querySelector(
+      '[aria-label="Choose model"]',
+    ) as HTMLButtonElement;
+    expect(openPicker.getAttribute("aria-expanded")).toBe("true");
+    expect(el.shadowRoot.querySelector("canvas")).toBe(stableCanvas);
+    expect(el.shadowRoot.querySelector('[aria-label="Send"]')).toBe(stableSend);
+    expect(el.shadowRoot.textContent).toContain("Flagship");
+    expect(el.shadowRoot.textContent).toContain("Basic");
+    expect(el.shadowRoot.textContent).toContain("Stale");
+    const selectedCheck = [...el.shadowRoot.querySelectorAll("button")]
+      .find(
+        (button: Element) =>
+          button !== openPicker && button.textContent?.includes("Vanilla 1"),
+      )
+      ?.querySelector(".text-ink:not(.invisible)");
+    expect(selectedCheck).toBeTruthy();
+
+    const flagship = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button: Element) =>
+        button !== openPicker && button.textContent?.includes("Sprinkles 5"),
+    ) as HTMLButtonElement;
+    flagship.click();
+    expect(el.shadowRoot.querySelector("canvas")).toBe(stableCanvas);
+    expect(el.shadowRoot.querySelector('[aria-label="Send"]')).toBe(stableSend);
+    expect(
+      el.shadowRoot.querySelector('[aria-label="Choose model"]')?.textContent,
+    ).toContain("Sprinkles 5");
+  });
+
+  test("<nai-prompt-bar> delays dictation and exposes listening state", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-prompt-bar") as any;
+    document.body.appendChild(el);
+
+    const dictation = el.shadowRoot.querySelector(
+      '[aria-label="Start dictation"]',
+    ) as HTMLButtonElement;
+    dictation.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, composed: true }),
+    );
+    dictation.click();
+
+    let textarea = el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.placeholder).toBe("Listening…");
+    expect(textarea.value).toBe("");
+    expect(
+      el.shadowRoot.querySelector('[aria-label="Stop dictation"]')?.getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+
+    vi.advanceTimersByTime(2199);
+    textarea = el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.value).toBe("");
+    vi.advanceTimersByTime(1);
+    textarea = el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.value).toBe(
+      "Compare pistachio weekends to last summer",
+    );
+    expect(el.shadowRoot.querySelector('[aria-label="Start dictation"]')).toBeTruthy();
+  });
+
+  test("<nai-prompt-bar> submits the composer with the selected model and clears it", () => {
+    const el = document.createElement("nai-prompt-bar") as any;
+    document.body.appendChild(el);
 
     let submittedData: any = null;
-    el.addEventListener("submit", (e: any) => {
-      submittedData = e.detail;
+    el.addEventListener("submit", (event: any) => {
+      submittedData = event.detail;
     });
 
+    const textarea = el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement;
     textarea.value = "Test query";
-    textarea.dispatchEvent(new Event("input"));
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    const send = el.shadowRoot.querySelector(
+      '[aria-label="Send"]',
+    ) as HTMLButtonElement;
+    expect(send.disabled).toBe(false);
+    send.click();
 
-    el.send();
     expect(submittedData).toEqual({
       text: "Test query",
-      model: "sprinkles-5",
+      model: "vanilla-1",
     });
+    expect(
+      (el.shadowRoot.querySelector("textarea") as HTMLTextAreaElement).value,
+    ).toBe("");
+    expect(
+      (el.shadowRoot.querySelector('[aria-label="Send"]') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 
   test("<nai-chat> switches tabs and sends message", () => {
@@ -693,22 +974,146 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(el._voted).toBe("B");
   });
 
-  test("<nai-insight-cards> navigates carousel and toggles anomaly metrics", () => {
+  test("<nai-insight-cards> exposes the comparison chart table, cursor, and persistent tooltip selection", () => {
     const el = document.createElement("nai-insight-cards") as any;
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    expect(el._page).toBe(0);
+    expect(
+      el.shadowRoot.querySelector('[class~="min-h-[456px]"]'),
+    ).toBeTruthy();
+    const stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    expect(stage).toBeTruthy();
+    expect(stage.tabIndex).toBe(0);
+    const tableId = stage.getAttribute("aria-describedby");
+    expect(tableId).toBeTruthy();
+    expect(el.shadowRoot.querySelector(`#${tableId} tbody`)?.children).toHaveLength(8);
+    expect(stage.querySelector("canvas")?.style.cursor).toBe("default");
 
-    const nextBtn = el.shadowRoot.querySelector("#btn-next");
-    expect(nextBtn).toBeTruthy();
-    nextBtn.click();
-    expect(el._page).toBe(1);
+    stage.getBoundingClientRect = () =>
+      ({ left: 0, width: 280 }) as DOMRect;
+    dispatchPointerAt(stage, "pointerdown", 160);
 
-    const metricUsage = el.shadowRoot.querySelector("#metric-usage");
-    expect(metricUsage).toBeTruthy();
+    let selectedStage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    expect(selectedStage.getAttribute("aria-activedescendant")).toMatch(/-point-4$/);
+    expect(
+      (el.shadowRoot.querySelector(".insight-chart-cursor") as HTMLElement).style.left,
+    ).toBe("57.14285714285714%");
+    expect(el.shadowRoot.querySelector('[role="tooltip"]')?.textContent).toContain(
+      "Today, 11:42",
+    );
+    expect(el.shadowRoot.querySelector('[role="tooltip"]')?.textContent).toContain(
+      "-3.52%",
+    );
+    expect(el.shadowRoot.querySelector('[role="tooltip"]')?.textContent).toContain(
+      "+0.76%",
+    );
+
+    selectedStage.dispatchEvent(new MouseEvent("pointerleave"));
+    selectedStage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    expect(selectedStage.getAttribute("aria-activedescendant")).toMatch(/-point-4$/);
+    expect(el.shadowRoot.querySelector('[role="tooltip"]')).toBeTruthy();
+  });
+
+  test("<nai-insight-cards> supports chart keyboard selection and Escape clearing", () => {
+    const el = document.createElement("nai-insight-cards") as any;
+    document.body.appendChild(el);
+
+    let stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    stage.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
+    stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    expect(stage.getAttribute("aria-activedescendant")).toMatch(/-point-7$/);
+    expect(el.shadowRoot.querySelector('[role="tooltip"]')?.textContent).toContain(
+      "Today, 12:00",
+    );
+
+    stage.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft" }),
+    );
+    stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    expect(stage.getAttribute("aria-activedescendant")).toMatch(/-point-6$/);
+
+    stage.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Return comparison chart"]',
+    ) as HTMLElement;
+    expect(stage.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(el.shadowRoot.querySelector('[role="tooltip"]')).toBeNull();
+  });
+
+  test("<nai-insight-cards> keeps allocation controls stable while changing the inspected segment", () => {
+    const el = document.createElement("nai-insight-cards") as any;
+    document.body.appendChild(el);
+
+    (el.shadowRoot.querySelector("#btn-next") as HTMLButtonElement).click();
+    (el.shadowRoot.querySelector("#btn-next") as HTMLButtonElement).click();
+    const pager = el.shadowRoot.querySelector("#btn-next");
+    const chocolate = el.shadowRoot.querySelector(
+      '[aria-label="Chocolate: 22.8%"]',
+    ) as HTMLButtonElement;
+    chocolate.click();
+
+    expect(el.shadowRoot.querySelector("#btn-next")).toBe(pager);
+    expect(el.shadowRoot.querySelector('[aria-label="Chocolate: 22.8%"]')).toBe(
+      chocolate,
+    );
+    expect(chocolate.getAttribute("aria-pressed")).toBe("true");
+    expect(el.shadowRoot.textContent).toContain("$16,278");
+  });
+
+  test("<nai-insight-cards> clears chart selection on metric change and submits follow-ups honestly", () => {
+    const el = document.createElement("nai-insight-cards") as any;
+    document.body.appendChild(el);
+
+    (el.shadowRoot.querySelector("#btn-next") as HTMLButtonElement).click();
+    let stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Spend trend chart"]',
+    ) as HTMLElement;
+    stage.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
+    expect(
+      el.shadowRoot
+        .querySelector('[role="group"][aria-label="Spend trend chart"]')
+        ?.hasAttribute("aria-activedescendant"),
+    ).toBe(true);
+
+    const metricUsage = el.shadowRoot.querySelector(
+      "#metric-usage",
+    ) as HTMLButtonElement;
     metricUsage.click();
-    expect(el._anomalyMetric).toBe("usage");
+    stage = el.shadowRoot.querySelector(
+      '[role="group"][aria-label="Usage trend chart"]',
+    ) as HTMLElement;
+    expect(metricUsage).toBeTruthy();
+    expect(
+      (el.shadowRoot.querySelector("#metric-usage") as HTMLButtonElement).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+    expect(stage.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(stage.querySelector("canvas")?.style.cursor).toBe("crosshair");
+
+    const followUp = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button: Element) => button.textContent?.includes("Get tips on cutting freezer costs"),
+    ) as HTMLButtonElement;
+    followUp.click();
+    const submitted = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button: Element) => button.textContent?.includes("Question added"),
+    ) as HTMLButtonElement;
+    expect(submitted.disabled).toBe(true);
+    expect(el.shadowRoot.querySelector('[role="status"]')?.textContent).toContain(
+      "Follow-up question added to the conversation.",
+    );
   });
 
   test("<nai-recommendation-card> selects alternatives and toggles drawer", () => {
