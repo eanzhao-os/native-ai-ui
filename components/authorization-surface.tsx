@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useLang } from "@/lib/lang-context";
 
 /* ─────────────────────────────────────────────────────────
@@ -25,6 +25,7 @@ const DIRECTORY: AuthEntry[] = [
 ];
 
 type Phase = "idle" | "prompt" | "settling" | "done";
+type Outcome = { kind: "revoked"; provider: string } | null;
 
 const HOLD_IDLE_MS = 1400;
 const TYPE_MS = 110;
@@ -41,12 +42,15 @@ export default function AuthorizationSurface({
   const lang = useLang("authorization-surface", propLang);
   const zh = lang === "zh";
   const providerSwitchedCase = visualCase === "provider-switched";
+  const instanceId = useId();
+  const promptId = `${instanceId}-prompt`;
 
   const [configured, setConfigured] = useState<Record<string, boolean>>({ deepseek: false, openai: true, e2b: false });
   const [flowKey, setFlowKey] = useState<string | null>(providerSwitchedCase ? "e2b" : null);
   const [phase, setPhase] = useState<Phase>(providerSwitchedCase ? "prompt" : "idle");
   const [secret, setSecret] = useState("");
   const [revealed, setRevealed] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome>(null);
 
   const fullSecret = "dsk-live-9824f1a8c901";
 
@@ -55,6 +59,7 @@ export default function AuthorizationSurface({
     setPhase("prompt");
     setSecret("");
     setRevealed(false);
+    setOutcome(null);
   };
 
   const withdrawFlow = () => {
@@ -64,63 +69,104 @@ export default function AuthorizationSurface({
     setRevealed(false);
   };
 
+  const revokeProvider = (provider: string) => {
+    setConfigured((current) => ({ ...current, [provider]: false }));
+    setOutcome({ kind: "revoked", provider });
+  };
+
   /* demo loop: begin the deepseek flow, type the secret, accept, settle, reset. */
   useEffect(() => {
     if (phase === "idle" && flowKey === null) {
-      const t = setTimeout(() => beginFlow("deepseek"), HOLD_IDLE_MS);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => beginFlow("deepseek"), HOLD_IDLE_MS);
+      return () => clearTimeout(timer);
     }
     if (phase === "prompt") {
       if (secret.length < fullSecret.length) {
-        const t = setTimeout(() => setSecret(fullSecret.slice(0, secret.length + 1)), TYPE_MS);
-        return () => clearTimeout(t);
+        const timer = setTimeout(() => setSecret(fullSecret.slice(0, secret.length + 1)), TYPE_MS);
+        return () => clearTimeout(timer);
       }
-      const t = setTimeout(() => setPhase("settling"), 500);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setPhase("settling"), 500);
+      return () => clearTimeout(timer);
     }
     if (phase === "settling") {
-      const t = setTimeout(() => {
+      const timer = setTimeout(() => {
         setConfigured((current) => ({ ...current, [flowKey ?? "deepseek"]: true }));
         setPhase("done");
       }, SETTLE_MS);
-      return () => clearTimeout(t);
+      return () => clearTimeout(timer);
     }
     if (phase === "done") {
-      const t = setTimeout(() => {
+      const timer = setTimeout(() => {
         setFlowKey(null);
         setPhase("idle");
         setSecret("");
         setRevealed(false);
         setConfigured((current) => ({ ...current, deepseek: false }));
       }, HOLD_DONE_MS);
-      return () => clearTimeout(t);
+      return () => clearTimeout(timer);
     }
   }, [phase, flowKey, secret]);
 
   const flowOpen = flowKey !== null && phase !== "idle";
+  const configuredCount = Object.values(configured).filter(Boolean).length;
+  const busy = phase === "settling";
+  const authorizationStatus = busy
+    ? zh
+      ? `正在授权 ${flowKey ?? ""}`
+      : `Authorizing ${flowKey ?? ""}`
+    : phase === "done"
+      ? zh
+        ? `已授权 ${flowKey ?? ""}`
+        : `Authorized ${flowKey ?? ""}`
+      : flowOpen
+        ? zh
+          ? `${flowKey ?? ""} 凭据输入已打开`
+          : `Credential prompt open for ${flowKey ?? ""}`
+        : outcome?.kind === "revoked"
+          ? zh
+            ? `已撤销 ${outcome.provider}`
+            : `Revoked ${outcome.provider}`
+          : zh
+            ? `${configuredCount}/${DIRECTORY.length} 已配置`
+            : `${configuredCount} of ${DIRECTORY.length} configured`;
 
   return (
-    <div className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card">
+    <section
+      role="region"
+      aria-label={zh ? "授权与凭据目录" : "Authorization directory"}
+      aria-busy={busy}
+      className="w-full max-w-lg rounded-card border border-line bg-surface p-5 shadow-card"
+    >
       {/* header */}
-      <div className="flex items-center justify-between border-b border-line pb-3.5">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M21 2l-2 2m-1-1l-3 3 2 2 3-3-1-1zm-6 6l-1.5 1.5M10 14l-4 4-2-2 4-4M3 21l3-3" />
             </svg>
           </span>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-[13px] font-semibold text-ink">
               {zh ? "授权与凭据目录" : "Authorization Directory"}
             </h3>
-            <p className="text-[11px] text-ink-3">
+            <p className="mt-0.5 text-[11px] leading-relaxed text-ink-2">
               {zh ? "凭据只写入不展示；配置状态是唯一事实" : "Secrets are write-only; configured state is the only display"}
             </p>
           </div>
         </div>
-        <span className="rounded-chip border border-line bg-inset px-2 py-0.5 font-mono text-[10px] text-ink-3">
-          {Object.values(configured).filter(Boolean).length}/{DIRECTORY.length} {zh ? "已配置" : "configured"}
+        <span className="shrink-0 rounded-chip border border-line bg-inset px-2 py-1 font-mono text-[10px] text-ink-2">
+          {configuredCount}/{DIRECTORY.length} {zh ? "已配置" : "configured"}
         </span>
+      </div>
+
+      <div
+        role="status"
+        aria-label={zh ? "授权状态" : "Authorization status"}
+        aria-live="polite"
+        aria-atomic="true"
+        className="mt-3 min-h-8 rounded-control border border-line bg-inset/60 px-3 py-2 text-[11px] font-medium text-ink-2"
+      >
+        {authorizationStatus}
       </div>
 
       {/* directory rows */}
@@ -131,45 +177,38 @@ export default function AuthorizationSurface({
           return (
             <div
               key={entry.key}
-              className={`flex items-center gap-2.5 rounded-control border px-3 py-2 transition-colors duration-200 ${
-                inFlight ? "border-accent bg-accent-tint/25" : "border-line bg-surface"
+              aria-busy={inFlight && busy}
+              className={`flex min-h-14 flex-wrap items-center gap-2.5 rounded-control border px-3 py-2 transition-colors duration-200 motion-reduce:transition-none ${
+                inFlight ? "border-accent bg-accent-tint/30" : "border-line bg-surface"
               }`}
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+              <div className="min-w-40 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[12.5px] font-medium text-ink">{entry.key}</span>
-                  <span className="rounded-chip border border-line bg-inset px-1.5 py-0.2 font-mono text-[9.5px] text-ink-3">
+                  <span className="rounded-chip border border-line bg-inset px-1.5 py-0.5 font-mono text-[9.5px] text-ink-2">
                     {entry.kind}
                   </span>
                 </div>
-                <p className="mt-0.5 truncate font-mono text-[10px] text-ink-3">{entry.scope}</p>
+                <p className="mt-0.5 whitespace-normal break-words font-mono text-[10px] leading-relaxed text-ink-2">{entry.scope}</p>
               </div>
               {isConfigured ? (
-                <span
-                  className="flex items-center gap-1 rounded-chip bg-green-tint px-2 py-0.5 text-[10.5px] font-medium text-green"
-                  style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}
-                >
+                <span className="flex min-h-7 items-center gap-1 rounded-chip bg-green-tint px-2 py-1 text-[10.5px] font-medium text-green motion-reduce:animate-none" style={{ animation: "pop-in 250ms cubic-bezier(0.23,1,0.32,1) both" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
                   {zh ? "已配置" : "Configured"}
                 </span>
               ) : inFlight ? (
-                <span className="flex items-center gap-1.5 text-[10.5px] text-ink-3">
-                  <span
-                    className="size-3 rounded-full border-[1.5px] border-line-strong border-t-ink-2"
-                    style={{ animation: "spin 700ms linear infinite" }}
-                  />
+                <span className="flex min-h-11 items-center gap-1.5 text-[10.5px] font-medium text-ink-2">
+                  <span aria-hidden className="size-3 rounded-full border-[1.5px] border-line-strong border-t-ink-2 animate-[spin_700ms_linear_infinite] motion-reduce:animate-none" />
                   {zh ? "授权中…" : "authorizing…"}
                 </span>
               ) : (
                 <button
                   type="button"
-                  aria-label={
-                    zh ? `登录 ${entry.key}` : `Sign in to ${entry.key}`
-                  }
+                  aria-label={zh ? `登录 ${entry.key}` : `Sign in to ${entry.key}`}
                   onClick={() => beginFlow(entry.key)}
-                  className="rounded-control border border-line-strong bg-surface px-2.5 py-1 text-[11px] font-medium text-ink shadow-btn transition-colors duration-100 hover:bg-hover cursor-pointer"
+                  className="min-h-11 rounded-control border border-line-strong bg-surface px-3 text-[11px] font-medium text-ink shadow-btn hover:bg-hover focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none cursor-pointer"
                 >
                   {zh ? "登录" : "Sign in"}
                 </button>
@@ -177,8 +216,9 @@ export default function AuthorizationSurface({
               {isConfigured && (
                 <button
                   type="button"
-                  onClick={() => setConfigured((current) => ({ ...current, [entry.key]: false }))}
-                  className="text-[11px] text-ink-3 transition-colors duration-100 hover:text-red cursor-pointer"
+                  aria-label={zh ? `退出 ${entry.key}` : `Sign out of ${entry.key}`}
+                  onClick={() => revokeProvider(entry.key)}
+                  className="min-h-11 min-w-11 rounded-control px-2.5 text-[11px] font-medium text-ink-2 hover:bg-red-tint hover:text-red focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors duration-100 motion-reduce:transition-none cursor-pointer"
                 >
                   {zh ? "退出" : "Sign out"}
                 </button>
@@ -190,7 +230,7 @@ export default function AuthorizationSurface({
 
       {/* prompt card — exactly one surface while a flow is open */}
       <div
-        className="grid transition-[grid-template-rows,opacity] duration-300"
+        className="grid transition-[grid-template-rows,opacity] duration-300 motion-reduce:transition-none"
         style={{
           gridTemplateRows: flowOpen ? "1fr" : "0fr",
           opacity: flowOpen ? 1 : 0,
@@ -199,78 +239,82 @@ export default function AuthorizationSurface({
       >
         <div className="overflow-hidden">
           {flowOpen ? (
-            <div className="mt-3 rounded-control border border-line bg-inset/60 p-3">
-            {phase === "done" ? (
-              <div className="flex items-center gap-2 py-1">
-                <span className="flex size-5 items-center justify-center rounded-full bg-green text-white" style={{ animation: "pop-in 300ms cubic-bezier(0.23,1,0.32,1) both" }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                </span>
-                <span className="text-[12px] font-medium text-ink">
-                  {zh ? "授权完成，凭据已写入保险箱" : "Authorized — credential written to the vault"}
-                </span>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
+            <div id={promptId} aria-busy={busy} className="mt-3 rounded-control border border-line bg-inset/70 p-3">
+              {phase === "done" ? (
+                <div className="flex items-center gap-2 py-1">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-green text-white motion-reduce:animate-none" style={{ animation: "pop-in 300ms cubic-bezier(0.23,1,0.32,1) both" }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </span>
                   <span className="text-[12px] font-medium text-ink">
-                    {zh ? `授权 ${flowKey ?? ""}` : `Authorize ${flowKey ?? ""}`}
-                  </span>
-                  <span className="rounded-chip bg-accent-tint px-1.5 py-0.2 font-mono text-[9.5px] text-accent-ink">
-                    {phase === "settling" ? (zh ? "写入中" : "writing") : zh ? "等待输入" : "awaiting input"}
+                    {zh ? "授权完成，凭据已写入保险箱" : "Authorized — credential written to the vault"}
                   </span>
                 </div>
-                <div className="mt-2 flex items-center gap-2 rounded-control border border-line bg-field px-2.5 py-1.5 focus-within:border-accent focus-within:bg-surface transition-colors">
-                  <input
-                    type={revealed ? "text" : "password"}
-                    value={secret}
-                    onChange={(event) => setSecret(event.target.value)}
-                    aria-label={zh ? "访问令牌" : "Access token"}
-                    className="w-full bg-transparent font-mono text-[12px] text-ink outline-none"
-                  />
-                  <button
-                    type="button"
-                    aria-label={revealed ? (zh ? "隐藏令牌" : "Hide token") : zh ? "显示令牌" : "Reveal token"}
-                    onClick={() => setRevealed((current) => !current)}
-                    className="flex size-5 shrink-0 items-center justify-center rounded-chip text-ink-3 transition-colors hover:bg-hover hover:text-ink cursor-pointer"
-                  >
-                    {revealed ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                <div className="mt-2.5 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={withdrawFlow}
-                    className="rounded-control px-2.5 py-1 text-[11px] text-ink-3 transition-colors hover:bg-hover hover:text-ink cursor-pointer"
-                  >
-                    {zh ? "取消流程" : "Withdraw"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={secret.length === 0 || phase === "settling"}
-                    onClick={() => setPhase("settling")}
-                    className="rounded-control bg-accent px-3 py-1 text-[11px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40 cursor-pointer"
-                  >
-                    {phase === "settling" ? (zh ? "写入中…" : "Writing…") : zh ? "确认授权" : "Authorize"}
-                  </button>
-                </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[12px] font-medium text-ink">
+                      {zh ? `授权 ${flowKey ?? ""}` : `Authorize ${flowKey ?? ""}`}
+                    </span>
+                    <span className="rounded-chip bg-accent-tint px-1.5 py-0.5 font-mono text-[9.5px] text-accent-ink">
+                      {phase === "settling" ? (zh ? "写入中" : "writing") : zh ? "等待输入" : "awaiting input"}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 rounded-control border border-line bg-field px-2 focus-within:border-accent focus-within:bg-surface focus-within:ring-2 focus-within:ring-accent/20 transition-colors motion-reduce:transition-none">
+                    <input
+                      type={revealed ? "text" : "password"}
+                      value={secret}
+                      onChange={(event) => setSecret(event.target.value)}
+                      aria-label={zh ? "访问令牌" : "Access token"}
+                      autoComplete="new-password"
+                      spellCheck={false}
+                      className="min-h-11 w-full min-w-0 bg-transparent font-mono text-[12px] text-ink outline-none"
+                    />
+                    <button
+                      type="button"
+                      aria-label={revealed ? (zh ? "隐藏令牌" : "Hide token") : zh ? "显示令牌" : "Reveal token"}
+                      aria-pressed={revealed}
+                      onClick={() => setRevealed((current) => !current)}
+                      className="flex size-11 shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-hover hover:text-ink focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors motion-reduce:transition-none cursor-pointer"
+                    >
+                      {revealed ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={withdrawFlow}
+                      className="min-h-11 rounded-control px-3 text-[11px] font-medium text-ink-2 hover:bg-hover hover:text-ink focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none transition-colors motion-reduce:transition-none cursor-pointer"
+                    >
+                      {zh ? "取消流程" : "Withdraw"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={secret.length === 0 || busy}
+                      aria-busy={busy}
+                      onClick={() => setPhase("settling")}
+                      className="min-h-11 rounded-control bg-accent px-3.5 text-[11px] font-medium text-white hover:opacity-90 focus-visible:shadow-[inset_0_0_0_2px_var(--ink)] focus-visible:outline-none transition-opacity motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                    >
+                      {busy ? (zh ? "写入中…" : "Writing…") : zh ? "确认授权" : "Authorize"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : null}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

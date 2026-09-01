@@ -2210,6 +2210,398 @@ const TASK11_CASES = [
 ];
 /* TASK 11 VISUAL ACTIONS END */
 
+/* TASK 12 VISUAL ACTIONS START */
+async function assertTask12Target(control, label) {
+  const box = await control.boundingBox();
+  if (!box) throw new Error(`${label} is not visibly measurable`);
+  if (box.width < 44 || box.height < 44) {
+    throw new Error(
+      `${label} hit area is ${box.width.toFixed(1)}×${box.height.toFixed(1)}; expected at least 44×44`,
+    );
+  }
+}
+
+async function focusTask12Control({ canvas, page }, control, label) {
+  await control.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  if ((await control.and(canvas.locator(":focus-visible")).count()) !== 1) {
+    throw new Error(`${label} did not receive visible keyboard focus`);
+  }
+  await assertTask12Target(control, label);
+}
+
+async function revealTask12Sensitive({ canvas }) {
+  const control = canvas.getByRole("button", { name: /Reveal token|显示令牌/ });
+  await assertTask12Target(control, "Sensitive reveal control");
+  await control.click();
+  const hiddenControl = canvas.getByRole("button", { name: /Hide token|隐藏令牌/ });
+  if ((await hiddenControl.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Sensitive reveal control did not become pressed");
+  }
+  const input = canvas.getByRole("textbox", {
+    name: /DeepSeek API Token \(Production\)|DeepSeek API Token \(生产环境\)/,
+  });
+  if ((await input.getAttribute("type")) !== "text") {
+    throw new Error("Sensitive token remained masked after reveal");
+  }
+}
+
+async function copyTask12Sensitive({ canvas, page }) {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const control = canvas.getByRole("button", { name: /Copy token|复制令牌/ });
+  await assertTask12Target(control, "Sensitive copy control");
+  await control.click();
+  await canvas.getByText(/Copied!|已复制!/).waitFor();
+}
+
+async function failTask12SensitiveCopy({ canvas, page }) {
+  await page.context().clearPermissions();
+  try {
+    await canvas.getByRole("button", { name: /Copy token|复制令牌/ }).click();
+    await canvas.getByText(/Copy failed|复制失败/).waitFor();
+  } finally {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  }
+}
+
+async function focusTask12Sensitive(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Reveal token|显示令牌/,
+  });
+  await focusTask12Control(args, control, "Sensitive reveal control");
+}
+
+async function showTask12LayerEvents({ canvas }) {
+  const control = canvas.getByRole("tab", {
+    name: /Live Audit Events|实时审计事件/,
+  });
+  await assertTask12Target(control, "Layer events tab");
+  await control.click();
+  if ((await control.getAttribute("aria-selected")) !== "true") {
+    throw new Error("Layer events tab did not become selected");
+  }
+  await canvas.getByRole("tabpanel", { name: /Live Audit Events|实时审计事件/ }).waitFor();
+}
+
+async function collapseTask12Layer({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Collapse Harness Edge Worker details|折叠 Harness 边缘工作节点详情/,
+  });
+  await assertTask12Target(control, "Layer disclosure control");
+  await control.click();
+  const expandedControl = canvas.getByRole("button", {
+    name: /Expand Harness Edge Worker details|展开 Harness 边缘工作节点详情/,
+  });
+  if ((await expandedControl.getAttribute("aria-expanded")) !== "false") {
+    throw new Error("Layer disclosure remained expanded");
+  }
+}
+
+async function focusTask12Layer(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Collapse Harness Edge Worker details|折叠 Harness 边缘工作节点详情/,
+  });
+  await focusTask12Control(args, control, "Layer disclosure control");
+}
+
+async function searchTask12Sidebar({ canvas }) {
+  const search = canvas.getByRole("searchbox", {
+    name: /Quick search navigation|快速搜索导航/,
+  });
+  const searchLabel = await search.getAttribute("aria-label");
+  await search.fill(searchLabel === "快速搜索导航" ? "供应" : "supplier");
+  await canvas.getByRole("button", { name: /Suppliers|供应商/ }).waitFor();
+  if ((await canvas.getByRole("button", { name: /Agent tasks|智能体任务/ }).count()) !== 0) {
+    throw new Error("Sidebar quick search did not filter navigation rows");
+  }
+  await canvas
+    .getByRole("status", { name: /Navigation search status|导航搜索状态/ })
+    .getByText(/1 navigation result|1 个导航结果/)
+    .waitFor();
+}
+
+async function focusTask12Sidebar(args) {
+  const control = args.canvas.getByRole("button", { name: /Agent tasks|智能体任务/ });
+  await focusTask12Control(args, control, "Sidebar navigation row");
+}
+
+async function fillTask12SeasonalSearch(search) {
+  const searchLabel = await search.getAttribute("aria-label");
+  await search.fill(searchLabel === "搜索风味" ? "季节" : "seasonal");
+}
+
+async function searchTask12Results({ canvas }) {
+  const search = canvas.getByRole("combobox", { name: /Search flavors|搜索风味/ });
+  await fillTask12SeasonalSearch(search);
+  await canvas.getByRole("option", { name: /Compare seasonal flavors|对比季节限定口味/ }).waitFor();
+}
+
+async function chooseTask12Search({ canvas, page }) {
+  const search = canvas.getByRole("combobox", { name: /Search flavors|搜索风味/ });
+  await fillTask12SeasonalSearch(search);
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await canvas
+    .getByRole("status", { name: /Search status|搜索状态/ })
+    .getByText(/Selected Compare seasonal flavors|已选择 对比季节限定口味/)
+    .waitFor();
+  const selected = canvas.getByRole("option", {
+    name: /Compare seasonal flavors|对比季节限定口味/,
+  });
+  if ((await selected.getAttribute("aria-selected")) !== "true") {
+    throw new Error("Search result did not become selected");
+  }
+}
+
+async function emptyTask12Search({ canvas }) {
+  await canvas.getByRole("combobox", { name: /Search flavors|搜索风味/ }).fill("q");
+  await canvas.getByText(/No results found|未找到相关结果/).waitFor();
+}
+
+async function focusTask12Search(args) {
+  const control = args.canvas.getByRole("combobox", {
+    name: /Search flavors|搜索风味/,
+  });
+  await focusTask12Control(args, control, "Search combobox");
+}
+
+async function showTask12SessionActivity({ advance, canvas, page }) {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await advance(1);
+  await advance(2600);
+  await canvas.getByLabel(/2 unread events|2 条未读事件/).last().waitFor();
+}
+
+async function selectTask12Session({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Audit supplier import jobs|审计供应商导入任务/,
+  });
+  await assertTask12Target(control, "Session row");
+  await control.click();
+  if ((await control.getAttribute("aria-current")) !== "page") {
+    throw new Error("Selected session did not become current");
+  }
+}
+
+async function focusTask12Session(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Audit supplier import jobs|审计供应商导入任务/,
+  });
+  await focusTask12Control(args, control, "Session row");
+}
+
+async function openTask12Authorization({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Sign in to deepseek|登录 deepseek/,
+  });
+  await assertTask12Target(control, "Authorization sign-in control");
+  await control.click();
+  const input = canvas.getByRole("textbox", { name: /Access token|访问令牌/ });
+  if ((await input.getAttribute("type")) !== "password") {
+    throw new Error("Authorization credential did not open masked");
+  }
+}
+
+async function revealTask12Authorization(args) {
+  await openTask12Authorization(args);
+  const control = args.canvas.getByRole("button", {
+    name: /Reveal token|显示令牌/,
+  });
+  await assertTask12Target(control, "Authorization reveal control");
+  await control.click();
+  const hiddenControl = args.canvas.getByRole("button", {
+    name: /Hide token|隐藏令牌/,
+  });
+  if ((await hiddenControl.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Authorization reveal control did not become pressed");
+  }
+}
+
+async function revokeTask12Authorization({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Sign out of openai|退出 openai/,
+  });
+  await assertTask12Target(control, "Authorization revoke control");
+  await control.click();
+  await canvas
+    .getByRole("status", { name: /Authorization status|授权状态/ })
+    .getByText(/Revoked openai|已撤销 openai/)
+    .waitFor();
+}
+
+async function focusTask12Authorization(args) {
+  const control = args.canvas.getByRole("button", {
+    name: /Sign in to deepseek|登录 deepseek/,
+  });
+  await focusTask12Control(args, control, "Authorization sign-in control");
+}
+
+async function editTask12Settings({ canvas }) {
+  const editor = canvas.getByRole("textbox", { name: /Settings JSON|设置 JSON/ });
+  await editor.fill('{\n  "theme": "dark"\n}');
+  await canvas
+    .getByRole("status", { name: /Settings status|设置状态/ })
+    .getByText(/Editing|编辑中/)
+    .waitFor();
+}
+
+async function saveTask12Settings({ advance, canvas }) {
+  await editTask12Settings({ canvas });
+  const control = canvas.getByRole("button", {
+    name: /Save revision|保存 revision/,
+  });
+  await assertTask12Target(control, "Settings save control");
+  await control.click();
+  await advance(650);
+  await canvas
+    .getByRole("status", { name: /Settings status|设置状态/ })
+    .getByText(/Saved revision 8|已保存 revision 8/)
+    .waitFor();
+}
+
+async function focusTask12Settings(args) {
+  const control = args.canvas.getByRole("textbox", {
+    name: /Settings JSON|设置 JSON/,
+  });
+  await focusTask12Control(args, control, "Settings editor");
+}
+
+async function selectTask12Layout({ canvas }) {
+  const control = canvas.getByRole("button", { name: "col layout" });
+  await assertTask12Target(control, "Layout segment");
+  await control.click();
+  if ((await control.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("Layout segment did not become pressed");
+  }
+}
+
+async function tuneTask12Radius({ canvas, page }) {
+  const control = canvas.getByRole("slider", { name: /Radius|圆角/ });
+  await assertTask12Target(control, "Radius slider");
+  await control.focus();
+  await page.keyboard.press("End");
+  if ((await control.getAttribute("aria-valuenow")) !== "64") {
+    throw new Error("Radius slider did not reach its End value");
+  }
+  await canvas
+    .getByRole("status", { name: /Tuning status|调优状态/ })
+    .getByText(/Edited|已编辑/)
+    .waitFor();
+}
+
+async function openTask12TypeMenu({ canvas }) {
+  const control = canvas.getByRole("button", {
+    name: /Select flavor type|选择风味类型/,
+  });
+  await assertTask12Target(control, "Type menu control");
+  await control.click();
+  if ((await control.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Type menu remained closed");
+  }
+  await canvas.getByRole("listbox", { name: /Flavor type|风味类型/ }).waitFor();
+}
+
+async function selectTask12Type(args) {
+  await openTask12TypeMenu(args);
+  const control = args.canvas.getByRole("option", { name: /Seasonal|季节限定/ });
+  await assertTask12Target(control, "Type option");
+  await control.click();
+  await args.canvas
+    .getByRole("status", { name: /Tuning status|调优状态/ })
+    .getByText(/Edited|已编辑/)
+    .waitFor();
+}
+
+async function focusTask12FineTune(args) {
+  const control = args.canvas.getByRole("slider", { name: /Radius|圆角/ });
+  await focusTask12Control(args, control, "Radius slider");
+}
+
+const TASK12_CASES = [
+  [
+    "sensitive-input",
+    [
+      { name: "masked", advanceMs: 0 },
+      { name: "revealed", advanceMs: 0, action: revealTask12Sensitive },
+      { name: "copied", advanceMs: 0, action: copyTask12Sensitive },
+      { name: "copy-error", advanceMs: 0, action: failTask12SensitiveCopy },
+      { name: "focused", advanceMs: 0, action: focusTask12Sensitive },
+    ],
+  ],
+  [
+    "layer-card",
+    [
+      { name: "metrics", advanceMs: 0 },
+      { name: "events", advanceMs: 0, action: showTask12LayerEvents },
+      { name: "collapsed", advanceMs: 0, action: collapseTask12Layer },
+      { name: "focused", advanceMs: 0, action: focusTask12Layer },
+    ],
+  ],
+  [
+    "sidebar-nav",
+    [
+      { name: "selected", advanceMs: 0 },
+      { name: "searched", advanceMs: 0, action: searchTask12Sidebar },
+      { name: "focused", advanceMs: 0, action: focusTask12Sidebar },
+    ],
+  ],
+  [
+    "search",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "results", advanceMs: 0, action: searchTask12Results },
+      { name: "chosen", advanceMs: 0, action: chooseTask12Search },
+      { name: "empty", advanceMs: 0, action: emptyTask12Search },
+      { name: "focused", advanceMs: 0, action: focusTask12Search },
+    ],
+  ],
+  [
+    "session-list",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "activity", advanceMs: 0, action: showTask12SessionActivity },
+      { name: "selected", advanceMs: 0, action: selectTask12Session },
+      { name: "focused", advanceMs: 0, action: focusTask12Session },
+    ],
+  ],
+  [
+    "authorization-surface",
+    [
+      { name: "directory", advanceMs: 0 },
+      { name: "masked", advanceMs: 0, action: openTask12Authorization },
+      { name: "revealed", advanceMs: 0, action: revealTask12Authorization },
+      { name: "provider-switched", advanceMs: 0, action: switchAuthorizationProvider },
+      { name: "authorized", advanceMs: 0, action: settleAuthorization },
+      { name: "revoked", advanceMs: 0, action: revokeTask12Authorization },
+      { name: "focused", advanceMs: 0, action: focusTask12Authorization },
+    ],
+  ],
+  [
+    "settings-editor",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "editing", advanceMs: 0, action: editTask12Settings },
+      { name: "saved", advanceMs: 0, action: saveTask12Settings },
+      { name: "conflict", advanceMs: 0, action: reachSettingsConflict },
+      { name: "refetched", advanceMs: 0, action: refetchSettings },
+      { name: "focused", advanceMs: 0, action: focusTask12Settings },
+    ],
+  ],
+  [
+    "fine-tune-card",
+    [
+      { name: "initial", advanceMs: 0 },
+      { name: "layout-selected", advanceMs: 0, action: selectTask12Layout },
+      { name: "tuned", advanceMs: 0, action: tuneTask12Radius },
+      { name: "menu-open", advanceMs: 0, action: openTask12TypeMenu },
+      { name: "type-selected", advanceMs: 0, action: selectTask12Type },
+      { name: "focused", advanceMs: 0, action: focusTask12FineTune },
+    ],
+  ],
+];
+/* TASK 12 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -2253,33 +2645,10 @@ export const CASES = new Map([
   /* TASK 11 VISUAL REGISTRATIONS START */
   ...TASK11_CASES,
   /* TASK 11 VISUAL REGISTRATIONS END */
+/* TASK 12 VISUAL REGISTRATIONS START */
+  ...TASK12_CASES,
+  /* TASK 12 VISUAL REGISTRATIONS END */
   /* TASK 4 VISUAL REGISTRATIONS START */
-  [
-    "session-list",
-    [
-      { name: "settled", advanceMs: 2600 },
-      { name: "selected", advanceMs: 0, action: selectSecondSession },
-    ],
-  ],
-  [
-    "authorization-surface",
-    [
-      { name: "settled", advanceMs: 0, action: settleAuthorization },
-      {
-        name: "provider-switched",
-        advanceMs: 0,
-        action: switchAuthorizationProvider,
-      },
-    ],
-  ],
-  [
-    "settings-editor",
-    [
-      { name: "settled", advanceMs: 0 },
-      { name: "conflict", advanceMs: 0, action: reachSettingsConflict },
-      { name: "refetched", advanceMs: 0, action: refetchSettings },
-    ],
-  ],
   [
     "feedback-actions",
     [
