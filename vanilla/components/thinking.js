@@ -84,6 +84,21 @@ const VARIANTS_ZH = {
 
 const TONES = ["bg-accent", "bg-orange", "bg-green"];
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function globeDot(tone) {
+  return `<span class="flex size-3.5 shrink-0 items-center justify-center rounded-full text-white ${tone}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><path d="M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg></span>`;
+}
+
+const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M20 6L9 17l-5-5"></path></svg>`;
+
 export class NaiThinking extends NaiBaseElement {
   static get observedAttributes() {
     return ["variant", "lang", "auto"];
@@ -102,151 +117,134 @@ export class NaiThinking extends NaiBaseElement {
 
   onMount() {
     this._stage = 0;
-    const runStage = (i) => {
-      if (i >= STAGES.length - 1) return;
+    const runStage = (index) => {
+      if (index >= STAGES.length - 1) return;
       this.registerTimeout(() => {
-        this._stage = i + 1;
+        this._stage = index + 1;
         this.render();
         runStage(this._stage);
-      }, STAGES[i]);
+      }, STAGES[index]);
     };
     runStage(0);
+  }
+
+  _rowContent(row, index, variant, visible, working) {
+    const pieces = [];
+    if (variant === "Search") {
+      pieces.push(globeDot(TONES[index % TONES.length]));
+    }
+    if (variant === "Steps") {
+      if (index < visible - 1 || !working) {
+        pieces.push(checkIcon);
+      } else {
+        pieces.push('<span class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2" style="animation: spin 700ms linear infinite;"></span>');
+      }
+    }
+
+    const primaryTone = variant === "Reasoning"
+      ? "whitespace-normal leading-relaxed text-ink-2"
+      : "font-medium text-ink";
+    const underline = variant === "Search" ? " animated-underline" : "";
+    pieces.push(`<span class="min-w-0 truncate text-[12.5px] ${primaryTone}${underline}">${escapeHtml(row.primary)}</span>`);
+
+    if (row.secondary) {
+      pieces.push(`<span class="shrink-0 text-[11.5px] text-ink-3${row.mono ? " font-mono" : ""}">${escapeHtml(row.secondary)}</span>`);
+    }
+    if (row.add !== undefined) {
+      pieces.push(`<span class="shrink-0 font-mono text-[11px] tabular-nums"><span class="text-green">+${row.add}</span> <span class="text-red">−${row.del}</span></span>`);
+    }
+    return pieces.join(" ");
+  }
+
+  _rowMarkup(row, index, variant, visible, working) {
+    const rowClass = "flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-0.5 text-left";
+    const animation = `animation: fade-up 320ms cubic-bezier(0.23,1,0.32,1) ${index * 120}ms both;`;
+    const content = this._rowContent(row, index, variant, visible, working);
+
+    if (variant === "Search") {
+      return `<a href="${escapeHtml(row.href)}" target="_blank" rel="noreferrer" class="${rowClass} transition-colors duration-150 hover:bg-hover" style="${animation}">${content}</a>`;
+    }
+
+    if (variant === "Coding") {
+      const selected = this._selectedTool === row.primary;
+      return `<button type="button" aria-pressed="${selected}" class="${rowClass} transition-colors duration-150 ${selected ? "bg-inset" : "hover:bg-hover"} cursor-pointer" style="${animation}">${content}</button>`;
+    }
+
+    return `<div class="${rowClass}" style="${animation}">${content}</div>`;
+  }
+
+  _syncLineHeight() {
+    const trace = this.shadowRoot?.querySelector(".trace-content");
+    const line = this.shadowRoot?.querySelector(".trace-line");
+    if (!trace || !line) return;
+    const lineHeight = trace.offsetHeight;
+    line.style.height = `${lineHeight ? lineHeight - 2 : 0}px`;
   }
 
   render() {
     const zh = this.isZh;
     const variant = this.variant;
-    const VARIANTS = zh ? VARIANTS_ZH : VARIANTS_EN;
-    const v = VARIANTS[variant] ?? VARIANTS.Steps;
-
+    const variants = zh ? VARIANTS_ZH : VARIANTS_EN;
+    const value = variants[variant] ?? variants.Steps;
     const autoExpanded = this._stage >= 1 && this._stage < 4;
     const expanded = this._manualExpanded ?? autoExpanded;
     const working = this._stage < 3;
-    const visible = this._stage < 2 ? 0 : this._stage === 2 ? Math.min(2, v.rows.length) : v.rows.length;
+    const visible = this._stage < 2
+      ? 0
+      : this._stage === 2
+        ? Math.min(2, value.rows.length)
+        : value.rows.length;
+
+    const query = value.query
+      ? `<div class="flex h-6 items-center gap-2 px-1.5"${expanded ? ' style="animation: fade-up 300ms cubic-bezier(0.23,1,0.32,1) both;"' : ""}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg><span class="text-[12.5px] text-ink-2">${escapeHtml(value.query)}</span></div>`
+      : "";
+    const rows = value.rows
+      .slice(0, visible)
+      .map((row, index) => this._rowMarkup(row, index, variant, visible, working))
+      .join("");
+    const remaining = variant === "Search" && this._stage >= 3
+      ? `<span class="text-[12px] text-ink-3" style="animation: fade-in 300ms ease-out both;">${zh ? "+ 更多 7 项结果" : "+7 more"}</span>`
+      : "";
+    const headerLabel = working
+      ? `<span class="bg-clip-text text-[13px] font-medium whitespace-nowrap text-transparent" style="background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%); background-size: 200% 100%; animation: 1.4s linear 0s infinite normal none running shimmer-text;">${escapeHtml(value.active)}</span>`
+      : `<span class="text-[13px] font-medium whitespace-nowrap text-ink-2" style="animation: 350ms ease-out 0s 1 normal both running fade-in;">${escapeHtml(value.done)}</span>`;
+    const header = [
+      `<button type="button" aria-expanded="${expanded}" class="-mx-1.5 flex w-fit items-center gap-2 rounded-control px-1.5 py-1 transition-colors duration-100 hover:bg-hover-2 cursor-pointer">`,
+      `<svg width="16" height="16" viewBox="0 0 24 24" fill="${working ? "var(--ink-2)" : "var(--ink-3)"}"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"></path></svg>`,
+      headerLabel,
+      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-300" style="transform: ${expanded ? "rotate(180deg)" : "rotate(0deg)"};"><path d="M6 9l6 6 6-6"></path></svg>`,
+      "</button>",
+    ].join("");
 
     this.setHtml(`
       <div class="flex min-h-[176px] w-full max-w-95 flex-col">
-        
-        <button
-          type="button"
-          aria-expanded="${expanded}"
-          class="header-btn toggle-btn -mx-1.5 flex w-fit items-center gap-2 rounded-control px-1.5 py-1 transition-colors duration-100 hover:bg-hover-2 cursor-pointer"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="${working ? "var(--ink-2)" : "var(--ink-3)"}">
-            <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-          </svg>
-          ${
-            working
-              ? `
-            <span
-              class="text-[13px] font-medium whitespace-nowrap text-transparent"
-              style="
-                background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
-                background-size: 200% 100%;
-                -webkit-background-clip: text;
-                background-clip: text;
-                animation: shimmer-text 1.4s linear infinite;
-              "
-            >
-              ${v.active}
-            </span>
-          `
-              : `
-            <span class="text-[13px] font-medium whitespace-nowrap text-ink-2">
-              ${v.done}
-            </span>
-          `
-          }
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--ink-3)"
-            stroke-width="2.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="transition-transform duration-300"
-            style="transform: ${expanded ? "rotate(180deg)" : "rotate(0)"};"
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-
-        
-        <div
-          class="trace-container grid transition-all duration-400"
-          style="
-            grid-template-rows: ${expanded ? "1fr" : "0fr"};
-            opacity: ${expanded ? 1 : 0};
-          "
-        >
+        ${header}
+        <div class="grid transition-[grid-template-rows,opacity] duration-400" style="grid-template-rows: ${expanded ? "1fr" : "0fr"}; opacity: ${expanded ? 1 : 0}; transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);">
           <div class="overflow-hidden">
-            <div class="relative mt-1 ml-[5px] pl-4 border-l border-line">
-              <div class="flex flex-col gap-1 py-1">
-                ${
-                  v.query
-                    ? `
-                  <div class="flex h-6 items-center gap-2 px-1.5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" class="shrink-0">
-                      <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
-                    </svg>
-                    <span class="text-[12.5px] text-ink-2">${v.query}</span>
-                  </div>
-                `
-                    : ""
-                }
-                ${v.rows
-                  .slice(0, visible)
-                  .map((row, i) => {
-                    const isLastWorking = i === visible - 1 && working;
-                    return `
-                    <div
-                      class="flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-0.5 text-left transition-colors duration-150 ${
-                        variant === "Search" ? "hover:bg-hover cursor-pointer" : ""
-                      }"
-                      style="animation: fade-up 320ms cubic-bezier(0.23,1,0.32,1) ${i * 120}ms both;"
-                    >
-                      ${
-                        variant === "Search"
-                          ? `<span class="flex size-3.5 shrink-0 items-center justify-center rounded-full text-white ${TONES[i % 3]}">
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9" /><path d="M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>
-                            </span>`
-                          : variant === "Steps"
-                          ? isLastWorking
-                            ? `<span class="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2 animate-spin"></span>`
-                            : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M20 6L9 17l-5-5" /></svg>`
-                          : ""
-                      }
-                      <span class="min-w-0 truncate text-[12.5px] ${
-                        variant === "Reasoning" ? "whitespace-normal leading-relaxed text-ink-2" : "font-medium text-ink"
-                      }">
-                        ${row.primary}
-                      </span>
-                      ${row.secondary ? `<span class="shrink-0 text-[11.5px] text-ink-3 ${row.mono ? "font-mono" : ""}">${row.secondary}</span>` : ""}
-                      ${
-                        row.add !== undefined
-                          ? `<span class="shrink-0 font-mono text-[11px] tabular-nums"><span class="text-green">+${row.add}</span> <span class="text-red">−${row.del}</span></span>`
-                          : ""
-                      }
-                    </div>
-                  `;
-                  })
-                  .join("")}
-              </div>
+            <div class="relative mt-1 ml-[5px] pl-4">
+              <span aria-hidden="true" class="trace-line absolute left-[3px] w-px bg-line" style="top: -8px; height: 0px; transition: height 500ms cubic-bezier(0.23,1,0.32,1);"></span>
+              <div class="trace-content flex flex-col gap-1 py-1">${query}${rows}${remaining}</div>
             </div>
           </div>
         </div>
       </div>
     `);
 
-    const toggleBtn = this.shadowRoot?.querySelector(".toggle-btn");
-    if (toggleBtn) {
-      toggleBtn.addEventListener("click", () => {
-        this._manualExpanded = !(this._manualExpanded ?? autoExpanded);
+    this._syncLineHeight();
+
+    this.shadowRoot?.querySelector("button")?.addEventListener("click", () => {
+      this._manualExpanded = !(this._manualExpanded ?? autoExpanded);
+      this.render();
+    });
+
+    const toolButtons = [...(this.shadowRoot?.querySelectorAll('button[aria-pressed]') ?? [])];
+    toolButtons.forEach((button, index) => {
+      const row = value.rows[index];
+      button.addEventListener("click", () => {
+        this._selectedTool = this._selectedTool === row.primary ? null : row.primary;
         this.render();
       });
-    }
+    });
   }
 }
 
