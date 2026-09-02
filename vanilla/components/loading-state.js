@@ -1,7 +1,8 @@
 import { NaiBaseElement } from "../core/base-element.js";
 
 const chevron = Array.from({ length: 9 }, (_, i) => {
-  const r = Math.floor(i / 3), c = i % 3;
+  const r = Math.floor(i / 3);
+  const c = i % 3;
   return (c + Math.abs(r - 1)) * 90;
 });
 
@@ -17,6 +18,15 @@ const PATTERNS = {
   Orbit: { delays: orbit, dur: 950, round: false },
 };
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export class NaiLoadingState extends NaiBaseElement {
   static get observedAttributes() {
     return ["variant", "label", "lang"];
@@ -25,6 +35,7 @@ export class NaiLoadingState extends NaiBaseElement {
   constructor() {
     super();
     this._ds = 0;
+    this._timerElement = null;
   }
 
   get variant() {
@@ -38,7 +49,7 @@ export class NaiLoadingState extends NaiBaseElement {
   onMount() {
     this._ds = 0;
     this.registerInterval(() => {
-      this._ds++;
+      this._ds += 1;
       this._updateTimerDisplay();
     }, 100);
   }
@@ -50,48 +61,31 @@ export class NaiLoadingState extends NaiBaseElement {
   }
 
   _updateTimerDisplay() {
-    const timerEl = this.shadowRoot?.querySelector(".elapsed-timer");
-    if (timerEl) {
-      timerEl.textContent = this._formatElapsed();
+    if (this._timerElement?.isConnected) {
+      this._timerElement.textContent = this._formatElapsed();
     }
   }
 
   render() {
-    const zh = this.isZh;
     const rawLabel = this.label;
-    const displayLabel = zh && rawLabel === "Churning" ? "搅拌中" : rawLabel;
+    const displayLabel = this.isZh && rawLabel === "Churning" ? "搅拌中" : rawLabel;
     const { delays, dur, round } = PATTERNS[this.variant] ?? PATTERNS.Drive;
 
     this.setHtml(`
       <div class="flex w-fit items-center gap-2.5">
-        <span aria-hidden="true" class="pixel-grid grid" style="grid-template-columns: repeat(3, 4px); gap: 1.5px;">
+        <span aria-hidden="true" class="pixel-grid grid grid-cols-[repeat(3,4px)] gap-[1.5px]">
           ${delays
             .map(
-              (d) => `
-            <span
-              class="pixel size-1 bg-ink ${round ? "rounded-full" : "rounded-[1px]"}"
-              style="
-                opacity: ${d === null ? "0.07" : "0.15"};
-                animation: ${d === null ? "none" : `pixel-on ${dur}ms ease-in-out ${d}ms infinite`};
-              "
-            ></span>
-          `
+              (delay) => `<span class="size-[4px] bg-ink ${round ? "rounded-full" : "rounded-[1px]"}" style="opacity: ${delay === null ? 0.07 : 0.15}; animation: ${delay === null ? "none" : `pixel-on ${dur}ms ease-in-out ${delay}ms infinite`};"></span>`,
             )
             .join("")}
         </span>
-        <span
-          class="label text-[13px] font-medium text-transparent"
-          style="
-            background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%);
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            animation: shimmer-text 1.4s linear infinite;
-          "
-        >${displayLabel}</span>
-        <span class="elapsed-timer font-mono text-[12px] text-ink-3 tabular-nums">${this._formatElapsed()}</span>
+        <span class="bg-clip-text text-[13px] font-medium text-transparent" style="background-image: linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%); background-size: 200% 100%; animation: shimmer-text 1.4s linear infinite;">${escapeHtml(displayLabel)}</span>
+        <span class="font-mono text-[12px] text-ink-3 tabular-nums">${this._formatElapsed()}</span>
       </div>
     `);
+
+    this._timerElement = this.shadowRoot?.querySelector(".tabular-nums") ?? null;
   }
 }
 

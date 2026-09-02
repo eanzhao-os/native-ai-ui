@@ -55,6 +55,7 @@ afterEach(() => {
   document.body.innerHTML = "";
   setGlobalLang("en");
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   if (originalClipboard) {
     Object.defineProperty(navigator, "clipboard", originalClipboard);
   } else {
@@ -84,31 +85,180 @@ describe("Vanilla ES Modules & Web Components", () => {
     window.removeEventListener("nai-lang-change", handler);
   });
 
-  test("<nai-loading-state> mounts and renders correctly", () => {
+  test("<nai-loading-state> mirrors the Tailwind pixel grid and shimmer structure", () => {
+    vi.useFakeTimers();
     const el = document.createElement("nai-loading-state") as any;
     el.setAttribute("variant", "Dots");
     el.setAttribute("label", "Processing");
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    const labelEl = el.shadowRoot.querySelector(".label");
-    expect(labelEl.textContent).toBe("Processing");
-    const pixels = el.shadowRoot.querySelectorAll(".pixel");
-    expect(pixels.length).toBe(9);
+    const component = el.shadowRoot.querySelector(".flex.w-fit");
+    expect(component?.className).toBe("flex w-fit items-center gap-2.5");
+
+    const grid = component?.children[0] as HTMLElement;
+    expect(grid.getAttribute("aria-hidden")).toBe("true");
+    expect(grid.className).toBe(
+      "pixel-grid grid grid-cols-[repeat(3,4px)] gap-[1.5px]",
+    );
+    expect(grid.children).toHaveLength(9);
+    expect([...grid.children].map((pixel) => pixel.className)).toEqual(
+      Array(9).fill("size-[4px] bg-ink rounded-full"),
+    );
+    expect(
+      [...grid.children].map((pixel) => (pixel as HTMLElement).style.animation),
+    ).toEqual([
+      "pixel-on 650ms ease-in-out 90ms infinite",
+      "pixel-on 650ms ease-in-out 180ms infinite",
+      "pixel-on 650ms ease-in-out 270ms infinite",
+      "pixel-on 650ms ease-in-out 0ms infinite",
+      "pixel-on 650ms ease-in-out 90ms infinite",
+      "pixel-on 650ms ease-in-out 180ms infinite",
+      "pixel-on 650ms ease-in-out 90ms infinite",
+      "pixel-on 650ms ease-in-out 180ms infinite",
+      "pixel-on 650ms ease-in-out 270ms infinite",
+    ]);
+
+    const label = component?.children[1] as HTMLElement;
+    expect(label.className).toBe(
+      "bg-clip-text text-[13px] font-medium text-transparent",
+    );
+    expect(label.textContent).toBe("Processing");
+    expect(label.style.backgroundSize).toBe("200% 100%");
+    expect(label.style.animation).toBe("shimmer-text 1.4s linear infinite");
   });
 
-  test("<nai-thinking> renders active state and handles expand toggle", () => {
-    const el = document.createElement("nai-thinking") as any;
-    el.setAttribute("variant", "Reasoning");
-    el.setAttribute("auto", "false");
+  test("<nai-loading-state> keeps its animated nodes stable while the exact elapsed timer advances", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-loading-state") as any;
+    el.setAttribute("variant", "Orbit");
+    el.setAttribute("lang", "zh");
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    const headerBtn = el.shadowRoot.querySelector(".header-btn");
-    expect(headerBtn).toBeTruthy();
+    const grid = el.shadowRoot.querySelector(".pixel-grid") as HTMLElement;
+    const stablePixel = grid.children[0];
+    const stableLabel = grid.nextElementSibling;
+    const timer = stableLabel?.nextElementSibling as HTMLElement;
+    expect(stableLabel?.textContent).toBe("搅拌中");
+    expect(timer.className).toBe(
+      "font-mono text-[12px] text-ink-3 tabular-nums",
+    );
+    expect(timer.textContent).toBe("0.0s");
+    expect((grid.children[4] as HTMLElement).style.opacity).toBe("0.07");
+    expect((grid.children[4] as HTMLElement).style.animation).toBe("none");
+    expect((grid.children[0] as HTMLElement).style.animation).toBe(
+      "pixel-on 950ms ease-in-out 0ms infinite",
+    );
 
-    const trace = el.shadowRoot.querySelector(".trace-container");
-    expect(trace).toBeTruthy();
+    vi.advanceTimersByTime(2_600);
+    expect(timer.textContent).toBe("2.6s");
+    expect(el.shadowRoot.querySelector(".pixel-grid")?.children[0]).toBe(
+      stablePixel,
+    );
+    expect(el.shadowRoot.querySelector(".pixel-grid")?.nextElementSibling).toBe(
+      stableLabel,
+    );
+
+    vi.advanceTimersByTime(57_500);
+    expect(timer.textContent).toBe("1m 0.1s");
+  });
+
+  test("<nai-thinking> renders Search rows as exact links and reveals the remaining-result branch", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-thinking") as any;
+    el.setAttribute("variant", "Search");
+    document.body.appendChild(el);
+
+    let toggle = el.shadowRoot.querySelector("button") as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.textContent).toContain("Searching the web");
+
+    vi.advanceTimersByTime(1_400);
+    let links = [...el.shadowRoot.querySelectorAll("a")];
+    expect(links).toHaveLength(2);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://joycone.com",
+      "https://webstaurantstore.com",
+    ]);
+    expect(
+      links.every(
+        (link) =>
+          link.getAttribute("target") === "_blank" &&
+          link.getAttribute("rel") === "noreferrer",
+      ),
+    ).toBe(true);
+    expect(el.shadowRoot.textContent).not.toContain("+7 more");
+
+    vi.advanceTimersByTime(1_800);
+    toggle = el.shadowRoot.querySelector("button") as HTMLButtonElement;
+    links = [...el.shadowRoot.querySelectorAll("a")];
+    expect(toggle.textContent).toContain("Searched the web");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(links).toHaveLength(3);
+    expect(links[2].getAttribute("href")).toBe("https://thekonery.com");
+    expect(links.every((link) => link.querySelector(".animated-underline"))).toBe(
+      true,
+    );
+    expect(el.shadowRoot.textContent).toContain("+7 more");
+
+    vi.advanceTimersByTime(2_600);
+    toggle = el.shadowRoot.querySelector("button") as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    toggle.click();
+    expect(
+      el.shadowRoot.querySelector("button")?.getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  test("<nai-thinking> renders Coding rows as selectable pressed buttons", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-thinking") as any;
+    el.setAttribute("variant", "Coding");
+    document.body.appendChild(el);
+    vi.advanceTimersByTime(3_200);
+
+    const toolButtons = [...el.shadowRoot.querySelectorAll('button[aria-pressed]')];
+    expect(toolButtons).toHaveLength(3);
+    expect(toolButtons.map((button) => button.textContent?.trim())).toEqual([
+      "Read flavors.ts",
+      "Edit ChurnSchedule.tsx +74 −41",
+      "Run npm run freeze",
+    ]);
+
+    (toolButtons[1] as HTMLButtonElement).click();
+    let selected = [...el.shadowRoot.querySelectorAll('button[aria-pressed]')].find(
+      (button) => button.textContent?.includes("ChurnSchedule.tsx"),
+    ) as HTMLButtonElement;
+    expect(selected.getAttribute("aria-pressed")).toBe("true");
+    expect(selected.classList.contains("bg-inset")).toBe(true);
+
+    selected.click();
+    selected = [...el.shadowRoot.querySelectorAll('button[aria-pressed]')].find(
+      (button) => button.textContent?.includes("ChurnSchedule.tsx"),
+    ) as HTMLButtonElement;
+    expect(selected.getAttribute("aria-pressed")).toBe("false");
+    expect(selected.classList.contains("hover:bg-hover")).toBe(true);
+  });
+
+  test("<nai-thinking> advances from two active Steps rows to all completed rows", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-thinking") as any;
+    document.body.appendChild(el);
+
+    vi.advanceTimersByTime(1_400);
+    let rows = [...el.shadowRoot.querySelectorAll(".min-h-7")];
+    expect(rows).toHaveLength(2);
+    expect(rows[1].textContent).toContain("Scanning supplier lists");
+    expect(
+      (rows[1].querySelector("span[style]") as HTMLElement)?.style.animation,
+    ).toBe("spin 700ms linear infinite");
+
+    vi.advanceTimersByTime(1_800);
+    rows = [...el.shadowRoot.querySelectorAll(".min-h-7")];
+    expect(rows).toHaveLength(4);
+    expect(rows[3].textContent).toContain("Writing the scoop report");
+    expect(rows.every((row) => row.querySelector('svg path[d="M20 6L9 17l-5-5"]'))).toBe(
+      true,
+    );
   });
 
   test("<nai-streaming-text> exposes the settled React actions, sources drawer, and follow-ups", () => {
@@ -986,20 +1136,176 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(visibleRows.length).toBe(2);
   });
 
-  test("<nai-selection-actions> runs action and resets state", () => {
+  test("<nai-selection-actions> uses the frozen in-flow geometry without a ResizeObserver overlay", () => {
+    vi.useFakeTimers();
+    const observers: unknown[] = [];
+    class UnexpectedResizeObserver {
+      constructor() {
+        observers.push(this);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", UnexpectedResizeObserver);
+
+    const el = document.createElement("nai-selection-actions") as any;
+    document.body.appendChild(el);
+    vi.advanceTimersByTime(280);
+
+    expect(observers).toEqual([]);
+    expect(el.shadowRoot.querySelector(".w-full")?.className).toBe(
+      "w-full max-w-[520px]",
+    );
+    expect(el.shadowRoot.querySelector(".relative.rounded-card")?.className).toBe(
+      "relative rounded-card border border-transparent px-3 py-4 sm:px-4",
+    );
+    expect(el.shadowRoot.querySelector(".selection-host")).toBeNull();
+    expect(el.shadowRoot.querySelector(".bar-wrapper.absolute")).toBeNull();
+    expect(el.shadowRoot.querySelector('[role="toolbar"]')?.parentElement?.className).toBe(
+      "mt-3 flex justify-center",
+    );
+
+  });
+
+  test("<nai-selection-actions> streams the exact rewrite through a stable selection node", () => {
+    vi.useFakeTimers();
     const el = document.createElement("nai-selection-actions") as any;
     document.body.appendChild(el);
 
-    expect(el.shadowRoot).toBeTruthy();
-    expect(el._mode).toBe("idle");
+    expect(el.shadowRoot.querySelector('[role="toolbar"]')).toBeNull();
+    vi.advanceTimersByTime(279);
+    expect(el.shadowRoot.querySelector('[role="toolbar"]')).toBeNull();
+    vi.advanceTimersByTime(1);
 
-    const improveBtn = el.shadowRoot.querySelector("#btn-improve");
-    expect(improveBtn).toBeTruthy();
-    improveBtn.click();
+    let toolbar = el.shadowRoot.querySelector('[role="toolbar"]') as HTMLElement;
+    expect(toolbar).toBeTruthy();
+    expect(toolbar.getAttribute("aria-label")).toBe("Selection actions");
+    expect(toolbar.getAttribute("aria-busy")).toBe("false");
+    expect(toolbar.className).toBe(
+      "flex min-h-11 max-w-full flex-wrap items-center justify-center gap-1 rounded-[22px] border border-line bg-surface p-1 font-sans text-ink shadow-overlay focus:outline-none",
+    );
+
+    const improve = [...toolbar.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Improve",
+    ) as HTMLButtonElement;
+    improve.focus();
+    improve.click();
+
+    toolbar = el.shadowRoot.querySelector('[role="toolbar"]') as HTMLElement;
+    expect(toolbar.getAttribute("aria-busy")).toBe("true");
+    expect(toolbar.textContent).toContain("Improving…");
+    expect(el.shadowRoot.activeElement).toBe(toolbar);
+
+    vi.advanceTimersByTime(700);
+    const selection = el.shadowRoot.querySelector(
+      "[data-selection-text]",
+    ) as HTMLElement;
+    expect(selection.querySelector(".stream-caret.is-streaming")).toBeTruthy();
+    vi.advanceTimersByTime(46);
+    expect(el.shadowRoot.querySelector("[data-selection-text]")).toBe(selection);
+    expect(selection.textContent?.trim()).toBe("Churn");
+    expect(selection.querySelector("span.inline")?.getAttribute("style")).toContain(
+      "stream-in 420ms",
+    );
+
+    vi.advanceTimersByTime(3_000);
+    expect(el.shadowRoot.querySelector("[data-selection-text]")).toBe(selection);
+    expect(selection.textContent).toBe(
+      "Churn pistachio first thing Saturday so the batch has time to fully firm before the afternoon rush.",
+    );
+    const keep = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Keep",
+    ) as HTMLButtonElement;
+    expect(keep).toBeTruthy();
+    expect(el.shadowRoot.querySelector('[role="status"]')?.textContent).toContain(
+      "Improved text ready",
+    );
+    expect(el.shadowRoot.activeElement).toBe(keep);
+  });
+
+  test("<nai-selection-actions> cancels pending work through its single public reset path", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-selection-actions") as any;
+    document.body.appendChild(el);
+    vi.advanceTimersByTime(280);
+
+    const input = el.shadowRoot.querySelector(
+      'input[aria-label="Describe edits"]',
+    ) as HTMLInputElement;
+    input.value = "Make it more direct";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    const improve = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Improve",
+    ) as HTMLButtonElement;
+    improve.click();
     expect(el._mode).toBe("thinking");
 
     el.reset();
     expect(el._mode).toBe("idle");
+    expect(
+      (el.shadowRoot.querySelector(
+        'input[aria-label="Describe edits"]',
+      ) as HTMLInputElement).value,
+    ).toBe("");
+    vi.advanceTimersByTime(5_000);
+
+    expect(el._mode).toBe("idle");
+    expect(el.shadowRoot.querySelector(".stream-caret")).toBeNull();
+    expect(
+      [...el.shadowRoot.querySelectorAll("button")].some(
+        (button) => button.textContent?.trim() === "Keep",
+      ),
+    ).toBe(false);
+    expect(el.shadowRoot.querySelector("[data-selection-text]")?.textContent).toBe(
+      "Churn it first thing Saturday so the batch has time to firm up before the afternoon rush.",
+    );
+  });
+
+  test("<nai-selection-actions> supports exact expanded, explanation, and reset controls", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-selection-actions") as any;
+    el.setAttribute("lang", "zh");
+    document.body.appendChild(el);
+    vi.advanceTimersByTime(280);
+
+    let more = el.shadowRoot.querySelector(
+      'button[aria-label="展开更多操作"]',
+    ) as HTMLButtonElement;
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    more.click();
+    more = el.shadowRoot.querySelector(
+      'button[aria-label="收起更多操作"]',
+    ) as HTMLButtonElement;
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    for (const label of ["精简", "语气", "语法"]) {
+      expect(
+        [...el.shadowRoot.querySelectorAll("button")].some(
+          (button) => button.textContent?.trim() === label,
+        ),
+      ).toBe(true);
+    }
+
+    const explain = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "解释",
+    ) as HTMLButtonElement;
+    explain.click();
+    vi.advanceTimersByTime(700);
+
+    const note = el.shadowRoot.querySelector('[role="note"]');
+    expect(note).toBeTruthy();
+    expect(note?.textContent ?? "").toContain(
+      "这句话把周六的搅拌任务设为优先事项",
+    );
+    const done = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "完成",
+    ) as HTMLButtonElement;
+    expect(done).toBeTruthy();
+    done.click();
+    expect(el._mode).toBe("idle");
+    expect(el.shadowRoot.querySelector('[role="status"]')?.textContent).toContain(
+      "说明已关闭",
+    );
+    expect(el.shadowRoot.activeElement?.textContent?.trim()).toBe("优化");
   });
 
   test("<nai-audio-orb> switches voice state and toggles mute", () => {

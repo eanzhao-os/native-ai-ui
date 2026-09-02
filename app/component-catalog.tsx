@@ -228,6 +228,8 @@ const VANILLA_DEFAULT_ATTRIBUTES: Record<string, Record<string, string>> = {
 };
 
 const FULL_WIDTH_VANILLA_COMPONENTS = new Set([
+  "thinking",
+  "selection-actions",
   "session-list",
   "authorization-surface",
   "settings-editor",

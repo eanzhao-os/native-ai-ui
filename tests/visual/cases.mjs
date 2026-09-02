@@ -3020,6 +3020,177 @@ async function selectTask13Allocation({ canvas, page }) {
 
 /* TASK 13 VISUAL ACTIONS END */
 
+/* TASK 14 VISUAL ACTIONS START */
+async function stabilizeTask14ThinkingHeader(canvas) {
+  await freezeCaseMotion(canvas);
+  await canvas.evaluate((root) => {
+    const scope = root.querySelector("nai-thinking")?.shadowRoot ?? root;
+    const component = scope.querySelector(".min-h-\\[176px\\]");
+    component?.style.setProperty("transform", "translateZ(0)");
+    component?.getBoundingClientRect();
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+  });
+}
+
+async function assertTask14ThinkingInitial({ canvas }) {
+  await stabilizeTask14ThinkingHeader(canvas);
+}
+
+async function assertTask14ThinkingActive({ canvas }) {
+  const toggle = canvas.getByRole("button", {
+    name: /Thinking|深度思考中/,
+  });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Thinking active trace remained collapsed");
+  }
+  await canvas
+    .getByText(/Scanning supplier lists|扫描合规原料供应商名录/)
+    .waitFor();
+  await stabilizeTask14ThinkingHeader(canvas);
+}
+
+async function assertTask14ThinkingRemaining({ canvas }) {
+  const toggle = canvas.getByRole("button", {
+    name: /Thought for 4 seconds|已深度思考 4 秒/,
+  });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Thinking remaining rows were not expanded");
+  }
+  await canvas
+    .getByText(/Writing the scoop report|生成冰淇淋上架评估报告/)
+    .waitFor();
+  await stabilizeTask14ThinkingHeader(canvas);
+}
+
+async function expandTask14Thinking({ canvas }) {
+  const toggle = canvas.getByRole("button", {
+    name: /Thought for 4 seconds|已深度思考 4 秒/,
+  });
+  if ((await toggle.getAttribute("aria-expanded")) !== "false") {
+    throw new Error("Thinking settled trace did not reset to collapsed");
+  }
+  await toggle.click();
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    throw new Error("Thinking settled trace did not expand");
+  }
+  await canvas
+    .getByText(/Writing the scoop report|生成冰淇淋上架评估报告/)
+    .waitFor();
+  await stabilizeTask14ThinkingHeader(canvas);
+}
+
+async function showTask14SelectionInitial({ advance, canvas, page }) {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await advance(1);
+  if ((await canvas.getByRole("toolbar").count()) !== 0) {
+    throw new Error("Selection toolbar mounted before its 280ms reveal");
+  }
+}
+
+async function assertTask14SelectionSelected(args) {
+  await revealTask14Selection(args);
+  const { canvas } = args;
+  const toolbar = canvas.getByRole("toolbar", {
+    name: /Selection actions|选中文本操作/,
+  });
+  await toolbar.waitFor();
+  if ((await toolbar.getAttribute("aria-busy")) !== "false") {
+    throw new Error("Selection toolbar did not begin idle");
+  }
+  const text = (await canvas.locator("[data-selection-text]").textContent())?.trim();
+  if (!/Churn it first thing Saturday|周六一开工就先搅拌这一批/.test(text ?? "")) {
+    throw new Error("Selection highlight did not contain the selected text");
+  }
+}
+
+async function revealTask14Selection({ advance, canvas, page }) {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await advance(1);
+  await advance(300);
+  await canvas.getByRole("button", { name: /^(Improve|优化)$/ }).waitFor();
+}
+
+async function activateTask14Selection(args) {
+  await revealTask14Selection(args);
+  await args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  const toolbar = args.canvas.getByRole("toolbar", {
+    name: /Selection actions|选中文本操作/,
+  });
+  if ((await toolbar.getAttribute("aria-busy")) !== "true") {
+    throw new Error("Selection action did not enter its active state");
+  }
+  await args.canvas.getByText(/^(Improving|优化)…$/).waitFor();
+}
+
+async function streamTask14Selection(args) {
+  await activateTask14Selection(args);
+  await args.advance(700);
+  await args.advance(46);
+  const selected = args.canvas.locator("[data-selection-text]");
+  const text = (await selected.textContent())?.trim();
+  if (!text || !/^(Churn|周)/.test(text)) {
+    throw new Error("Selection action did not stream visible text");
+  }
+  if ((await selected.locator(".stream-caret.is-streaming").count()) !== 1) {
+    throw new Error("Selection streaming state omitted its caret");
+  }
+}
+
+async function resetTask14Selection(args) {
+  await revealTask14Selection(args);
+  await args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }).click();
+  await args.advance(4_000);
+  await args.canvas.getByRole("button", { name: /^(Discard|放弃)$/ }).click();
+  await args.canvas.getByRole("status").getByText(/Changes discarded|已放弃修改/).waitFor();
+  const text = (await args.canvas.locator("[data-selection-text]").textContent())?.trim();
+  if (!/Churn it first thing Saturday|周六一开工就先搅拌这一批/.test(text ?? "")) {
+    throw new Error("Selection reset did not restore the committed text");
+  }
+  const toolbar = args.canvas.getByRole("toolbar", {
+    name: /Selection actions|选中文本操作/,
+  });
+  if ((await toolbar.getAttribute("aria-busy")) !== "false") {
+    throw new Error("Selection reset left the toolbar busy");
+  }
+}
+
+const TASK14_VISUAL_RUNNER = process.argv[1]?.endsWith(
+  "scripts/run-visual-parity.mjs",
+);
+const TASK14_CASES = TASK14_VISUAL_RUNNER
+  ? [
+      [
+        "loading-state",
+        [
+          { name: "initial", advanceMs: 0 },
+          { name: "elapsed", advanceMs: 2600 },
+        ],
+      ],
+      [
+        "thinking",
+        [
+          { name: "initial", advanceMs: 0, action: assertTask14ThinkingInitial },
+          { name: "active", advanceMs: 1400, action: assertTask14ThinkingActive },
+          { name: "remaining", advanceMs: 3200, action: assertTask14ThinkingRemaining },
+          { name: "expanded", advanceMs: 5800, action: expandTask14Thinking },
+        ],
+      ],
+      [
+        "selection-actions",
+        [
+          { name: "initial", advanceMs: 0, action: showTask14SelectionInitial },
+          { name: "selected", advanceMs: 0, action: assertTask14SelectionSelected },
+          { name: "active", advanceMs: 0, action: activateTask14Selection },
+          { name: "streaming", advanceMs: 0, action: streamTask14Selection },
+          { name: "reset", advanceMs: 0, action: resetTask14Selection },
+        ],
+      ],
+    ]
+  : [];
+/* TASK 14 VISUAL ACTIONS END */
+
 /**
  * @typedef {{
  *   action?: (args: {
@@ -3081,6 +3252,9 @@ export const CASES = new Map([
   /* TASK 7 VISUAL REGISTRATIONS START */
   ...TASK7_CASES,
   /* TASK 7 VISUAL REGISTRATIONS END */
+  /* TASK 14 VISUAL REGISTRATIONS START */
+  ...TASK14_CASES,
+  /* TASK 14 VISUAL REGISTRATIONS END */
 ]);
 
 export function casesForComponent(componentId) {
