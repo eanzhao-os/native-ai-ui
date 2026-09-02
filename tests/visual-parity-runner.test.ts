@@ -1626,8 +1626,26 @@ describe("registry-derived visual case inventory", () => {
       advanceMs,
       name,
     }))).toEqual([
+      { name: "initial", advanceMs: 0 },
+      { name: "active", advanceMs: 1400 },
+      { name: "remaining", advanceMs: 3200 },
       { name: "settled", advanceMs: 6000 },
       { name: "expanded", advanceMs: 6000 },
+    ]);
+    expect(CASES.get("selection-actions")?.map(({ name }) => name)).toEqual([
+      "idle",
+      "expanded",
+      "prompted",
+      "thinking",
+      "streaming",
+      "result",
+      "kept",
+      "focused",
+      "initial",
+      "selected",
+      "active",
+      "streaming-first-token",
+      "reset",
     ]);
     expect(CASES.get("streaming-text")?.map(({ name, advanceMs }) => ({
       advanceMs,

@@ -382,12 +382,15 @@ export class NaiSelectionActions extends NaiBaseElement {
     return `<button type="button" class="${primaryClass}">${icons.check}${zh ? "保留" : "Keep"}</button><button type="button" class="${controlClass}">${icons.close}${zh ? "放弃" : "Discard"}</button><span class="mx-0.5 h-5 w-px shrink-0 bg-line" aria-hidden="true"></span><button type="button" aria-label="${zh ? "重试" : "Try again"}" class="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors motion-reduce:transition-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent">${icons.retry}</button>`;
   }
 
+  _sendMarkup(resolved) {
+    const zh = this.isZh;
+    return `<button type="submit"${resolved ? "" : " disabled"} aria-label="${zh ? "发送编辑指令" : "Send edit instruction"}" class="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-canvas disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent">${icons.send}</button>`;
+  }
+
   _idleMarkup() {
     const zh = this.isZh;
     const resolved = resolveCustomPrompt(this._prompt, zh);
-    const send = this._prompt.trim()
-      ? `<button type="submit"${resolved ? "" : " disabled"} aria-label="${zh ? "发送编辑指令" : "Send edit instruction"}" class="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-canvas disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent">${icons.send}</button>`
-      : "";
+    const send = this._prompt.trim() ? this._sendMarkup(resolved) : "";
     const extra = this._expanded
       ? `<button type="button" class="${controlClass}">${icons.shorten}${zh ? "精简" : "Shorten"}</button><button type="button" class="${controlClass}">${icons.tone}${zh ? "语气" : "Tone"}</button><button type="button" class="${controlClass}">${icons.grammar}${zh ? "语法" : "Grammar"}</button>`
       : "";
@@ -396,6 +399,23 @@ export class NaiSelectionActions extends NaiBaseElement {
       : zh ? "展开更多操作" : "Show more actions";
 
     return `<form class="flex min-h-9 min-w-[148px] flex-1 items-center sm:flex-none"><input value="${escapeHtml(this._prompt)}" aria-label="${zh ? "描述修改要求" : "Describe edits"}" placeholder="${zh ? "描述修改要求" : "Describe edits"}" class="h-9 min-w-0 flex-1 bg-transparent pr-2 pl-3 text-[12px] text-ink placeholder:text-ink-3 focus:outline-none">${send}</form><span class="mx-0.5 h-5 w-px shrink-0 bg-line" aria-hidden="true"></span><button type="button" class="${controlClass}">${icons.explain}${zh ? "解释" : "Explain"}</button><button type="button" class="${controlClass}">${icons.improve}${zh ? "优化" : "Improve"}</button>${extra}<button type="button" aria-label="${expandLabel}" aria-expanded="${this._expanded}" class="flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-[background-color,transform] duration-200 motion-reduce:transition-none hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"><span class="flex transition-transform duration-200 motion-reduce:transition-none ${this._expanded ? "rotate-180" : "rotate-0"}">${icons.chevron}</span></button>`;
+  }
+
+  _syncPromptControl(input) {
+    const form = input.closest("form");
+    if (!form) return;
+
+    const resolved = resolveCustomPrompt(this._prompt, this.isZh);
+    let send = form.querySelector('button[type="submit"]');
+    if (!this._prompt.trim()) {
+      send?.remove();
+      return;
+    }
+    if (!send) {
+      form.insertAdjacentHTML("beforeend", this._sendMarkup(resolved));
+      send = form.querySelector('button[type="submit"]');
+    }
+    if (send) send.disabled = !resolved;
   }
 
   _renderToolbar() {
@@ -454,13 +474,8 @@ export class NaiSelectionActions extends NaiBaseElement {
     const input = this._toolbar.querySelector("input");
     input?.addEventListener("input", (event) => {
       this._prompt = event.target.value;
-      this._renderToolbar();
+      this._syncPromptControl(event.target);
       this._renderStatus();
-      const next = this._toolbar?.querySelector("input");
-      if (next) {
-        next.focus();
-        next.selectionStart = next.selectionEnd = this._prompt.length;
-      }
     });
     this._toolbar.querySelector("form")?.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -583,6 +598,10 @@ export class NaiSelectionActions extends NaiBaseElement {
       );
       this._stream = { count: 0, units: streamUnits(this._draftText) };
       this._mode = "streaming";
+      if (this._reducedMotion) {
+        this._finishStream();
+        return;
+      }
       this.render();
       this._startStream(token);
     }, 700);

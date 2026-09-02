@@ -132,7 +132,10 @@ const TASK5A_CASES = [
   [
     "thinking",
     [
-      { name: "settled", advanceMs: 6000 },
+      { name: "initial", advanceMs: 0, action: assertTask14ThinkingInitial },
+      { name: "active", advanceMs: 1400, action: assertTask14ThinkingActive },
+      { name: "remaining", advanceMs: 3200, action: assertTask14ThinkingRemaining },
+      { name: "settled", advanceMs: 6000, action: assertTask14ThinkingInitial },
       { name: "expanded", advanceMs: 6000, action: expandSettledThinking },
     ],
   ],
@@ -1839,7 +1842,9 @@ async function expandSelectionToolbar({ canvas }) {
   }
 }
 
-async function promptSelectionToolbar({ canvas }) {
+async function promptSelectionToolbar(args) {
+  await revealTask14Selection(args);
+  const { canvas } = args;
   const input = canvas.getByRole("textbox", {
     name: /Describe edits|描述修改要求/,
   });
@@ -1849,6 +1854,7 @@ async function promptSelectionToolbar({ canvas }) {
   if ((await input.inputValue()) !== value) {
     throw new Error("Selection edit prompt did not retain its value");
   }
+  await stabilizeTask14SelectionRoot(canvas);
 }
 
 async function enableSelectionMotion({ advance, canvas, page }) {
@@ -1889,12 +1895,13 @@ async function keepSelectionRewrite(args) {
 }
 
 async function focusSelectionImprove(args) {
-  await args.page.emulateMedia({ reducedMotion: "reduce" });
+  await revealTask14Selection(args);
   await focusTask10Control(
     args,
     args.canvas.getByRole("button", { name: /^(Improve|优化)$/ }),
     "Selection Improve control",
   );
+  await stabilizeTask14SelectionRoot(args.canvas);
 }
 
 const TASK10_CASES = [
@@ -1945,14 +1952,19 @@ const TASK10_CASES = [
   [
     "selection-actions",
     [
-      { name: "idle", advanceMs: 300 },
+      { name: "idle", advanceMs: 0, action: assertTask14SelectionSelected },
       { name: "expanded", advanceMs: 300, action: expandSelectionToolbar },
-      { name: "prompted", advanceMs: 300, action: promptSelectionToolbar },
+      { name: "prompted", advanceMs: 0, action: promptSelectionToolbar },
       { name: "thinking", advanceMs: 300, action: startSelectionRewrite },
       { name: "streaming", advanceMs: 300, action: streamSelectionRewrite },
       { name: "result", advanceMs: 300, action: finishSelectionRewrite },
       { name: "kept", advanceMs: 300, action: keepSelectionRewrite },
-      { name: "focused", advanceMs: 300, action: focusSelectionImprove },
+      { name: "focused", advanceMs: 0, action: focusSelectionImprove },
+      { name: "initial", advanceMs: 0, action: showTask14SelectionInitial },
+      { name: "selected", advanceMs: 0, action: assertTask14SelectionSelected },
+      { name: "active", advanceMs: 0, action: activateTask14Selection },
+      { name: "streaming-first-token", advanceMs: 0, action: streamTask14Selection },
+      { name: "reset", advanceMs: 0, action: resetTask14Selection },
     ],
   ],
 ];
@@ -3021,17 +3033,25 @@ async function selectTask13Allocation({ canvas, page }) {
 /* TASK 13 VISUAL ACTIONS END */
 
 /* TASK 14 VISUAL ACTIONS START */
-async function stabilizeTask14ThinkingHeader(canvas) {
+async function stabilizeTask14PaintLayer(canvas, tag, selector) {
   await freezeCaseMotion(canvas);
-  await canvas.evaluate((root) => {
-    const scope = root.querySelector("nai-thinking")?.shadowRoot ?? root;
-    const component = scope.querySelector(".min-h-\\[176px\\]");
+  await canvas.evaluate((root, options) => {
+    const scope = root.querySelector(`nai-${options.tag}`)?.shadowRoot ?? root;
+    const component = scope.querySelector(options.selector);
     component?.style.setProperty("transform", "translateZ(0)");
     component?.getBoundingClientRect();
     return new Promise((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(resolve));
     });
-  });
+  }, { tag, selector });
+}
+
+async function stabilizeTask14ThinkingHeader(canvas) {
+  await stabilizeTask14PaintLayer(canvas, "thinking", ".min-h-\\[176px\\]");
+}
+
+async function stabilizeTask14SelectionRoot(canvas) {
+  await stabilizeTask14PaintLayer(canvas, "selection-actions", ".max-w-\\[520px\\]");
 }
 
 async function assertTask14ThinkingInitial({ canvas }) {
@@ -3057,23 +3077,6 @@ async function assertTask14ThinkingRemaining({ canvas }) {
   });
   if ((await toggle.getAttribute("aria-expanded")) !== "true") {
     throw new Error("Thinking remaining rows were not expanded");
-  }
-  await canvas
-    .getByText(/Writing the scoop report|生成冰淇淋上架评估报告/)
-    .waitFor();
-  await stabilizeTask14ThinkingHeader(canvas);
-}
-
-async function expandTask14Thinking({ canvas }) {
-  const toggle = canvas.getByRole("button", {
-    name: /Thought for 4 seconds|已深度思考 4 秒/,
-  });
-  if ((await toggle.getAttribute("aria-expanded")) !== "false") {
-    throw new Error("Thinking settled trace did not reset to collapsed");
-  }
-  await toggle.click();
-  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
-    throw new Error("Thinking settled trace did not expand");
   }
   await canvas
     .getByText(/Writing the scoop report|生成冰淇淋上架评估报告/)
@@ -3156,39 +3159,6 @@ async function resetTask14Selection(args) {
   }
 }
 
-const TASK14_VISUAL_RUNNER = process.argv[1]?.endsWith(
-  "scripts/run-visual-parity.mjs",
-);
-const TASK14_CASES = TASK14_VISUAL_RUNNER
-  ? [
-      [
-        "loading-state",
-        [
-          { name: "initial", advanceMs: 0 },
-          { name: "elapsed", advanceMs: 2600 },
-        ],
-      ],
-      [
-        "thinking",
-        [
-          { name: "initial", advanceMs: 0, action: assertTask14ThinkingInitial },
-          { name: "active", advanceMs: 1400, action: assertTask14ThinkingActive },
-          { name: "remaining", advanceMs: 3200, action: assertTask14ThinkingRemaining },
-          { name: "expanded", advanceMs: 5800, action: expandTask14Thinking },
-        ],
-      ],
-      [
-        "selection-actions",
-        [
-          { name: "initial", advanceMs: 0, action: showTask14SelectionInitial },
-          { name: "selected", advanceMs: 0, action: assertTask14SelectionSelected },
-          { name: "active", advanceMs: 0, action: activateTask14Selection },
-          { name: "streaming", advanceMs: 0, action: streamTask14Selection },
-          { name: "reset", advanceMs: 0, action: resetTask14Selection },
-        ],
-      ],
-    ]
-  : [];
 /* TASK 14 VISUAL ACTIONS END */
 
 /**
@@ -3252,9 +3222,6 @@ export const CASES = new Map([
   /* TASK 7 VISUAL REGISTRATIONS START */
   ...TASK7_CASES,
   /* TASK 7 VISUAL REGISTRATIONS END */
-  /* TASK 14 VISUAL REGISTRATIONS START */
-  ...TASK14_CASES,
-  /* TASK 14 VISUAL REGISTRATIONS END */
 ]);
 
 export function casesForComponent(componentId) {

@@ -1164,7 +1164,50 @@ describe("Vanilla ES Modules & Web Components", () => {
     expect(el.shadowRoot.querySelector('[role="toolbar"]')?.parentElement?.className).toBe(
       "mt-3 flex justify-center",
     );
+  });
 
+  test("<nai-selection-actions> preserves the prompt input and caret while updating controls", () => {
+    vi.useFakeTimers();
+    const el = document.createElement("nai-selection-actions") as any;
+    document.body.appendChild(el);
+    vi.advanceTimersByTime(280);
+
+    const input = el.shadowRoot.querySelector(
+      'input[aria-label="Describe edits"]',
+    ) as HTMLInputElement;
+    input.focus();
+    input.value = "Make it more direct";
+    input.setSelectionRange(4, 4);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(el.shadowRoot.querySelector('input[aria-label="Describe edits"]')).toBe(
+      input,
+    );
+    expect(input.selectionStart).toBe(4);
+    expect(input.selectionEnd).toBe(4);
+    expect(
+      (el.shadowRoot.querySelector(
+        'button[aria-label="Send edit instruction"]',
+      ) as HTMLButtonElement).disabled,
+    ).toBe(false);
+
+    input.value = "Unsupported edit";
+    input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(el.shadowRoot.querySelector('input[aria-label="Describe edits"]')).toBe(
+      input,
+    );
+    expect(input.selectionStart).toBe(3);
+    expect(input.selectionEnd).toBe(3);
+    expect(
+      (el.shadowRoot.querySelector(
+        'button[aria-label="Send edit instruction"]',
+      ) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(el.shadowRoot.querySelector('[role="status"]')?.textContent).toContain(
+      "Unsupported instruction",
+    );
   });
 
   test("<nai-selection-actions> streams the exact rewrite through a stable selection node", () => {
@@ -1221,6 +1264,43 @@ describe("Vanilla ES Modules & Web Components", () => {
       "Improved text ready",
     );
     expect(el.shadowRoot.activeElement).toBe(keep);
+  });
+
+  test("<nai-selection-actions> skips animated streaming when reduced motion changes during thinking", () => {
+    vi.useFakeTimers();
+    let reduced = false;
+    const listeners = new Set<(event: { matches: boolean }) => void>();
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches: reduced,
+      addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => {
+        listeners.add(listener);
+      },
+      removeEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => {
+        listeners.delete(listener);
+      },
+    })));
+
+    const el = document.createElement("nai-selection-actions") as any;
+    document.body.appendChild(el);
+    vi.advanceTimersByTime(280);
+    const improve = [...el.shadowRoot.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Improve",
+    ) as HTMLButtonElement;
+    improve.click();
+    expect(el._mode).toBe("thinking");
+
+    reduced = true;
+    for (const listener of listeners) listener({ matches: true });
+    vi.advanceTimersByTime(700);
+
+    expect(el._mode).toBe("result");
+    expect(el.shadowRoot.querySelector(".stream-caret")).toBeNull();
+    expect(el.shadowRoot.querySelector("[data-selection-text]")?.textContent).toBe(
+      "Churn pistachio first thing Saturday so the batch has time to fully firm before the afternoon rush.",
+    );
+    expect(el.shadowRoot.querySelector('[role="status"]')?.textContent).toContain(
+      "Improved text ready",
+    );
   });
 
   test("<nai-selection-actions> cancels pending work through its single public reset path", () => {
